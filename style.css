@@ -216,13 +216,26 @@ body::before {
 }
 .char-card:hover .card-bg { transform: scale(1.04); }
 
-.placeholder-icon {
+.class-symbol {
   position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -65%);
-  font-size: 52px;
-  opacity: 0.18;
+  bottom: 38%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 48px;
+  opacity: 0.22;
   pointer-events: none;
+  filter: saturate(0.4);
+}
+
+.card-spec {
+  font-size: 9px;
+  font-weight: 400;
+  color: rgba(160, 200, 168, 0.55);
+  margin-top: 2px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-info {
@@ -266,12 +279,13 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
   cursor: pointer;
   opacity: 0;
   z-index: 10;
   transition: opacity 0.15s, background 0.15s, color 0.15s, transform 0.15s;
-  /* no padding — SVG is the icon, flex handles centering */
 }
+.card-close svg { width: 8px; height: 8px; display: block; flex-shrink: 0; }
 .char-card:hover .card-close { opacity: 1; }
 .card-close:hover {
   background: rgba(180, 40, 40, 0.75);
@@ -369,8 +383,39 @@ body::before {
   border-color: rgba(58, 138, 80, 0.55);
   box-shadow: 0 0 0 2px rgba(58, 138, 80, 0.12);
 }
+/* Prevent browser autofill white/yellow background */
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #0a1410 inset;
+  -webkit-text-fill-color: var(--text-primary);
+  transition: background-color 9999s;
+}
 .form-group select { cursor: pointer; }
 .form-group select option { background: #0c1410; }
+
+.autocomplete-wrap { position: relative; }
+
+.autocomplete-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: #0e1a12;
+  border: 1px solid rgba(58, 138, 80, 0.3);
+  border-radius: 6px;
+  z-index: 200;
+  overflow: hidden;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+}
+.autocomplete-dropdown.open { display: block; }
+.autocomplete-item {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-realm);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.autocomplete-item:hover { background: rgba(58, 138, 80, 0.15); color: var(--text-primary); }
 
 .modal-actions {
   display: flex;
