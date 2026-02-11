@@ -1,10 +1,10 @@
 # Innkeeper
 
 ## Disclaimer
-This app does NOT replace Armory in any way, shape or form, be respectful.
+This app does NOT replace Armory in any way, shape or form.
 
-It a personal project to push my skills further while I play the game!
-I like the Armory, so I though of a similar but more digestible idea to display basic infos and have it on your desktop basically.
+It's a personal project to push my skills further while I play/learn the game!
+I like the Armory, so I though of a similar but more digestible idea to display basic infos and have it on your desktop basically and keeping track of multiple characters this way is quicker in my opinion ~
 
 ## Description 
 It's a minimal and simple World of Warcraft tracker to check basic informations such as:
