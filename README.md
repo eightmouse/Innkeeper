@@ -11,7 +11,7 @@ It's a minimal and simple World of Warcraft tracker to check basic informations 
 - Dailies
 - Weeklies
 - World Quests
-- And more to come!
+- Coming Soon ~
 
 ## Note
 Download is not available yet, I'm still building the app and I want it to have enough features and stability before releasing it to the pubblic.
