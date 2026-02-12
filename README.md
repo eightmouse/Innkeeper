@@ -8,10 +8,14 @@ I like the Armory, so I though of a similar but more digestible idea to display 
 
 ## Description 
 It's a minimal and simple World of Warcraft tracker to check basic informations such as:
-- Dailies
-- Weeklies
-- World Quests
-- Coming Soon ~
+- Activities
+  - Raid
+  - Mythic +
+  - Expeditions
+  - World Quests
+  - Reset Timers
+- Character Equipment
+- More coming ~
 
 ## Note
 Download is not available yet, I'm still building the app and I want it to have enough features and stability before releasing it to the pubblic.
