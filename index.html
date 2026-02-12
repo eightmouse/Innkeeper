@@ -2,9 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Innkeeper</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -44,7 +42,7 @@
 
 <button id="add-btn" title="Add Character">+</button>
 
-<!-- Add Character Modal -->
+<!-- ── Add Character Modal ─────────────────────── -->
 <div id="add-modal" class="modal-overlay">
   <div class="modal">
     <h2>Add Character</h2>
@@ -75,11 +73,11 @@
   </div>
 </div>
 
-<!-- Delete Confirm Modal -->
+<!-- ── Delete Confirm Modal ───────────────────── -->
 <div id="delete-modal" class="modal-overlay">
   <div class="modal">
     <h2>Remove Character</h2>
-    <p id="delete-modal-msg" style="font-size:13px; color:var(--text-muted); margin-bottom:20px; line-height:1.5;"></p>
+    <p id="delete-modal-msg" style="font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.5;"></p>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="delete-cancel">Cancel</button>
       <button class="btn btn-danger" id="delete-confirm">Remove</button>
@@ -87,26 +85,19 @@
   </div>
 </div>
 
-<!-- Info Modal -->
+<!-- ── Info Modal ─────────────────────────────── -->
 <div id="info-modal" class="modal-overlay">
   <div class="modal">
     <h2>About Innkeeper</h2>
     <div class="info-body">
       <p class="info-line">Track your WoW characters' weekly and daily activities across realms.</p>
       <div class="info-divider"></div>
-      <div class="info-row">
-        <span class="info-label">Author</span>
-        <span class="info-value">Eightmouse</span>
-      </div>
+      <div class="info-row"><span class="info-label">Author</span><span class="info-value">Eightmouse</span></div>
       <div class="info-row">
         <span class="info-label">GitHub</span>
-        <!-- Update this href to your GitHub URL -->
         <a class="info-link" id="github-link" href="https://github.com/eightmouse">github.com/eightmouse</a>
       </div>
-      <div class="info-row">
-        <span class="info-label">Version</span>
-        <span class="info-value">0.9</span>
-      </div>
+      <div class="info-row"><span class="info-label">Version</span><span class="info-value">0.9</span></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="info-close">Close</button>
@@ -114,32 +105,64 @@
   </div>
 </div>
 
-<!-- Character Detail Modal -->
+<!-- ── Character Detail Modal (Armory-style) ──── -->
 <div id="detail-overlay" class="modal-overlay">
   <div id="detail-modal">
-    <div class="detail-banner" id="detail-banner">
-      <button class="detail-close" id="detail-close">
-        <svg width="10" height="10" viewBox="0 0 10 10"><line x1="0.5" y1="0.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="9.5" y1="0.5" x2="0.5" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      </button>
-      <div class="detail-identity">
+
+    <!-- Header bar -->
+    <div class="detail-header">
+      <div class="detail-header-avatar" id="detail-avatar"></div>
+      <div class="detail-header-info">
         <div class="detail-name" id="detail-name">—</div>
         <div class="detail-sub" id="detail-sub">—</div>
       </div>
+      <button class="detail-close" id="detail-close">
+        <svg width="10" height="10" viewBox="0 0 10 10"><line x1="0.5" y1="0.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="9.5" y1="0.5" x2="0.5" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
     </div>
+
+    <!-- Body: activities left | armory right -->
     <div class="detail-body">
-      <div class="detail-section-title">Activities</div>
-      <div id="detail-activities"></div>
-      <div class="reset-info">
-        <div class="detail-section-title" style="margin-bottom:8px; border:none; padding:0;">Reset Timers</div>
-        <div class="reset-row">
-          <span class="reset-label">Daily reset</span>
-          <span class="reset-value" id="reset-daily">—</span>
-        </div>
-        <div class="reset-row">
-          <span class="reset-label">Weekly reset</span>
-          <span class="reset-value" id="reset-weekly">—</span>
+
+      <!-- LEFT: Activities & Reset timers -->
+      <div class="detail-left">
+        <div class="detail-section-title">Activities</div>
+        <div id="detail-activities"></div>
+
+        <div class="reset-info">
+          <div class="detail-section-title" style="border:none;padding:0;margin-bottom:8px;">Reset Timers</div>
+          <div class="reset-row">
+            <span class="reset-label">Daily</span>
+            <span class="reset-value" id="reset-daily">—</span>
+          </div>
+          <div class="reset-row">
+            <span class="reset-label">Weekly</span>
+            <span class="reset-value" id="reset-weekly">—</span>
+          </div>
         </div>
       </div>
+
+      <!-- RIGHT: Armory view (equip-left | portrait | equip-right) -->
+      <div class="detail-right">
+        <div class="armory-view">
+
+          <!-- Left equipment column -->
+          <div class="equip-col equip-left" id="equip-left"></div>
+
+          <!-- Center portrait -->
+          <div class="armory-portrait" id="armory-portrait">
+            <div class="armory-loading" id="armory-loading">
+              <div class="loading-spinner"></div>
+              <div class="loading-text">Loading gear…</div>
+            </div>
+          </div>
+
+          <!-- Right equipment column -->
+          <div class="equip-col equip-right" id="equip-right"></div>
+
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -170,22 +193,44 @@ const ACTIVITY_META = {
   'World Quests': { icon: '📜' },
 };
 
+// WoW item quality colors
+const QUALITY_COLOR = {
+  POOR:      '#9d9d9d',
+  COMMON:    '#e8e8e8',
+  UNCOMMON:  '#1eff00',
+  RARE:      '#0070dd',
+  EPIC:      '#a335ee',
+  LEGENDARY: '#ff8000',
+  ARTIFACT:  '#e6cc80',
+  HEIRLOOM:  '#00ccff',
+};
+
+// Armory slot layout — left col top-to-bottom, right col top-to-bottom
+const EQUIP_LEFT  = ['HEAD','NECK','SHOULDER','BACK','CHEST','SHIRT','TABARD','WRIST'];
+const EQUIP_RIGHT = ['HANDS','WAIST','LEGS','FEET','RING_1','RING_2','TRINKET_1','TRINKET_2'];
+const SLOT_LABEL  = {
+  HEAD:'Head', NECK:'Neck', SHOULDER:'Shoulder', BACK:'Back',
+  CHEST:'Chest', SHIRT:'Shirt', TABARD:'Tabard', WRIST:'Wrist',
+  HANDS:'Hands', WAIST:'Waist', LEGS:'Legs', FEET:'Feet',
+  RING_1:'Ring', RING_2:'Ring', TRINKET_1:'Trinket', TRINKET_2:'Trinket',
+  MAIN_HAND:'Main Hand', OFF_HAND:'Off Hand', TWOHANDED:'Two-Hand',
+};
+
 // Per-class atmospheric card backgrounds — [gradient, symbol emoji]
-// Class IDs match Blizzard's playable-class IDs (1–13)
 const CLASS_BG = {
-  1:  ['radial-gradient(ellipse at 50% 100%, #6b3a10 0%, #3a1a06 45%, #130804 100%)', '⚔️'],  // Warrior
-  2:  ['radial-gradient(ellipse at 50% 100%, #7a5c10 0%, #3a2806 48%, #120c04 100%)', '🛡️'],  // Paladin
-  3:  ['radial-gradient(ellipse at 50% 100%, #183a10 0%, #0c2008 48%, #060e04 100%)', '🏹'],  // Hunter
-  4:  ['radial-gradient(ellipse at 50% 100%, #2a2210 0%, #161008 50%, #080604 100%)', '🗡️'],  // Rogue
-  5:  ['radial-gradient(ellipse at 50% 100%, #303030 0%, #181818 48%, #080808 100%)', '✨'],  // Priest
-  6:  ['radial-gradient(ellipse at 30% 90%, #6e0e0e 0%, #1a0a18 45%, #04040e 100%)', '💀'],  // Death Knight
-  7:  ['radial-gradient(ellipse at 50% 100%, #0e2a4a 0%, #081828 48%, #030810 100%)', '⚡'],  // Shaman
-  8:  ['radial-gradient(ellipse at 50% 100%, #1a0e4a 0%, #0e0830 50%, #040210 100%)', '🔮'],  // Mage
-  9:  ['radial-gradient(ellipse at 50% 100%, #1c0e3a 0%, #0c0820 50%, #04020e 100%)', '🔥'],  // Warlock
-  10: ['radial-gradient(ellipse at 50% 100%, #0a3018 0%, #061a0e 48%, #020a06 100%)', '🌿'],  // Monk
-  11: ['radial-gradient(ellipse at 50% 100%, #2a3a08 0%, #141e04 48%, #080a02 100%)', '🍂'],  // Druid
-  12: ['radial-gradient(ellipse at 50% 100%, #200a3a 0%, #100420 50%, #04010e 100%)', '👁️'],  // Demon Hunter
-  13: ['radial-gradient(ellipse at 50% 100%, #083a2a 0%, #041e16 48%, #020e0a 100%)', '🐉'],  // Evoker
+  1:  ['radial-gradient(ellipse at 50% 110%, #6b3a10 0%, #2a1006 50%, #0a0402 100%)', '⚔️'],
+  2:  ['radial-gradient(ellipse at 50% 110%, #7a5c10 0%, #3a2406 50%, #100a02 100%)', '🛡️'],
+  3:  ['radial-gradient(ellipse at 50% 110%, #183a10 0%, #091e06 50%, #030802 100%)', '🏹'],
+  4:  ['radial-gradient(ellipse at 50% 110%, #2a2210 0%, #140e04 50%, #060402 100%)', '🗡️'],
+  5:  ['radial-gradient(ellipse at 50% 110%, #323232 0%, #1a1a1a 50%, #080808 100%)', '✨'],
+  6:  ['radial-gradient(ellipse at 30% 110%, #780e0e 0%, #1c0818 50%, #040210 100%)', '💀'],
+  7:  ['radial-gradient(ellipse at 50% 110%, #0e2a4a 0%, #061422 50%, #02060e 100%)', '⚡'],
+  8:  ['radial-gradient(ellipse at 50% 110%, #1a0e4a 0%, #0c0828 50%, #03020e 100%)', '🔮'],
+  9:  ['radial-gradient(ellipse at 50% 110%, #1c0e3a 0%, #0c0820 50%, #03020a 100%)', '🔥'],
+  10: ['radial-gradient(ellipse at 50% 110%, #0a3018 0%, #051808 50%, #020804 100%)', '🌿'],
+  11: ['radial-gradient(ellipse at 50% 110%, #2a3a08 0%, #141e04 50%, #060802 100%)', '🍂'],
+  12: ['radial-gradient(ellipse at 50% 110%, #200a3a 0%, #100420 50%, #04010e 100%)', '👁️'],
+  13: ['radial-gradient(ellipse at 50% 110%, #083a2a 0%, #041e16 50%, #02080a 100%)', '🐉'],
 };
 
 function showToast(msg, isError = false) {
@@ -218,21 +263,27 @@ function formatTimeUntil(date) {
   return { text: h > 0 ? `${h}h ${m}m` : `${m}m`, cls: h < 2 ? 'soon' : '' };
 }
 
+// ── Grid ─────────────────────────────────────────
+
 function renderGrid() {
   const grid  = document.getElementById('character-grid');
   const empty = document.getElementById('empty-state');
   grid.innerHTML = '';
+
   if (!characters.length) { empty.classList.add('visible'); return; }
   empty.classList.remove('visible');
 
   characters.forEach((char, idx) => {
-    const card      = document.createElement('div');
-    card.className  = 'char-card';
+    const card     = document.createElement('div');
+    card.className = 'char-card';
 
-    const [gradient, symbol] = CLASS_BG[char.class_id] || ['radial-gradient(ellipse at 50% 100%, #0c1a10 0%, #060e08 100%)', '🧙'];
-    const bgStyle = char.portrait_url
-      ? `background-image: url('${char.portrait_url}'); background-size: cover; background-position: center top;`
-      : `background: ${gradient};`;
+    const [gradient, symbol] = CLASS_BG[char.class_id] || ['radial-gradient(ellipse at 50% 110%, #0c1a10 0%, #060e08 100%)', '🧙'];
+
+    // portrait_url is the Blizzard 'main' asset — the full armory scene with class background
+    const hasBg    = !!char.portrait_url;
+    const bgStyle  = hasBg
+      ? `background-image:url('${char.portrait_url}');background-size:cover;background-position:center 15%;`
+      : `background:${gradient};`;
 
     const specLine = (char.class_name || char.spec_name)
       ? `<div class="card-spec">${[char.spec_name, char.class_name].filter(Boolean).join(' · ')}</div>`
@@ -244,25 +295,20 @@ function renderGrid() {
 
     card.innerHTML = `
       <div class="card-bg" style="${bgStyle}">
-        ${!char.portrait_url ? `<div class="class-symbol">${symbol}</div>` : ''}
+        ${!hasBg ? `<div class="class-symbol">${symbol}</div>` : ''}
       </div>
       <button class="card-close" title="Remove">
-        <svg viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <line x1="1" y1="1" x2="7" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="7" y1="1" x2="1" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
+        <svg viewBox="0 0 8 8" fill="none"><line x1="1" y1="1" x2="7" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="7" y1="1" x2="1" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
       <div class="card-info">
-        <div class="card-name">${char.name} (${char.level})</div>
+        <div class="card-name">${char.name} <span class="card-level">${char.level}</span></div>
         <div class="card-realm">${char.realm}</div>
         ${specLine}
         <div class="card-activities">${pips}</div>
       </div>
     `;
 
-    card.querySelector('.card-close').addEventListener('click', (e) => {
-      e.stopPropagation(); openDeleteModal(idx);
-    });
+    card.querySelector('.card-close').addEventListener('click', e => { e.stopPropagation(); openDeleteModal(idx); });
     card.addEventListener('click', () => openDetail(idx));
     grid.appendChild(card);
   });
@@ -274,30 +320,46 @@ function updateCardPip(charIdx, activityName, isDone) {
   const keys   = Object.keys(characters[charIdx].activities);
   const pipIdx = keys.indexOf(activityName);
   const pips   = card.querySelectorAll('.activity-pip');
-  if (pips[pipIdx]) {
-    pips[pipIdx].className = `activity-pip ${isDone ? 'done' : 'available'}`;
-  }
+  if (pips[pipIdx]) pips[pipIdx].className = `activity-pip ${isDone ? 'done' : 'available'}`;
 }
 
-function openDetail(idx) {
-  detailIndex  = idx;
-  const char   = characters[idx];
-  const banner = document.getElementById('detail-banner');
-  const [gradient] = CLASS_BG[char.class_id] || ['radial-gradient(ellipse at 50% 100%, #0c1a10 0%, #060e08 100%)', '🧙'];
+// ── Detail Modal ──────────────────────────────────
 
-  if (char.portrait_url) {
-    banner.style.backgroundImage    = `url('${char.portrait_url}')`;
-    banner.style.backgroundSize     = 'cover';
-    banner.style.backgroundPosition = 'center top';
+function openDetail(idx) {
+  detailIndex = idx;
+  const char  = characters[idx];
+  const [gradient] = CLASS_BG[char.class_id] || ['radial-gradient(ellipse at 50% 110%, #0c1a10 0%, #060e08 100%)'];
+
+  // Header avatar
+  const avatarEl = document.getElementById('detail-avatar');
+  if (char.avatar_url) {
+    avatarEl.style.backgroundImage    = `url('${char.avatar_url}')`;
+    avatarEl.style.backgroundSize     = 'cover';
+    avatarEl.style.backgroundPosition = 'center top';
   } else {
-    banner.style.backgroundImage = gradient;
-    banner.style.backgroundSize  = '';
+    avatarEl.style.backgroundImage = gradient;
+    avatarEl.style.backgroundSize  = '';
   }
 
-  document.getElementById('detail-name').textContent = `${char.name} (${char.level})`;
+  document.getElementById('detail-name').textContent = `${char.name}`;
   const subParts = [char.realm, char.class_name, char.spec_name].filter(Boolean);
   document.getElementById('detail-sub').textContent  = subParts.join(' · ');
 
+  // Portrait center with class bg behind it
+  const portrait = document.getElementById('armory-portrait');
+  if (char.portrait_url) {
+    portrait.style.backgroundImage    = `url('${char.portrait_url}')`;
+    portrait.style.backgroundSize     = 'contain';
+    portrait.style.backgroundRepeat   = 'no-repeat';
+    portrait.style.backgroundPosition = 'center bottom';
+  } else {
+    portrait.style.backgroundImage = gradient;
+    portrait.style.backgroundSize  = '';
+  }
+  // Tint the portrait bg with the class gradient behind it
+  portrait.style.setProperty('--class-grad', gradient);
+
+  // Activities
   const actList = document.getElementById('detail-activities');
   actList.innerHTML = '';
   Object.entries(char.activities || {}).forEach(([name, data]) => {
@@ -316,14 +378,17 @@ function openDetail(idx) {
         <div class="toggle-slider"></div>
       </label>
     `;
-    row.querySelector('input').addEventListener('change', (e) => {
+    row.querySelector('input').addEventListener('change', e => {
       toggleActivity(idx, name, e.target.checked);
     });
     actList.appendChild(row);
   });
 
   updateResetTimers();
+
+  // Show modal, then load equipment
   document.getElementById('detail-overlay').classList.add('open');
+  loadEquipment(char);
 }
 
 function closeDetail() {
@@ -341,6 +406,55 @@ function updateResetTimers() {
 }
 setInterval(() => { if (detailIndex !== null) updateResetTimers(); }, 60000);
 
+// ── Equipment panel ───────────────────────────────
+
+function loadEquipment(char) {
+  document.getElementById('equip-left').innerHTML  = '';
+  document.getElementById('equip-right').innerHTML = '';
+  document.getElementById('armory-loading').style.display = 'flex';
+  sendToPython(`GET_EQUIPMENT:${char.region}:${char.realm}:${char.name}`);
+}
+
+function renderEquipment(items) {
+  document.getElementById('armory-loading').style.display = 'none';
+  // Map slot → item data
+  const bySlot = {};
+  items.forEach(item => { bySlot[item.slot] = item; });
+
+  renderEquipCol(document.getElementById('equip-left'),  EQUIP_LEFT,  bySlot, 'left');
+  renderEquipCol(document.getElementById('equip-right'), EQUIP_RIGHT, bySlot, 'right');
+}
+
+function renderEquipCol(container, slots, bySlot, side) {
+  container.innerHTML = '';
+  slots.forEach(slot => {
+    const item  = bySlot[slot];
+    const label = SLOT_LABEL[slot] || slot;
+    const row   = document.createElement('div');
+    row.className = `equip-row equip-row-${side}`;
+
+    if (item) {
+      const color   = QUALITY_COLOR[item.quality] || QUALITY_COLOR.COMMON;
+      const iconHtml = item.icon_url
+        ? `<div class="equip-icon" style="background-image:url('${item.icon_url}');border-color:${color}20;"></div>`
+        : `<div class="equip-icon equip-icon-empty"></div>`;
+      const nameHtml = `<div class="equip-info"><div class="equip-name" style="color:${color}">${item.name}</div><div class="equip-ilvl">${item.ilvl}</div></div>`;
+
+      row.innerHTML = side === 'left'
+        ? nameHtml + iconHtml
+        : iconHtml + nameHtml;
+    } else {
+      const emptyHtml = `<div class="equip-icon equip-icon-empty"></div><div class="equip-info"><div class="equip-name equip-empty-slot">${label}</div></div>`;
+      row.innerHTML = side === 'left'
+        ? `<div class="equip-info"><div class="equip-name equip-empty-slot">${label}</div></div><div class="equip-icon equip-icon-empty"></div>`
+        : emptyHtml;
+    }
+    container.appendChild(row);
+  });
+}
+
+// ── Activities ────────────────────────────────────
+
 function toggleActivity(charIdx, activityName, isDone) {
   const char = characters[charIdx];
   if (!char?.activities[activityName]) return;
@@ -348,6 +462,8 @@ function toggleActivity(charIdx, activityName, isDone) {
   updateCardPip(charIdx, activityName, isDone);
   sendToPython(`TOGGLE_ACTIVITY:${char.name}:${char.realm}:${activityName}`);
 }
+
+// ── Delete ────────────────────────────────────────
 
 function openDeleteModal(idx) {
   pendingDelete = idx;
@@ -374,35 +490,22 @@ document.getElementById('delete-confirm').addEventListener('click', () => {
   showToast(`${char.name} removed`);
 });
 
-// Realm autocomplete — fetch on region change, cache per region
-function loadRealms(region) {
-  if (realmCache[region]) {
-    populateDatalist(realmCache[region]);
-  } else {
-    sendToPython(`GET_REALMS:${region}`);
-  }
-}
-
 // ── Realm autocomplete ────────────────────────────
-function populateRealms(realms) {
-  realmCache[document.getElementById('input-region').value] = realms;
-}
 
 function showRealmSuggestions(query) {
-  const region  = document.getElementById('input-region').value;
-  const realms  = realmCache[region] || [];
+  const region   = document.getElementById('input-region').value;
+  const realms   = realmCache[region] || [];
   const dropdown = document.getElementById('realm-dropdown');
   if (!query || !realms.length) { dropdown.classList.remove('open'); return; }
 
-  const q       = query.toLowerCase();
-  const matches = realms.filter(r => r.toLowerCase().startsWith(q)).slice(0, 7);
-
+  const matches = realms.filter(r => r.toLowerCase().startsWith(query.toLowerCase())).slice(0, 7);
   if (!matches.length) { dropdown.classList.remove('open'); return; }
-  dropdown.innerHTML = matches.map(r =>
-    `<div class="autocomplete-item">${r}</div>`
-  ).join('');
+
+  dropdown.innerHTML = matches
+    .map(r => `<div class="autocomplete-item">${r}</div>`)
+    .join('');
   dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
-    item.addEventListener('mousedown', (e) => {
+    item.addEventListener('mousedown', e => {
       e.preventDefault();
       document.getElementById('input-realm').value = item.textContent;
       dropdown.classList.remove('open');
@@ -415,18 +518,17 @@ function loadRealms(region) {
   if (!realmCache[region]) sendToPython(`GET_REALMS:${region}`);
 }
 
-document.getElementById('input-region').addEventListener('change', (e) => {
-  loadRealms(e.target.value);
-  document.getElementById('realm-dropdown').classList.remove('open');
-});
-
-const realmInput = document.getElementById('input-realm');
-realmInput.addEventListener('input', () => showRealmSuggestions(realmInput.value));
-realmInput.addEventListener('blur',  () => setTimeout(() => document.getElementById('realm-dropdown').classList.remove('open'), 150));
-
-const addModal    = document.getElementById('add-modal');
-const inputName   = document.getElementById('input-name');
+const realmInput  = document.getElementById('input-realm');
 const inputRegion = document.getElementById('input-region');
+
+realmInput.addEventListener('input',  () => showRealmSuggestions(realmInput.value));
+realmInput.addEventListener('blur',   () => setTimeout(() => document.getElementById('realm-dropdown').classList.remove('open'), 150));
+inputRegion.addEventListener('change', e => { loadRealms(e.target.value); document.getElementById('realm-dropdown').classList.remove('open'); });
+
+// ── Add Modal ─────────────────────────────────────
+
+const addModal  = document.getElementById('add-modal');
+const inputName = document.getElementById('input-name');
 
 document.getElementById('add-btn').addEventListener('click', () => {
   addModal.classList.add('open');
@@ -436,16 +538,16 @@ document.getElementById('add-btn').addEventListener('click', () => {
 
 function closeAddModal() {
   addModal.classList.remove('open');
-  inputName.value = '';
-  document.getElementById('input-realm').value = '';
+  inputName.value  = '';
+  realmInput.value = '';
 }
 
 document.getElementById('modal-cancel').addEventListener('click', closeAddModal);
-addModal.addEventListener('click', (e) => { if (e.target === addModal) closeAddModal(); });
+addModal.addEventListener('click', e => { if (e.target === addModal) closeAddModal(); });
 
 document.getElementById('modal-submit').addEventListener('click', () => {
   const name   = inputName.value.trim();
-  const realm  = document.getElementById('input-realm').value.trim();
+  const realm  = realmInput.value.trim();
   const region = inputRegion.value;
   if (!name) { inputName.focus(); return; }
 
@@ -464,32 +566,28 @@ document.getElementById('modal-submit').addEventListener('click', () => {
   setTimeout(() => { btn.textContent = 'Search & Add'; btn.disabled = false; }, 500);
 });
 
-inputName.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('modal-submit').click();
-});
+inputName.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('modal-submit').click(); });
+
+// ── Other modals ──────────────────────────────────
 
 document.getElementById('detail-close').addEventListener('click', closeDetail);
-document.getElementById('detail-overlay').addEventListener('click', (e) => {
+document.getElementById('detail-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('detail-overlay')) closeDetail();
 });
 
-document.getElementById('menu-info').addEventListener('click', () => {
-  document.getElementById('info-modal').classList.add('open');
-});
-document.getElementById('info-close').addEventListener('click', () => {
-  document.getElementById('info-modal').classList.remove('open');
-});
-document.getElementById('info-modal').addEventListener('click', (e) => {
-  if (e.target === document.getElementById('info-modal'))
-    document.getElementById('info-modal').classList.remove('open');
+document.getElementById('menu-info').addEventListener('click', () => document.getElementById('info-modal').classList.add('open'));
+document.getElementById('info-close').addEventListener('click', () => document.getElementById('info-modal').classList.remove('open'));
+document.getElementById('info-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('info-modal')) document.getElementById('info-modal').classList.remove('open');
 });
 
-document.getElementById('github-link').addEventListener('click', (e) => {
+document.getElementById('github-link').addEventListener('click', e => {
   e.preventDefault();
-  const url = e.currentTarget.href;
-  if (ipcRenderer) ipcRenderer.send('open-external', url);
-  else window.open(url, '_blank');
+  if (ipcRenderer) ipcRenderer.send('open-external', e.currentTarget.href);
+  else window.open(e.currentTarget.href, '_blank');
 });
+
+// ── Electron IPC ──────────────────────────────────
 
 if (ipcRenderer) {
   document.getElementById('btn-close').addEventListener('click', () => ipcRenderer.send('window-close'));
@@ -499,6 +597,7 @@ if (ipcRenderer) {
   ipcRenderer.on('from-python', (event, raw) => {
     try {
       const data = JSON.parse(raw);
+
       if (Array.isArray(data)) { characters = data; renderGrid(); return; }
 
       if (data.status === 'added') {
@@ -510,8 +609,10 @@ if (ipcRenderer) {
       } else if (data.status === 'error') {
         showToast(data.message || 'Something went wrong', true);
       } else if (data.status === 'realms') {
-        populateRealms(data.realms);
+        realmCache[data.region] = data.realms;
         if (data.region === inputRegion.value) showRealmSuggestions(realmInput.value);
+      } else if (data.status === 'equipment') {
+        renderEquipment(data.items);
       }
     } catch (e) {
       console.error('from-python parse error:', e);
