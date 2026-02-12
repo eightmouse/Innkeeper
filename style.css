@@ -63,7 +63,8 @@ body::before {
 
 #titlebar-left {
   display: flex;
-  align-items: center;
+  align-items: stretch;
+  height: 100%;
   padding-left: 14px;
   gap: 14px;
 }
@@ -75,11 +76,14 @@ body::before {
   letter-spacing: 0.2em;
   color: #a0c8a8;
   text-shadow: 0 0 10px rgba(58, 138, 80, 0.4);
+  display: flex;
+  align-items: center;
 }
 
 #menubar {
   display: flex;
   align-items: stretch;
+  height: 100%;
   -webkit-app-region: no-drag;
 }
 
@@ -87,6 +91,7 @@ body::before {
   font-size: 12px;
   color: var(--text-muted);
   padding: 0 12px;
+  height: 100%;
   display: flex;
   align-items: center;
   cursor: pointer;
@@ -207,12 +212,13 @@ body::before {
 .char-card:nth-child(9)  { animation-delay: .18s }
 .char-card:nth-child(10) { animation-delay: .20s }
 
-/* Card background — Blizzard 'main' asset already includes class scene */
+/* Card background — Blizzard 'render' asset includes full class scene */
 .card-bg {
   position: absolute;
   inset: 0;
-  background-size: cover;
-  background-position: center 15%;
+  background-size: 140%;
+  background-position: center 22%;
+  background-repeat: no-repeat;
   transition: transform 0.4s ease;
 }
 .char-card:hover .card-bg { transform: scale(1.04); }
@@ -551,7 +557,7 @@ body::before {
 .armory-portrait {
   flex: 1;
   position: relative;
-  background: var(--class-grad, #0a1210) center bottom / contain no-repeat;
+  background: var(--class-grad, #0a1210) center bottom / 180% no-repeat;
   overflow: hidden;
 }
 /* Subtle vignette so equipment text stays readable */
@@ -586,6 +592,34 @@ body::before {
 }
 .loading-text { font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.equip-refresh-indicator {
+  display: none;
+  position: absolute;
+  bottom: 16px; right: 16px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(10, 20, 12, 0.92);
+  border: 1px solid rgba(58, 138, 80, 0.3);
+  border-radius: 20px;
+  z-index: 3;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.refresh-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(58, 138, 80, 0.25);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.refresh-text {
+  font-size: 10px;
+  color: var(--text-realm);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
 
 /* Equipment row */
 .equip-row {
