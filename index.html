@@ -192,8 +192,28 @@
 
       <!-- Talents Tab -->
       <div class="detail-tab-panel" id="panel-talents">
-        <div class="tab-content-full">
-          <div class="talent-embed-container" id="talent-embed"></div>
+        <div class="talent-container">
+          <div class="talent-sidebar">
+            <h3 class="talent-sidebar-title">Build Presets</h3>
+            <div class="build-preset-list" id="build-presets"></div>
+            <div class="talent-actions">
+              <a href="#" target="_blank" class="wowhead-link" id="wowhead-talent-link">
+                <span>View on WoWHead</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M10 6.5V10.5H1.5V2H5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  <path d="M7 1H11V5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  <path d="M11 1L6 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+          <div class="talent-tree-view">
+            <div class="talent-tree-header">
+              <h3 class="talent-tree-title" id="talent-tree-title">—</h3>
+              <p class="talent-tree-subtitle" id="talent-tree-subtitle">—</p>
+            </div>
+            <div class="talent-tree" id="talent-tree"></div>
+          </div>
         </div>
       </div>
 
@@ -331,7 +351,7 @@ function renderGrid() {
 
     const [gradient, symbol] = CLASS_BG[char.class_id] || ['radial-gradient(ellipse at 50% 110%, #0c1a10 0%, #060e08 100%)', '🧙'];
 
-    // Layer 1: WoWHead talent background at 110%
+    // Layer 1: WoWHead talent background - cover entire card
     // Layer 2: Character render at 210%, centered at Y: 25%
     const hasRender = !!char.portrait_url;
     const hasBg     = char.class_slug && char.spec_slug;
@@ -342,11 +362,11 @@ function renderGrid() {
       bgStyle = `
         background: 
           url('${char.portrait_url}') center 25%/210% no-repeat,
-          url('${talentBg}') center/110% no-repeat;
+          url('${talentBg}') center/cover no-repeat;
       `;
     } else if (hasBg) {
       const talentBg = `https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-${char.class_slug}-${char.spec_slug}.jpg`;
-      bgStyle = `background: url('${talentBg}') center/110% no-repeat;`;
+      bgStyle = `background: url('${talentBg}') center/cover no-repeat;`;
     } else if (hasRender) {
       bgStyle = `background: url('${char.portrait_url}') center 25%/210% no-repeat;`;
     } else {
@@ -495,14 +515,152 @@ function switchTab(tabName, char) {
 }
 
 function loadTalents(char) {
-  const container = document.getElementById('talent-embed');
   if (!char.class_slug || !char.spec_slug) {
-    container.innerHTML = '<div class="vault-placeholder">Talent data unavailable</div>';
+    document.getElementById('talent-tree-title').textContent = 'Talent data unavailable';
     return;
   }
-  // Embed WoWHead guide for this spec (recommended build)
-  const guideUrl = `https://www.wowhead.com/guide/classes/${char.class_slug}/${char.spec_slug}`;
-  container.innerHTML = `<iframe src="${guideUrl}" frameborder="0" allowfullscreen></iframe>`;
+
+  // Update WoWHead link
+  const wowheadLink = document.getElementById('wowhead-talent-link');
+  wowheadLink.href = `https://www.wowhead.com/guide/classes/${char.class_slug}/${char.spec_slug}`;
+
+  // Build presets with simulated talent selections
+  const builds = [
+    { 
+      id: 'raid', 
+      name: 'Raid', 
+      icon: '⚔️', 
+      desc: 'Single-target',
+      color: '#b03030',
+      talents: [1,2,3,5,6,9,10,11,13,14,17,18,19,21,22,25,26,29,30] // nodes that are "active"
+    },
+    { 
+      id: 'mythic', 
+      name: 'Mythic+', 
+      icon: '🔑', 
+      desc: 'AoE damage',
+      color: '#4ecb71',
+      talents: [0,2,4,5,7,8,10,12,13,15,16,18,20,22,24,25,27,28,30]
+    },
+    { 
+      id: 'pvp', 
+      name: 'PvP', 
+      icon: '⚔️', 
+      desc: 'Arena/BG',
+      color: '#9a6dd1',
+      talents: [0,1,3,4,6,7,9,11,12,14,15,17,19,20,23,24,26,28,29]
+    },
+    { 
+      id: 'leveling', 
+      name: 'Leveling', 
+      icon: '📈', 
+      desc: 'Fast questing',
+      color: '#e0b352',
+      talents: [0,2,3,5,8,9,10,13,14,16,17,20,21,23,25,26,28,30]
+    }
+  ];
+
+  // Populate build presets
+  const presetList = document.getElementById('build-presets');
+  presetList.innerHTML = builds.map((build, idx) => `
+    <button class="build-preset ${idx === 0 ? 'active' : ''}" 
+            data-build-id="${build.id}"
+            data-build-color="${build.color}"
+            data-build-talents="${build.talents.join(',')}">
+      <span class="preset-icon">${build.icon}</span>
+      <div class="preset-info">
+        <div class="preset-name">${build.name}</div>
+        <div class="preset-desc">${build.desc}</div>
+      </div>
+    </button>
+  `).join('');
+
+  // Wire up preset switching
+  document.querySelectorAll('.build-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.build-preset').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      const talents = btn.dataset.buildTalents.split(',').map(Number);
+      const color = btn.dataset.buildColor;
+      const buildName = btn.querySelector('.preset-name').textContent;
+      
+      renderTalentTree(char, talents, color, buildName);
+    });
+  });
+
+  // Render default build (Raid)
+  renderTalentTree(char, builds[0].talents, builds[0].color, builds[0].name);
+}
+
+function renderTalentTree(char, activeTalents, color, buildName) {
+  document.getElementById('talent-tree-title').textContent = `${char.spec_name} ${char.class_name}`;
+  document.getElementById('talent-tree-subtitle').textContent = `${buildName} Build`;
+
+  const tree = document.getElementById('talent-tree');
+  
+  // Create a simplified 7-row tree with connections
+  const rows = [
+    { nodes: 3, connections: [[0,1],[1,2]] },
+    { nodes: 5, connections: [[0,2],[2,4]] },
+    { nodes: 5, connections: [[1,2],[2,3]] },
+    { nodes: 5, connections: [[0,2],[2,4]] },
+    { nodes: 5, connections: [[1,2],[2,3]] },
+    { nodes: 5, connections: [[0,2],[2,4]] },
+    { nodes: 3, connections: [[0,1],[1,2]] }
+  ];
+
+  let nodeIndex = 0;
+  tree.innerHTML = '';
+
+  rows.forEach((row, rowIdx) => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'talent-row';
+    
+    // Add connections SVG
+    if (row.connections.length) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.classList.add('talent-connections');
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('height', '60');
+      
+      row.connections.forEach(([from, to]) => {
+        const fromX = (from + 0.5) / row.nodes * 100;
+        const toX = (to + 0.5) / row.nodes * 100;
+        
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', `${fromX}%`);
+        line.setAttribute('y1', '0');
+        line.setAttribute('x2', `${toX}%`);
+        line.setAttribute('y2', '60');
+        line.setAttribute('stroke', 'rgba(255,255,255,0.1)');
+        line.setAttribute('stroke-width', '1');
+        svg.appendChild(line);
+      });
+      
+      rowEl.appendChild(svg);
+    }
+
+    const nodesContainer = document.createElement('div');
+    nodesContainer.className = 'talent-nodes';
+    nodesContainer.style.gridTemplateColumns = `repeat(${row.nodes}, 1fr)`;
+
+    for (let i = 0; i < row.nodes; i++) {
+      const node = document.createElement('div');
+      node.className = 'talent-node';
+      
+      if (activeTalents.includes(nodeIndex)) {
+        node.classList.add('active');
+        node.style.setProperty('--talent-color', color);
+      }
+      
+      nodesContainer.appendChild(node);
+      nodeIndex++;
+    }
+
+    rowEl.appendChild(nodesContainer);
+    tree.appendChild(rowEl);
+  });
 }
 
 function loadVault(char) {
