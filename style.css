@@ -707,9 +707,14 @@ body::before {
   transition: all 0.2s;
 }
 
-/* First tab (Equipment) aligns with Activities section */
-.detail-tab:first-child {
+/* Equipment tab (1st) aligns with Activities section (240px) */
+.detail-tab:nth-child(1) {
   flex: 0 0 240px;
+}
+
+/* Talents tab (2nd) aligns with Build Presets section (220px) */
+.detail-tab:nth-child(2) {
+  flex: 0 0 220px;
 }
 
 .detail-tab:hover {
@@ -880,99 +885,32 @@ body::before {
 }
 
 /* Talent tree view */
+/* Talent tree view - iframe container */
 .talent-tree-view {
   flex: 1;
-  overflow-y: auto;
-  padding: 20px;
+  overflow: hidden;
+  padding: 0;
   display: flex;
   flex-direction: column;
 }
 
-.talent-tree-header {
-  text-align: center;
-  margin-bottom: 20px;
-  flex-shrink: 0;
-}
-
-.talent-tree-title {
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.talent-tree-subtitle {
-  font-size: 11px;
-  color: var(--text-muted);
-  letter-spacing: 0.05em;
-}
-
-.talent-tree-grid {
-  display: grid;
-  grid-template-columns: 200px 280px 200px;
-  gap: 20px;
-  justify-content: center;
+#talent-embed-frame {
   flex: 1;
-}
-
-.talent-column {
   position: relative;
-  background: rgba(0,0,0,0.15);
-  border: 1px solid rgba(58, 138, 80, 0.15);
-  border-radius: 8px;
-  padding: 16px;
-  min-height: 400px;
+  overflow: hidden;
+  background: rgba(0,0,0,0.2);
 }
 
-.talent-column-center {
-  background: rgba(58, 138, 80, 0.08);
-}
-
-.talent-column-title {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-realm);
-  text-align: center;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(58, 138, 80, 0.15);
-}
-
-.talent-connections-svg {
+#talent-embed-frame iframe {
   position: absolute;
-  top: 50px;
-  left: 16px;
-  pointer-events: none;
-  z-index: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 
-.talent-nodes-container {
-  position: relative;
-  z-index: 1;
-  min-height: 350px;
-}
-
-.talent-node-wow {
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  background: rgba(10, 20, 12, 0.9);
-  border: 2px solid rgba(255,255,255,0.25);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.talent-node-wow:hover {
-  transform: scale(1.1);
-  z-index: 10;
+/* Light theme talent support */
 }
 
 /* Quality borders */
@@ -1338,6 +1276,13 @@ body::before {
 }
 .activity-row-left { display: flex; align-items: center; gap: 8px; }
 .activity-icon  { font-size: 14px; }
+.activity-icon-img {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  border: 1px solid rgba(58, 138, 80, 0.3);
+}
 .activity-label { font-size: 12px; color: var(--text-primary); }
 .activity-reset-tag {
   font-size: 9px;
