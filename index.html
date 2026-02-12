@@ -302,18 +302,25 @@ function renderGrid() {
 
     const [gradient, symbol] = CLASS_BG[char.class_id] || ['radial-gradient(ellipse at 50% 110%, #0c1a10 0%, #060e08 100%)', '🧙'];
 
-    // WoWHead talent background + character render layered
+    // Layer 1: WoWHead talent background (bottom)
+    // Layer 2: Character render on top at larger scale
     const hasRender = !!char.portrait_url;
     const hasBg     = char.class_slug && char.spec_slug;
     
     let bgStyle = '';
-    if (hasBg) {
+    if (hasBg && hasRender) {
       const talentBg = `https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-${char.class_slug}-${char.spec_slug}.jpg`;
-      bgStyle = hasRender
-        ? `background: url('${talentBg}') center/cover, url('${char.portrait_url}') center 18%/160% no-repeat;`
-        : `background: url('${talentBg}') center/cover;`;
+      // Character render on top layer, talent bg on bottom layer
+      bgStyle = `
+        background: 
+          url('${char.portrait_url}') center 18%/175% no-repeat,
+          url('${talentBg}') center/cover;
+      `;
+    } else if (hasBg) {
+      const talentBg = `https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-${char.class_slug}-${char.spec_slug}.jpg`;
+      bgStyle = `background: url('${talentBg}') center/cover;`;
     } else if (hasRender) {
-      bgStyle = `background-image:url('${char.portrait_url}');`;
+      bgStyle = `background: url('${char.portrait_url}') center 18%/175% no-repeat;`;
     } else {
       bgStyle = `background:${gradient};`;
     }
@@ -377,20 +384,26 @@ function openDetail(idx) {
   const subParts = [char.realm, char.class_name, char.spec_name].filter(Boolean);
   document.getElementById('detail-sub').textContent  = subParts.join(' · ');
 
-  // Armory portrait with WoWHead talent background
+  // Armory portrait with WoWHead talent background spanning full view
   const portrait = document.getElementById('armory-portrait');
+  const armoryView = portrait.closest('.armory-view');
   const hasBg    = char.class_slug && char.spec_slug;
   
   if (hasBg) {
     const talentBg = `https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-${char.class_slug}-${char.spec_slug}.jpg`;
+    // Apply talent background to the full armory-view section
+    armoryView.style.background = `url('${talentBg}') center/cover`;
+    // Layer character render on top in the center portrait
     if (char.portrait_url) {
-      portrait.style.background = `url('${talentBg}') center/cover, url('${char.portrait_url}') center bottom/200% no-repeat`;
+      portrait.style.background = `url('${char.portrait_url}') center bottom/220% no-repeat`;
     } else {
-      portrait.style.background = `url('${talentBg}') center/cover`;
+      portrait.style.background = 'transparent';
     }
   } else if (char.portrait_url) {
-    portrait.style.backgroundImage = `url('${char.portrait_url}')`;
+    armoryView.style.background = '';
+    portrait.style.background = `url('${char.portrait_url}') center bottom/220% no-repeat`;
   } else {
+    armoryView.style.background = '';
     portrait.style.backgroundImage = gradient;
   }
   portrait.style.setProperty('--class-grad', gradient);
