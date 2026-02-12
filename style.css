@@ -35,31 +35,106 @@
 
 [data-theme="light"] body::before {
   background:
-    radial-gradient(ellipse 70% 60% at 50% 50%, rgba(230,245,230,0.6) 0%, transparent 70%),
-    linear-gradient(to bottom, rgba(240,250,240,0.5) 0%, rgba(230,245,235,0.7) 100%);
+    radial-gradient(ellipse 70% 60% at 50% 50%, rgba(230,245,230,0.4) 0%, transparent 70%),
+    linear-gradient(to bottom, rgba(250,255,250,0.3) 0%, rgba(240,250,245,0.45) 100%);
 }
 
 [data-theme="light"] #titlebar {
   background: rgba(250, 255, 250, 0.96);
-  border-bottom: 1px solid rgba(60, 140, 80, 0.25);
+  border-bottom: 1px solid rgba(60, 140, 80, 0.3);
+}
+
+[data-theme="light"] #titlebar-title {
+  color: #2a5a35;
+  text-shadow: 0 0 10px rgba(42, 122, 64, 0.3);
+}
+
+[data-theme="light"] .menu-item {
+  color: #4a7a58;
+}
+
+[data-theme="light"] .menu-item:hover {
+  background: rgba(58, 138, 80, 0.15);
+  color: #1a3a1a;
+}
+
+[data-theme="light"] .win-btn {
+  color: rgba(60, 100, 70, 0.6);
+}
+
+[data-theme="light"] .win-btn:hover {
+  background: rgba(58, 138, 80, 0.15);
+  color: rgba(42, 90, 55, 0.95);
 }
 
 [data-theme="light"] .modal {
   background: linear-gradient(175deg, #f5faf5 0%, #e8f0e8 100%);
+  border: 1px solid rgba(58, 138, 80, 0.35);
+}
+
+[data-theme="light"] .modal h2 {
+  color: #2a5a35;
 }
 
 [data-theme="light"] #detail-modal {
   background: linear-gradient(175deg, #f8fcf8 0%, #e8f0e8 100%);
+  border: 1px solid rgba(58, 138, 80, 0.35);
 }
 
 [data-theme="light"] .detail-header {
-  background: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.4);
+  border-bottom: 1px solid rgba(58, 138, 80, 0.2);
+}
+
+[data-theme="light"] .detail-header-avatar {
+  border: 2px solid rgba(58, 138, 80, 0.4);
+}
+
+[data-theme="light"] .detail-name {
+  color: #1a3a1a;
+}
+
+[data-theme="light"] .detail-left {
+  border-right: 1px solid rgba(58, 138, 80, 0.2);
 }
 
 [data-theme="light"] .armory-portrait::before {
   background:
-    linear-gradient(to right,  rgba(232,240,232,0.4) 0%, transparent 25%, transparent 75%, rgba(232,240,232,0.4) 100%),
-    linear-gradient(to bottom, rgba(232,240,232,0.2) 0%, transparent 20%, transparent 70%, rgba(232,240,232,0.3) 100%);
+    linear-gradient(to right,  rgba(248,252,248,0.5) 0%, transparent 25%, transparent 75%, rgba(248,252,248,0.5) 100%),
+    linear-gradient(to bottom, rgba(248,252,248,0.3) 0%, transparent 20%, transparent 70%, rgba(248,252,248,0.4) 100%);
+}
+
+[data-theme="light"] .equip-row:hover {
+  background: rgba(58, 138, 80, 0.08);
+}
+
+[data-theme="light"] .equip-icon {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(58, 138, 80, 0.3);
+}
+
+[data-theme="light"] .equip-icon-empty {
+  background: rgba(240, 250, 245, 0.7);
+  border: 1px dashed rgba(58, 138, 80, 0.25);
+}
+
+[data-theme="light"] .card-name,
+[data-theme="light"] .activity-label {
+  color: #1a3a1a;
+}
+
+[data-theme="light"] .autocomplete-dropdown {
+  background: #f8fcf8;
+  border: 1px solid rgba(58, 138, 80, 0.35);
+}
+
+[data-theme="light"] .autocomplete-item {
+  color: #3a6a48;
+}
+
+[data-theme="light"] .autocomplete-item:hover {
+  background: rgba(58, 138, 80, 0.12);
+  color: #1a3a1a;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -427,6 +502,21 @@ body::before {
   -webkit-text-fill-color: var(--text-primary);
   transition: background-color 9999s;
 }
+[data-theme="light"] .form-group input,
+[data-theme="light"] .form-group select {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(58, 138, 80, 0.35);
+  color: #1a3a1a;
+}
+[data-theme="light"] .form-group input:-webkit-autofill,
+[data-theme="light"] .form-group input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #f8fcf8 inset;
+  -webkit-text-fill-color: #1a3a1a;
+}
+[data-theme="light"] .form-group select option {
+  background: #f5faf5;
+  color: #1a3a1a;
+}
 .form-group select { cursor: pointer; }
 .form-group select option { background: #0c1410; }
 
@@ -634,11 +724,10 @@ body::before {
 }
 .equip-col::-webkit-scrollbar { display: none; }
 
-/* Center portrait */
+/* Center portrait - background now set inline per character */
 .armory-portrait {
   flex: 1;
   position: relative;
-  background: var(--class-grad, #0a1210) center bottom / 180% no-repeat;
   overflow: hidden;
 }
 /* Subtle vignette so equipment text stays readable */
