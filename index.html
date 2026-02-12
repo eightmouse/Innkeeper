@@ -140,49 +140,78 @@
       </button>
     </div>
 
-    <!-- Body: activities left | armory right -->
+    <!-- Tab bar -->
+    <div class="detail-tabs">
+      <button class="detail-tab active" data-tab="equipment">Equipment</button>
+      <button class="detail-tab" data-tab="talents">Talents</button>
+      <button class="detail-tab" data-tab="vault">Vault</button>
+      <button class="detail-tab" data-tab="professions">Professions</button>
+    </div>
+
+    <!-- Body: tab content panels -->
     <div class="detail-body">
 
-      <!-- LEFT: Activities & Reset timers -->
-      <div class="detail-left">
-        <div class="detail-section-title">Activities</div>
-        <div id="detail-activities"></div>
+      <!-- Equipment Tab (default) -->
+      <div class="detail-tab-panel active" id="panel-equipment">
+        <!-- LEFT: Activities & Reset timers -->
+        <div class="detail-left">
+          <div class="detail-section-title">Activities</div>
+          <div id="detail-activities"></div>
 
-        <div class="reset-info">
-          <div class="detail-section-title" style="border:none;padding:0;margin-bottom:8px;">Reset Timers</div>
-          <div class="reset-row">
-            <span class="reset-label">Daily</span>
-            <span class="reset-value" id="reset-daily">—</span>
+          <div class="reset-info">
+            <div class="detail-section-title" style="border:none;padding:0;margin-bottom:8px;">Reset Timers</div>
+            <div class="reset-row">
+              <span class="reset-label">Daily</span>
+              <span class="reset-value" id="reset-daily">—</span>
+            </div>
+            <div class="reset-row">
+              <span class="reset-label">Weekly</span>
+              <span class="reset-value" id="reset-weekly">—</span>
+            </div>
           </div>
-          <div class="reset-row">
-            <span class="reset-label">Weekly</span>
-            <span class="reset-value" id="reset-weekly">—</span>
+        </div>
+
+        <!-- RIGHT: Armory view (equip-left | portrait | equip-right) -->
+        <div class="detail-right">
+          <div class="armory-view">
+            <div class="equip-col equip-left" id="equip-left"></div>
+            <div class="armory-portrait" id="armory-portrait">
+              <div class="armory-loading" id="armory-loading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading gear…</div>
+              </div>
+              <div class="equip-refresh-indicator" id="equip-refresh-indicator">
+                <div class="refresh-spinner"></div>
+                <div class="refresh-text">Checking for changes…</div>
+              </div>
+            </div>
+            <div class="equip-col equip-right" id="equip-right"></div>
           </div>
         </div>
       </div>
 
-      <!-- RIGHT: Armory view (equip-left | portrait | equip-right) -->
-      <div class="detail-right">
-        <div class="armory-view">
+      <!-- Talents Tab -->
+      <div class="detail-tab-panel" id="panel-talents">
+        <div class="tab-content-full">
+          <div class="talent-embed-container" id="talent-embed"></div>
+        </div>
+      </div>
 
-          <!-- Left equipment column -->
-          <div class="equip-col equip-left" id="equip-left"></div>
-
-          <!-- Center portrait -->
-          <div class="armory-portrait" id="armory-portrait">
-            <div class="armory-loading" id="armory-loading">
-              <div class="loading-spinner"></div>
-              <div class="loading-text">Loading gear…</div>
-            </div>
-            <div class="equip-refresh-indicator" id="equip-refresh-indicator">
-              <div class="refresh-spinner"></div>
-              <div class="refresh-text">Checking for changes…</div>
-            </div>
+      <!-- Vault Tab -->
+      <div class="detail-tab-panel" id="panel-vault">
+        <div class="tab-content-full">
+          <div class="vault-content" id="vault-content">
+            <div class="vault-placeholder">Vault data coming soon...</div>
           </div>
+        </div>
+      </div>
 
-          <!-- Right equipment column -->
-          <div class="equip-col equip-right" id="equip-right"></div>
-
+      <!-- Professions Tab -->
+      <div class="detail-tab-panel" id="panel-professions">
+        <div class="tab-content-full">
+          <div class="professions-content">
+            <div class="vault-placeholder">Profession tracking coming soon...</div>
+          </div>
         </div>
       </div>
 
@@ -302,25 +331,24 @@ function renderGrid() {
 
     const [gradient, symbol] = CLASS_BG[char.class_id] || ['radial-gradient(ellipse at 50% 110%, #0c1a10 0%, #060e08 100%)', '🧙'];
 
-    // Layer 1: WoWHead talent background (bottom)
-    // Layer 2: Character render on top at larger scale
+    // Layer 1: WoWHead talent background at 110%
+    // Layer 2: Character render at 210%, centered at Y: 25%
     const hasRender = !!char.portrait_url;
     const hasBg     = char.class_slug && char.spec_slug;
     
     let bgStyle = '';
     if (hasBg && hasRender) {
       const talentBg = `https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-${char.class_slug}-${char.spec_slug}.jpg`;
-      // Character render on top layer, talent bg on bottom layer
       bgStyle = `
         background: 
-          url('${char.portrait_url}') center 18%/175% no-repeat,
-          url('${talentBg}') center/cover;
+          url('${char.portrait_url}') center 25%/210% no-repeat,
+          url('${talentBg}') center/110% no-repeat;
       `;
     } else if (hasBg) {
       const talentBg = `https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-${char.class_slug}-${char.spec_slug}.jpg`;
-      bgStyle = `background: url('${talentBg}') center/cover;`;
+      bgStyle = `background: url('${talentBg}') center/110% no-repeat;`;
     } else if (hasRender) {
-      bgStyle = `background: url('${char.portrait_url}') center 18%/175% no-repeat;`;
+      bgStyle = `background: url('${char.portrait_url}') center 25%/210% no-repeat;`;
     } else {
       bgStyle = `background:${gradient};`;
     }
@@ -391,17 +419,20 @@ function openDetail(idx) {
   
   if (hasBg) {
     const talentBg = `https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-${char.class_slug}-${char.spec_slug}.jpg`;
-    // Apply talent background to the full armory-view section
-    armoryView.style.background = `url('${talentBg}') center/cover`;
-    // Layer character render on top in the center portrait
+    // Full-width gradient for text readability + talent background
+    armoryView.style.background = `
+      linear-gradient(to right, rgba(6,10,8,0.85) 0%, rgba(6,10,8,0.15) 18%, rgba(6,10,8,0.15) 82%, rgba(6,10,8,0.85) 100%),
+      url('${talentBg}') center/cover no-repeat
+    `;
+    // Center character render in portrait area
     if (char.portrait_url) {
-      portrait.style.background = `url('${char.portrait_url}') center bottom/220% no-repeat`;
+      portrait.style.background = `url('${char.portrait_url}') center 65%/180% no-repeat`;
     } else {
       portrait.style.background = 'transparent';
     }
   } else if (char.portrait_url) {
-    armoryView.style.background = '';
-    portrait.style.background = `url('${char.portrait_url}') center bottom/220% no-repeat`;
+    armoryView.style.background = 'linear-gradient(to right, rgba(6,10,8,0.85) 0%, rgba(6,10,8,0.15) 18%, rgba(6,10,8,0.15) 82%, rgba(6,10,8,0.85) 100%)';
+    portrait.style.background = `url('${char.portrait_url}') center 65%/180% no-repeat`;
   } else {
     armoryView.style.background = '';
     portrait.style.backgroundImage = gradient;
@@ -435,9 +466,48 @@ function openDetail(idx) {
 
   updateResetTimers();
 
+  // Switch to Equipment tab by default
+  switchTab('equipment', char);
+
   // Show modal, then load equipment
   document.getElementById('detail-overlay').classList.add('open');
   loadEquipment(char);
+}
+
+function switchTab(tabName, char) {
+  // Update tab button states
+  document.querySelectorAll('.detail-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  
+  // Update panel visibility
+  document.querySelectorAll('.detail-tab-panel').forEach(panel => {
+    panel.classList.remove('active');
+  });
+  document.getElementById(`panel-${tabName}`).classList.add('active');
+
+  // Load tab-specific content
+  if (tabName === 'talents' && char) {
+    loadTalents(char);
+  } else if (tabName === 'vault' && char) {
+    loadVault(char);
+  }
+}
+
+function loadTalents(char) {
+  const container = document.getElementById('talent-embed');
+  if (!char.class_slug || !char.spec_slug) {
+    container.innerHTML = '<div class="vault-placeholder">Talent data unavailable</div>';
+    return;
+  }
+  // Embed WoWHead guide for this spec (recommended build)
+  const guideUrl = `https://www.wowhead.com/guide/classes/${char.class_slug}/${char.spec_slug}`;
+  container.innerHTML = `<iframe src="${guideUrl}" frameborder="0" allowfullscreen></iframe>`;
+}
+
+function loadVault(char) {
+  const container = document.getElementById('vault-content');
+  container.innerHTML = '<div class="vault-placeholder">Vault tracking coming in next update...</div>';
 }
 
 function closeDetail() {
@@ -458,10 +528,21 @@ setInterval(() => { if (detailIndex !== null) updateResetTimers(); }, 60000);
 // ── Equipment panel ───────────────────────────────
 
 function loadEquipment(char) {
-  document.getElementById('equip-left').innerHTML  = '';
-  document.getElementById('equip-right').innerHTML = '';
-  document.getElementById('armory-loading').style.display = 'flex';
-  sendToPython(`GET_EQUIPMENT:${char.region}:${char.realm}:${char.name}`);
+  const loadingEl = document.getElementById('armory-loading');
+  
+  // If we have cached equipment, show it immediately
+  if (char.equipment && char.equipment.length > 0) {
+    renderEquipment(char.equipment);
+    loadingEl.style.display = 'none';
+    // Trigger background refresh if cache is stale
+    sendToPython(`GET_EQUIPMENT:${char.region}:${char.realm}:${char.name}`);
+  } else {
+    // No cache - show loading spinner
+    document.getElementById('equip-left').innerHTML  = '';
+    document.getElementById('equip-right').innerHTML = '';
+    loadingEl.style.display = 'flex';
+    sendToPython(`GET_EQUIPMENT:${char.region}:${char.realm}:${char.name}`);
+  }
 }
 
 function renderEquipment(items) {
@@ -630,6 +711,14 @@ inputName.addEventListener('keydown', e => { if (e.key === 'Enter') document.get
 document.getElementById('detail-close').addEventListener('click', closeDetail);
 document.getElementById('detail-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('detail-overlay')) closeDetail();
+});
+
+// Tab switching
+document.querySelectorAll('.detail-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const char = characters[detailIndex];
+    if (char) switchTab(btn.dataset.tab, char);
+  });
 });
 
 document.getElementById('menu-info').addEventListener('click', () => document.getElementById('info-modal').classList.add('open'));
