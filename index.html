@@ -208,27 +208,7 @@
             </div>
           </div>
           <div class="talent-tree-view">
-            <div class="talent-tree-header">
-              <h3 class="talent-tree-title" id="talent-tree-title">—</h3>
-              <p class="talent-tree-subtitle" id="talent-tree-subtitle">—</p>
-            </div>
-            <div class="talent-tree-grid">
-              <div class="talent-column" id="talent-col-1">
-                <div class="talent-column-title">Class Tree</div>
-                <svg class="talent-connections-svg" id="connections-1"></svg>
-                <div class="talent-nodes-container" id="nodes-1"></div>
-              </div>
-              <div class="talent-column talent-column-center" id="talent-col-2">
-                <div class="talent-column-title" id="spec-tree-title">Spec Tree</div>
-                <svg class="talent-connections-svg" id="connections-2"></svg>
-                <div class="talent-nodes-container" id="nodes-2"></div>
-              </div>
-              <div class="talent-column" id="talent-col-3">
-                <div class="talent-column-title">Hero Tree</div>
-                <svg class="talent-connections-svg" id="connections-3"></svg>
-                <div class="talent-nodes-container" id="nodes-3"></div>
-              </div>
-            </div>
+            <div id="talent-embed-frame"></div>
           </div>
         </div>
       </div>
@@ -275,10 +255,10 @@ let pendingDelete = null;
 const realmCache  = {};
 
 const ACTIVITY_META = {
-  'Raid':         { icon: '⚔️' },
-  'Mythic+':      { icon: '🔑' },
-  'Expeditions':  { icon: '🗺️' },
-  'World Quests': { icon: '📜' },
+  'Raid':         { icon: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_head_dragon_01.jpg' },
+  'Mythic+':      { icon: 'https://render.worldofwarcraft.com/us/icons/56/achievement_bg_wineos_underxminutes.jpg' },
+  'Expeditions':  { icon: 'https://render.worldofwarcraft.com/us/icons/56/spell_nature_eyeofthestorm.jpg' },
+  'World Quests': { icon: 'https://render.worldofwarcraft.com/us/icons/56/worldquest-icon-petbattle.jpg' },
 };
 
 // WoW item quality colors
@@ -479,13 +459,16 @@ function openDetail(idx) {
   const actList = document.getElementById('detail-activities');
   actList.innerHTML = '';
   Object.entries(char.activities || {}).forEach(([name, data]) => {
-    const icon    = (ACTIVITY_META[name] || {}).icon || '•';
+    const iconUrl = (ACTIVITY_META[name] || {}).icon;
     const checked = data.status === 'completed';
     const row     = document.createElement('div');
     row.className = 'activity-row';
     row.innerHTML = `
       <div class="activity-row-left">
-        <span class="activity-icon">${icon}</span>
+        ${iconUrl 
+          ? `<img src="${iconUrl}" class="activity-icon-img" alt="${name}" />`
+          : `<span class="activity-icon">•</span>`
+        }
         <span class="activity-label">${name}</span>
         <span class="activity-reset-tag">${data.reset}</span>
       </div>
@@ -532,57 +515,37 @@ function switchTab(tabName, char) {
 
 function loadTalents(char) {
   if (!char.class_slug || !char.spec_slug) {
-    document.getElementById('talent-tree-title').textContent = 'Talent data unavailable';
+    document.getElementById('talent-embed-frame').innerHTML = '<div class="vault-placeholder">Talent data unavailable</div>';
     return;
   }
 
-  // Update WoWHead link
-  const wowheadLink = document.getElementById('wowhead-talent-link');
-  wowheadLink.href = `https://www.wowhead.com/guide/classes/${char.class_slug}/${char.spec_slug}`;
-
-  // Build presets - 24 nodes total (8 class + 10 spec + 6 hero)
+  // WoWHead embed base URL
+  const baseUrl = `https://www.wowhead.com/talent-calc/embed/${char.class_slug}/${char.spec_slug}`;
+  
+  // Build presets (these would eventually use specific talent strings from WoWHead)
   const builds = [
-    { 
-      id: 'raid', 
-      name: 'Raid', 
-      icon: '⚔️', 
-      desc: 'Single-target',
-      color: '#b03030',
-      talents: [0,1,3,5,7,8,10,12,14,16,18,20,22] // Single-target focused
-    },
-    { 
-      id: 'mythic', 
-      name: 'Mythic+', 
-      icon: '🔑', 
-      desc: 'AoE damage',
-      color: '#4ecb71',
-      talents: [0,2,4,6,7,9,11,13,15,17,19,21,23] // AoE focused
-    },
-    { 
-      id: 'pvp', 
-      name: 'PvP', 
-      icon: '⚔️', 
-      desc: 'Arena/BG',
-      color: '#9a6dd1',
-      talents: [1,2,3,5,6,8,11,14,16,18,19,21,22] // Survivability/control
-    },
-    { 
-      id: 'leveling', 
-      name: 'Leveling', 
-      icon: '📈', 
-      desc: 'Fast questing',
-      color: '#e0b352',
-      talents: [0,1,4,5,7,9,10,13,15,17,20,22,23] // Questing efficiency
-    }
+    { id: 'raid', name: 'Raid', icon: '⚔️', desc: 'Single-target', url: baseUrl },
+    { id: 'mythic', name: 'Mythic+', icon: '🔑', desc: 'AoE damage', url: baseUrl },
+    { id: 'pvp', name: 'PvP', icon: '⚔️', desc: 'Arena/BG', url: baseUrl },
+    { id: 'leveling', name: 'Leveling', icon: '📈', desc: 'Fast questing', url: baseUrl }
   ];
+
+  // Update external WoWHead link
+  const wowheadLink = document.getElementById('wowhead-talent-link');
+  wowheadLink.href = baseUrl.replace('/embed/', '/');
+  wowheadLink.onclick = (e) => {
+    e.preventDefault();
+    if (ipcRenderer) {
+      ipcRenderer.send('open-external', wowheadLink.href);
+    } else {
+      window.open(wowheadLink.href, '_blank');
+    }
+  };
 
   // Populate build presets
   const presetList = document.getElementById('build-presets');
   presetList.innerHTML = builds.map((build, idx) => `
-    <button class="build-preset ${idx === 0 ? 'active' : ''}" 
-            data-build-id="${build.id}"
-            data-build-color="${build.color}"
-            data-build-talents="${build.talents.join(',')}">
+    <button class="build-preset ${idx === 0 ? 'active' : ''}" data-build-url="${build.url}">
       <span class="preset-icon">${build.icon}</span>
       <div class="preset-info">
         <div class="preset-name">${build.name}</div>
@@ -596,136 +559,17 @@ function loadTalents(char) {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.build-preset').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      
-      const talents = btn.dataset.buildTalents.split(',').map(Number);
-      const color = btn.dataset.buildColor;
-      const buildName = btn.querySelector('.preset-name').textContent;
-      
-      renderTalentTree(char, talents, color, buildName);
+      loadTalentEmbed(btn.dataset.buildUrl);
     });
   });
 
-  // Render default build (Raid)
-  renderTalentTree(char, builds[0].talents, builds[0].color, builds[0].name);
+  // Load default build
+  loadTalentEmbed(builds[0].url);
 }
 
-function renderTalentTree(char, activeTalents, color, buildName) {
-  document.getElementById('talent-tree-title').textContent = `${char.spec_name} ${char.class_name}`;
-  document.getElementById('talent-tree-subtitle').textContent = `${buildName} Build`;
-  document.getElementById('spec-tree-title').textContent = char.spec_name || 'Specialization';
-
-  // Icon sets for variety (placeholder until we get real icons)
-  const icons = {
-    class: ['⚔️','🛡️','✨','🔥','❄️','⚡','🌿','💀'],
-    spec: ['🌙','☀️','🌊','🔮','💫','⭐','🌟','✴️','🌀','💥'],
-    hero: ['👑','🏆','💎','🔱','⚜️','🗡️']
-  };
-
-  // Define tree layouts (row, col positions for each talent)
-  const trees = [
-    // Class tree (left) - 8 talents
-    { nodes: [
-      {row:0, col:1, icon:icons.class[0], maxRank:1},
-      {row:1, col:0, icon:icons.class[1], maxRank:2},
-      {row:1, col:2, icon:icons.class[2], maxRank:1},
-      {row:2, col:1, icon:icons.class[3], maxRank:1},
-      {row:3, col:0, icon:icons.class[4], maxRank:1},
-      {row:3, col:2, icon:icons.class[5], maxRank:2},
-      {row:4, col:1, icon:icons.class[6], maxRank:1},
-      {row:5, col:1, icon:icons.class[7], maxRank:1}
-    ], connections: [[0,1],[0,2],[1,3],[2,3],[3,4],[3,5],[4,6],[5,6],[6,7]]},
-    
-    // Spec tree (center) - 10 talents
-    { nodes: [
-      {row:0, col:2, icon:icons.spec[0], maxRank:1},
-      {row:1, col:1, icon:icons.spec[1], maxRank:1},
-      {row:1, col:3, icon:icons.spec[2], maxRank:2},
-      {row:2, col:0, icon:icons.spec[3], maxRank:1},
-      {row:2, col:2, icon:icons.spec[4], maxRank:1},
-      {row:2, col:4, icon:icons.spec[5], maxRank:1},
-      {row:3, col:1, icon:icons.spec[6], maxRank:2},
-      {row:3, col:3, icon:icons.spec[7], maxRank:1},
-      {row:4, col:2, icon:icons.spec[8], maxRank:1},
-      {row:5, col:2, icon:icons.spec[9], maxRank:1}
-    ], connections: [[0,1],[0,2],[1,3],[1,4],[2,4],[2,5],[3,6],[4,6],[4,7],[5,7],[6,8],[7,8],[8,9]]},
-    
-    // Hero tree (right) - 6 talents
-    { nodes: [
-      {row:0, col:1, icon:icons.hero[0], maxRank:1},
-      {row:1, col:0, icon:icons.hero[1], maxRank:1},
-      {row:1, col:2, icon:icons.hero[2], maxRank:1},
-      {row:2, col:1, icon:icons.hero[3], maxRank:2},
-      {row:3, col:1, icon:icons.hero[4], maxRank:1},
-      {row:4, col:1, icon:icons.hero[5], maxRank:1}
-    ], connections: [[0,1],[0,2],[1,3],[2,3],[3,4],[4,5]]}
-  ];
-
-  let globalNodeIndex = 0;
-
-  trees.forEach((tree, treeIdx) => {
-    const container = document.getElementById(`nodes-${treeIdx + 1}`);
-    const svg = document.getElementById(`connections-${treeIdx + 1}`);
-    
-    container.innerHTML = '';
-    svg.innerHTML = '';
-
-    // Calculate grid dimensions
-    const maxRow = Math.max(...tree.nodes.map(n => n.row));
-    const maxCol = Math.max(...tree.nodes.map(n => n.col));
-    const nodeSize = 40;
-    const nodeGap = 20;
-    
-    svg.setAttribute('width', (maxCol + 1) * (nodeSize + nodeGap));
-    svg.setAttribute('height', (maxRow + 1) * (nodeSize + nodeGap) + 20);
-
-    // Draw connections
-    tree.connections.forEach(([fromIdx, toIdx]) => {
-      const from = tree.nodes[fromIdx];
-      const to = tree.nodes[toIdx];
-      
-      const x1 = from.col * (nodeSize + nodeGap) + nodeSize / 2;
-      const y1 = from.row * (nodeSize + nodeGap) + nodeSize / 2;
-      const x2 = to.col * (nodeSize + nodeGap) + nodeSize / 2;
-      const y2 = to.row * (nodeSize + nodeGap) + nodeSize / 2;
-
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', x1);
-      line.setAttribute('y1', y1);
-      line.setAttribute('x2', x2);
-      line.setAttribute('y2', y2);
-      line.setAttribute('stroke', activeTalents.includes(globalNodeIndex + fromIdx) && activeTalents.includes(globalNodeIndex + toIdx) ? color : 'rgba(255,255,255,0.15)');
-      line.setAttribute('stroke-width', '2');
-      svg.appendChild(line);
-    });
-
-    // Render nodes
-    tree.nodes.forEach((talent, idx) => {
-      const node = document.createElement('div');
-      node.className = 'talent-node-wow';
-      
-      const isActive = activeTalents.includes(globalNodeIndex + idx);
-      if (isActive) {
-        node.classList.add('active');
-        node.style.setProperty('--talent-color', color);
-      }
-      
-      // Quality border based on max rank
-      const quality = talent.maxRank === 1 ? 'rare' : 'epic';
-      node.classList.add(`quality-${quality}`);
-      
-      node.style.left = `${talent.col * (nodeSize + nodeGap)}px`;
-      node.style.top = `${talent.row * (nodeSize + nodeGap)}px`;
-      
-      node.innerHTML = `
-        <span class="talent-icon">${talent.icon}</span>
-        ${talent.maxRank > 1 ? `<span class="talent-rank">${isActive ? talent.maxRank : 0}/${talent.maxRank}</span>` : ''}
-      `;
-      
-      container.appendChild(node);
-    });
-
-    globalNodeIndex += tree.nodes.length;
-  });
+function loadTalentEmbed(url) {
+  const container = document.getElementById('talent-embed-frame');
+  container.innerHTML = `<iframe src="${url}" frameborder="0"></iframe>`;
 }
 
 function loadVault(char) {
