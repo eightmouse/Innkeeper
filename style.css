@@ -19,6 +19,49 @@
   --font-body:    'Exo 2', sans-serif;
 }
 
+[data-theme="light"] {
+  --bg:           #e8f0e8;
+  --card-bg:      rgba(255, 255, 255, 0.85);
+  --card-border:  rgba(60, 140, 80, 0.3);
+  --card-hover:   rgba(58, 138, 80, 0.5);
+  --text-primary: #1a3a1a;
+  --text-muted:   #5a7a60;
+  --text-realm:   #3a6a48;
+  --accent:       #2a7a40;
+  --accent-glow:  rgba(42, 122, 64, 0.4);
+  --danger:       #c03030;
+  --green:        #2a9a45;
+}
+
+[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 50%, rgba(230,245,230,0.6) 0%, transparent 70%),
+    linear-gradient(to bottom, rgba(240,250,240,0.5) 0%, rgba(230,245,235,0.7) 100%);
+}
+
+[data-theme="light"] #titlebar {
+  background: rgba(250, 255, 250, 0.96);
+  border-bottom: 1px solid rgba(60, 140, 80, 0.25);
+}
+
+[data-theme="light"] .modal {
+  background: linear-gradient(175deg, #f5faf5 0%, #e8f0e8 100%);
+}
+
+[data-theme="light"] #detail-modal {
+  background: linear-gradient(175deg, #f8fcf8 0%, #e8f0e8 100%);
+}
+
+[data-theme="light"] .detail-header {
+  background: rgba(255,255,255,0.3);
+}
+
+[data-theme="light"] .armory-portrait::before {
+  background:
+    linear-gradient(to right,  rgba(232,240,232,0.4) 0%, transparent 25%, transparent 75%, rgba(232,240,232,0.4) 100%),
+    linear-gradient(to bottom, rgba(232,240,232,0.2) 0%, transparent 20%, transparent 70%, rgba(232,240,232,0.3) 100%);
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -212,13 +255,10 @@ body::before {
 .char-card:nth-child(9)  { animation-delay: .18s }
 .char-card:nth-child(10) { animation-delay: .20s }
 
-/* Card background — Blizzard 'render' asset includes full class scene */
+/* Card background — WoWHead talent bg + character render layered */
 .card-bg {
   position: absolute;
   inset: 0;
-  background-size: 140%;
-  background-position: center 22%;
-  background-repeat: no-repeat;
   transition: transform 0.4s ease;
 }
 .char-card:hover .card-bg { transform: scale(1.04); }
@@ -443,6 +483,47 @@ body::before {
 .info-value { font-size: 12px; color: var(--text-realm); }
 .info-link  { font-size: 12px; color: var(--accent); text-decoration: none; transition: color 0.15s; }
 .info-link:hover { color: #6ac882; text-decoration: underline; }
+
+/* ── Settings modal ──────────────────────────── */
+.settings-body { margin-bottom: 10px; }
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(58, 138, 80, 0.15);
+}
+.setting-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+}
+.theme-buttons {
+  display: flex;
+  gap: 8px;
+}
+.theme-btn {
+  padding: 6px 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(58, 138, 80, 0.2);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.theme-btn:hover {
+  background: rgba(58, 138, 80, 0.1);
+  border-color: rgba(58, 138, 80, 0.35);
+  color: var(--text-primary);
+}
+.theme-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
 
 /* ── Detail Modal (Armory-style) ─────────────── */
 #detail-modal {
