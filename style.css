@@ -333,8 +333,28 @@ body::before {
 /* ── Character Grid ──────────────────────────── */
 #character-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 14px;
+  padding: 0 24px;
+}
+
+/* Responsive grid breakpoints */
+@media (max-width: 1400px) {
+  #character-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 1200px) {
+  #character-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  #character-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 /* ── Character Card ──────────────────────────── */
@@ -605,6 +625,13 @@ body::before {
 .btn-danger    { background: var(--danger); color: #fff; }
 .btn-danger:hover { background: #cc3535; }
 
+/* Settings button consistency — match theme-btn sizing */
+#update-talents-btn {
+  padding: 6px 16px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 /* ── Info modal ──────────────────────────────── */
 .info-body { margin-bottom: 4px; }
 .info-line { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-bottom: 14px; }
@@ -661,9 +688,10 @@ body::before {
   background: linear-gradient(175deg, #0a1210 0%, #060e0a 100%);
   border: 1px solid rgba(58, 138, 80, 0.22);
   border-radius: 10px;
-  width: 1100px;
+  width: 1320px;
+  height: 820px;
   max-width: 95vw;
-  max-height: 88vh;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -715,6 +743,23 @@ body::before {
 /* Talents tab (2nd) aligns with Build Presets section (240px) */
 .detail-tab:nth-child(2) {
   flex: 0 0 240px;
+}
+
+/* Vault tab (3rd) - fixed width */
+.detail-tab:nth-child(3) {
+  flex: 0 0 180px;
+}
+
+/* Professions tab (4th) - fixed width */
+.detail-tab:nth-child(4) {
+  flex: 0 0 200px;
+}
+
+/* Spacer to fill remaining width */
+.tab-spacer {
+  flex: 1;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 2px solid transparent;
 }
 
 .detail-tab:hover {
@@ -916,10 +961,10 @@ body::before {
   position: absolute;
   top: 0;
   left: 0;
+  overflow: hidden;
 }
 
 /* Light theme talent support */
-}
 
 /* Quality borders */
 .talent-node-wow.quality-rare {
@@ -1144,11 +1189,12 @@ body::before {
 
 /* Left & right equipment columns */
 .equip-col {
-  width: 210px;
+  width: 240px;
   flex-shrink: 0;
   padding: 12px 10px;
   display: flex;
   flex-direction: column;
+  justify-content: space-evenly;
   gap: 3px;
   overflow-y: auto;
   scrollbar-width: none;
@@ -1160,6 +1206,8 @@ body::before {
   flex: 1;
   position: relative;
   overflow: hidden;
+  max-width: 600px;
+  margin: 0 auto;
 }
 /* Vignette removed - full-width gradient now on armory-view for text readability */
 
