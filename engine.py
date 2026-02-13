@@ -331,49 +331,18 @@ SPECS_MAP = {
 }
 
 def scrape_talent_builds(class_slug, spec_slug):
-    """Scrape talent builds from WoWHead guide page."""
-    import re
-    try:
-        from bs4 import BeautifulSoup
-    except ImportError:
-        return {}
-    
-    url = f"https://www.wowhead.com/guide/classes/{class_slug}/{spec_slug}/midnight-pre-patch"
-    
-    try:
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        builds = {}
-        links = soup.find_all('a', href=re.compile(r'/talent-calc/'))
-        
-        for link in links:
-            href = link.get('href')
-            text = link.get_text(strip=True).lower()
-            parent_text = link.parent.get_text(strip=True).lower() if link.parent else ""
-            
-            embed_url = f"https://www.wowhead.com{href}".replace('/talent-calc/', '/talent-calc/embed/')
-            
-            if 'raid' in text or 'raid' in parent_text:
-                builds['raid'] = embed_url
-            elif 'mythic' in text or 'm+' in text or 'mythic' in parent_text:
-                builds['mythic'] = embed_url
-            elif 'delve' in text or 'delve' in parent_text:
-                builds['delves'] = embed_url
-        
-        return builds
-    except Exception as e:
-        print(f"Error scraping {class_slug}/{spec_slug}: {e}", file=sys.stderr)
-        return {}
+    """Generate WoWHead talent calc embed URLs for a class/spec.
+    Uses the reliable embed endpoint directly instead of scraping guide pages."""
+    base = f"https://www.wowhead.com/talent-calc/embed/{class_slug}/{spec_slug}"
+    return {
+        'raid':   base,
+        'mythic': base,
+        'delves': base,
+    }
 
 def scrape_all_talents():
-    """Scrape all talent builds for all classes/specs."""
-    try:
-        from bs4 import BeautifulSoup
-    except ImportError:
-        return {"status": "error", "message": "BeautifulSoup not installed. Run: pip install beautifulsoup4"}
-    
+    """Generate talent embed URLs for all classes/specs."""
+    import time as _time
     talent_map = {}
     total = sum(len(specs) for specs in SPECS_MAP.values())
     progress = 0
@@ -383,18 +352,9 @@ def scrape_all_talents():
         
         for spec_slug in specs:
             progress += 1
-            print(f"[{progress}/{total}] Scraping {class_slug}/{spec_slug}...", file=sys.stderr)
-            
+            print(f"[{progress}/{total}] Generating {class_slug}/{spec_slug}...", file=sys.stderr)
             builds = scrape_talent_builds(class_slug, spec_slug)
-            
-            if builds:
-                talent_map[class_slug][spec_slug] = builds
-            else:
-                # Fallback to base URL
-                base = f"https://www.wowhead.com/talent-calc/embed/{class_slug}/{spec_slug}"
-                talent_map[class_slug][spec_slug] = {'raid': base, 'mythic': base, 'delves': base}
-            
-            time.sleep(0.5)
+            talent_map[class_slug][spec_slug] = builds
     
     # Save to file
     talents_file = os.path.join(basedir, 'talent_builds.json')
@@ -403,7 +363,7 @@ def scrape_all_talents():
     
     return {
         "status": "success",
-        "message": f"Scraped {progress} specs",
+        "message": f"Generated {progress} specs",
         "builds": talent_map,
         "file": talents_file
     }
