@@ -7,13 +7,13 @@ let pyProcess;
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1100,
-    height: 760,
-    minWidth: 800,
-    minHeight: 500,
+    width: 1600,
+    height: 1000,
+    minWidth: 1200,
+    minHeight: 800,
     frame: false,
     backgroundColor: '#080e0a',
-    icon: path.join(__dirname, 'logo.png'),
+    icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
