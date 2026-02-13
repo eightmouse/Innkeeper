@@ -258,7 +258,7 @@ const ACTIVITY_META = {
   'Raid':         { icon: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_head_dragon_01.jpg' },
   'Mythic+':      { icon: 'https://render.worldofwarcraft.com/us/icons/56/achievement_bg_wineos_underxminutes.jpg' },
   'Expeditions':  { icon: 'https://render.worldofwarcraft.com/us/icons/56/spell_nature_eyeofthestorm.jpg' },
-  'World Quests': { icon: 'https://render.worldofwarcraft.com/us/icons/56/worldquest-icon-petbattle.jpg' },
+  'World Quests': { icon: 'https://render.worldofwarcraft.com/us/icons/56/quest_khadgar.jpg' },
 };
 
 // WoW item quality colors
@@ -513,26 +513,124 @@ function switchTab(tabName, char) {
   }
 }
 
+// Cache for loaded talent iframes
+const talentCache = {};
+
+// Talent build mapping - will be loaded from talent_builds.json
+let TALENT_BUILDS = {};
+let talentsLoaded = false;
+
+// Load talent builds from file or scrape if missing
+async function loadTalentBuilds() {
+  try {
+    const response = await fetch('./talent_builds.json');
+    if (response.ok) {
+      TALENT_BUILDS = await response.json();
+      console.log('Loaded talent builds for', Object.keys(TALENT_BUILDS).length, 'classes');
+      talentsLoaded = true;
+      return true;
+    }
+  } catch (e) {
+    console.log('No talent_builds.json found - will scrape on demand');
+  }
+  
+  // File doesn't exist - trigger automatic scraping
+  await scrapeTalentsFirstLaunch();
+  return false;
+}
+
+// Auto-scrape talents on first launch
+async function scrapeTalentsFirstLaunch() {
+  // Show loading modal
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:400px;text-align:center;">
+      <h3>First Launch Setup</h3>
+      <p style="margin:16px 0;">Fetching talent builds from WoWHead...</p>
+      <div class="loading-spinner" style="margin:20px auto;"></div>
+      <p id="scrape-progress" style="font-size:11px;color:var(--text-muted);">This may take 1-2 minutes</p>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  // Trigger backend scraping
+  ipcRenderer.send('command', {command: 'SCRAPE_TALENTS'});
+  
+  // Wait for result
+  return new Promise((resolve) => {
+    const handler = (event, data) => {
+      if (data.status === 'success' && data.builds) {
+        TALENT_BUILDS = data.builds;
+        talentsLoaded = true;
+        document.body.removeChild(modal);
+        showToast('Talent builds loaded successfully!');
+        ipcRenderer.removeListener('response', handler);
+        resolve(true);
+      } else if (data.status === 'error') {
+        document.getElementById('scrape-progress').textContent = 'Error: ' + (data.message || 'Failed to scrape');
+        setTimeout(() => {
+          document.body.removeChild(modal);
+          ipcRenderer.removeListener('response', handler);
+          resolve(false);
+        }, 2000);
+      }
+    };
+    ipcRenderer.on('response', handler);
+  });
+}
+
+// Initialize talent builds on startup
+loadTalentBuilds();
+
+function getTalentBuildUrl(classSlug, specSlug, buildType) {
+  // Try to get specific build from mapping
+  try {
+    const url = TALENT_BUILDS[classSlug]?.[specSlug]?.[buildType];
+    if (url) return url;
+  } catch (e) {
+    // Fall through to default
+  }
+  
+  // Fallback to base embed URL
+  return `https://www.wowhead.com/talent-calc/embed/${classSlug}/${specSlug}`;
+}
+
 function loadTalents(char) {
   if (!char.class_slug || !char.spec_slug) {
     document.getElementById('talent-embed-frame').innerHTML = '<div class="vault-placeholder">Talent data unavailable</div>';
     return;
   }
 
-  // WoWHead embed base URL
-  const baseUrl = `https://www.wowhead.com/talent-calc/embed/${char.class_slug}/${char.spec_slug}`;
-  
-  // Build presets (these would eventually use specific talent strings from WoWHead)
+  // Build presets with Blizzard icons (Raid, Mythic+, Delves)
   const builds = [
-    { id: 'raid', name: 'Raid', icon: '⚔️', desc: 'Single-target', url: baseUrl },
-    { id: 'mythic', name: 'Mythic+', icon: '🔑', desc: 'AoE damage', url: baseUrl },
-    { id: 'pvp', name: 'PvP', icon: '⚔️', desc: 'Arena/BG', url: baseUrl },
-    { id: 'leveling', name: 'Leveling', icon: '📈', desc: 'Fast questing', url: baseUrl }
+    { 
+      id: 'raid', 
+      name: 'Raid', 
+      icon: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_head_dragon_01.jpg',
+      desc: 'Single-target', 
+      url: getTalentBuildUrl(char.class_slug, char.spec_slug, 'raid')
+    },
+    { 
+      id: 'mythic', 
+      name: 'Mythic+', 
+      icon: 'https://render.worldofwarcraft.com/us/icons/56/achievement_bg_wineos_underxminutes.jpg',
+      desc: 'AoE damage', 
+      url: getTalentBuildUrl(char.class_slug, char.spec_slug, 'mythic')
+    },
+    { 
+      id: 'delves', 
+      name: 'Delves', 
+      icon: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_map08.jpg',
+      desc: 'Solo content', 
+      url: getTalentBuildUrl(char.class_slug, char.spec_slug, 'delves')
+    }
   ];
 
-  // Update external WoWHead link
+  // Update external WoWHead link to guide page
   const wowheadLink = document.getElementById('wowhead-talent-link');
-  wowheadLink.href = baseUrl.replace('/embed/', '/');
+  wowheadLink.href = `https://www.wowhead.com/guide/classes/${char.class_slug}/${char.spec_slug}`;
   wowheadLink.onclick = (e) => {
     e.preventDefault();
     if (ipcRenderer) {
@@ -542,11 +640,11 @@ function loadTalents(char) {
     }
   };
 
-  // Populate build presets
+  // Populate build presets with icons
   const presetList = document.getElementById('build-presets');
   presetList.innerHTML = builds.map((build, idx) => `
     <button class="build-preset ${idx === 0 ? 'active' : ''}" data-build-url="${build.url}">
-      <span class="preset-icon">${build.icon}</span>
+      <img src="${build.icon}" class="preset-icon-img" alt="${build.name}" />
       <div class="preset-info">
         <div class="preset-name">${build.name}</div>
         <div class="preset-desc">${build.desc}</div>
@@ -563,14 +661,72 @@ function loadTalents(char) {
     });
   });
 
-  // Load default build
+  // Load default build (Raid)
   loadTalentEmbed(builds[0].url);
 }
 
 function loadTalentEmbed(url) {
   const container = document.getElementById('talent-embed-frame');
-  container.innerHTML = `<iframe src="${url}" frameborder="0"></iframe>`;
+  
+  // Check cache
+  if (talentCache[url]) {
+    container.innerHTML = talentCache[url];
+    return;
+  }
+  
+  // Show loading indicator
+  container.innerHTML = '<div class="vault-placeholder">Loading talent tree...</div>';
+  
+  // Create iframe with sandbox to prevent navigation
+  // allow-same-origin: needed for rendering
+  // allow-scripts: needed for WoWHead functionality
+  // allow-popups: allows external links but blocks navigation
+  const iframe = `<iframe src="${url}" 
+                          frameborder="0" 
+                          sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"></iframe>`;
+  
+  // Cache and display
+  talentCache[url] = iframe;
+  container.innerHTML = iframe;
+  
+  // Listen for iframe trying to navigate - redirect to external browser
+  setTimeout(() => {
+    const iframeEl = container.querySelector('iframe');
+    if (iframeEl) {
+      iframeEl.addEventListener('load', () => {
+        try {
+          // Inject script to intercept WoWHead links
+          const doc = iframeEl.contentDocument || iframeEl.contentWindow.document;
+          const script = doc.createElement('script');
+          script.textContent = `
+            document.addEventListener('click', function(e) {
+              const link = e.target.closest('a');
+              if (link && link.href && !link.href.includes('/talent-calc/embed/')) {
+                e.preventDefault();
+                window.parent.postMessage({type: 'open-external', url: link.href}, '*');
+              }
+            }, true);
+          `;
+          doc.head.appendChild(script);
+        } catch (e) {
+          // Cross-origin restriction - can't inject script
+          // Sandbox will still prevent navigation
+        }
+      });
+    }
+  }, 100);
 }
+
+// Listen for external link requests from iframe
+window.addEventListener('message', (event) => {
+  if (event.data.type === 'open-external') {
+    if (ipcRenderer) {
+      ipcRenderer.send('open-external', event.data.url);
+    } else {
+      window.open(event.data.url, '_blank');
+    }
+  }
+});
 
 function loadVault(char) {
   const container = document.getElementById('vault-content');
