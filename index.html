@@ -11,14 +11,7 @@
 
   <div id="titlebar">
     <div id="titlebar-left">
-      <svg id="titlebar-logo" width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2L3 7v2h18V7L12 2z" fill="rgba(58,138,80,0.6)" stroke="rgba(58,138,80,0.8)" stroke-width="1"/>
-        <rect x="5" y="9" width="14" height="11" rx="1" fill="rgba(10,20,14,0.8)" stroke="rgba(58,138,80,0.6)" stroke-width="1"/>
-        <rect x="10" y="14" width="4" height="6" rx="0.5" fill="rgba(58,138,80,0.35)" stroke="rgba(58,138,80,0.5)" stroke-width="0.7"/>
-        <rect x="7" y="11" width="3" height="3" rx="0.5" fill="rgba(58,138,80,0.2)" stroke="rgba(58,138,80,0.4)" stroke-width="0.6"/>
-        <rect x="14" y="11" width="3" height="3" rx="0.5" fill="rgba(58,138,80,0.2)" stroke="rgba(58,138,80,0.4)" stroke-width="0.6"/>
-        <circle cx="12" cy="5.5" r="1" fill="rgba(58,138,80,0.7)"/>
-      </svg>
+      <img id="titlebar-logo" src="logo.png" alt="Innkeeper" />
       <span id="titlebar-title">INNKEEPER</span>
       <div id="menubar">
         <div class="menu-item" id="menu-settings">Settings</div>
@@ -206,14 +199,14 @@
             <h3 class="talent-sidebar-title">Build Presets</h3>
             <div class="build-preset-list" id="build-presets"></div>
             <div class="talent-actions">
-              <a href="#" target="_blank" class="wowhead-link" id="wowhead-talent-link">
-                <span>View Full Guide</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M10 6.5V10.5H1.5V2H5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                  <path d="M7 1H11V5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                  <path d="M11 1L6 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              <button class="wowhead-link" id="copy-talents-btn">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <rect x="5" y="5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+                  <path d="M3 11V3h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
                 </svg>
-              </a>
+                <span>Copy Talents</span>
+              </button>
+              <div class="copy-talents-toast" id="copy-talents-toast">Copied!</div>
             </div>
           </div>
           <div class="talent-tree-view" id="talent-tree-view">
@@ -555,47 +548,76 @@ class BitReader {
   get remaining() { return (this.bytes.length - this.byteIdx) * 8 - this.bitIdx; }
 }
 
-function decodeBuildString(exportString, classNodes, specNodes) {
-  /** Decode a WoW talent export string → { nodeId: { rank, choice } } */
-  if (!exportString || exportString.length < 10) return {};
+function decodeBuildString(exportString, classNodes, specNodes, heroTrees) {
+  /**
+   * Decode a WoW talent export string.
+   * IMPORTANT: spec_nodes includes hero nodes — the build string encodes them all linearly.
+   * Returns { selections: {nodeId: {rank, choice}}, activeHeroTreeName }
+   */
+  const result = { selections: {}, activeHeroTreeName: null };
+  if (!exportString || exportString.length < 10) return result;
   try {
-    const bin = atob(exportString);
+    let b64 = exportString.trim().replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4 !== 0) b64 += '=';
+
+    const bin = atob(b64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
 
     const reader = new BitReader(bytes);
-    const version = reader.readBits(8);   // version (1 or 2)
-    const specId = reader.readBits(16);   // spec ID
-    reader.readBits(128);                 // tree hash (skip)
+    const version = reader.readBits(8);
+    const specId = reader.readBits(16);
+    reader.readBits(128); // tree hash
 
-    const selections = {};
-    // Class nodes then spec nodes, both sorted by ID
+    // ALL nodes sorted by ID — class first, then spec (which includes hero nodes)
     const allNodes = [...classNodes, ...specNodes];
+
+    console.log(`[Talents] Decode: v=${version}, specId=${specId}, ${bytes.length} bytes, ${classNodes.length} class + ${specNodes.length} spec (incl hero) = ${allNodes.length} total nodes`);
 
     for (const node of allNodes) {
       if (reader.remaining < 1) break;
       const isSelected = reader.readBits(1);
       if (isSelected) {
-        const isPartial = reader.readBits(1);
-        let rank;
-        if (isPartial) {
-          const bitsNeeded = Math.max(1, Math.ceil(Math.log2(node.max_ranks)));
-          rank = reader.readBits(bitsNeeded);
-          if (rank === 0) rank = 1;  // Minimum rank when selected
-        } else {
-          rank = node.max_ranks;
-        }
+        let rank = node.max_ranks;
         let choice = -1;
+
+        // Multi-rank nodes: read partial flag + optional rank bits
+        // Single-rank nodes: no partial flag in the binary format
+        if (node.max_ranks > 1) {
+          const isPartial = reader.readBits(1);
+          if (isPartial) {
+            const bitsNeeded = Math.max(1, Math.ceil(Math.log2(node.max_ranks)));
+            rank = reader.readBits(bitsNeeded);
+            if (rank === 0) rank = 1;
+          }
+        }
+
         if (node.type === 'CHOICE') {
           choice = reader.readBits(1);
         }
-        selections[node.id] = { rank, choice };
+
+        result.selections[node.id] = { rank, choice };
       }
     }
-    return selections;
+
+    // Determine active hero tree by checking which tree has the most selected nodes
+    if (heroTrees && heroTrees.length > 0) {
+      let bestTree = null, bestCount = 0;
+      for (const ht of heroTrees) {
+        if (!ht.nodes) continue;
+        const heroIds = new Set(ht.nodes.map(n => n.id));
+        const count = Object.keys(result.selections).filter(id => heroIds.has(parseInt(id))).length;
+        if (count > bestCount) { bestCount = count; bestTree = ht.name; }
+      }
+      result.activeHeroTreeName = bestTree;
+      console.log(`[Talents] Active hero tree: ${bestTree} (${bestCount} nodes selected)`);
+    }
+
+    console.log(`[Talents] Decoded: ${Object.keys(result.selections).length} total selected`);
+    return result;
   } catch (e) {
-    console.warn('[Talents] Build string decode error:', e);
-    return {};
+    console.error('[Talents] Decode error:', e, exportString.substring(0, 50));
+    return result;
   }
 }
 
@@ -678,7 +700,7 @@ function loadTalents(char) {
   // Set up sidebar
   setupTalentSidebar(char);
 
-  // Check if tree data is cached
+  // Check if tree data is cached in memory
   const cacheKey = `${char.class_slug}_${char.spec_slug}`;
   if (TALENT_TREE_CACHE[cacheKey]) {
     renderTalentTree(TALENT_TREE_CACHE[cacheKey], char);
@@ -686,8 +708,30 @@ function loadTalents(char) {
   }
 
   // Show loading, fetch from engine
-  view.innerHTML = '<div class="talent-loading"><div class="loading-spinner"></div>Loading talent tree from Blizzard API…</div>';
+  view.innerHTML = `<div class="talent-loading">
+    <div class="loading-spinner"></div>
+    <span>Fetching talent tree for ${capitalize(char.spec_slug)} ${capitalize(char.class_slug)}…</span>
+    <span style="font-size:10px;color:var(--text-muted);margin-top:4px;">(First load — cached after)</span>
+  </div>`;
   sendToPython(`FETCH_TALENT_TREE:${char.region}:${char.class_slug}:${char.spec_slug}`);
+
+  // Client-side timeout — generous for first load (icon fetching takes time)
+  const timeoutId = setTimeout(() => {
+    if (_currentTalentChar === char && !TALENT_TREE_CACHE[cacheKey]) {
+      view.innerHTML = `
+        <div class="talent-empty">
+          <p>Request timed out.</p>
+          <p style="font-size:10px;color:var(--text-muted);margin-bottom:16px;">
+            The Blizzard API may be slow or your credentials need checking.<br>
+            Check the console (Ctrl+Shift+I) for details.
+          </p>
+          <button class="btn btn-primary" onclick="loadTalents(_currentTalentChar)">Retry</button>
+        </div>`;
+    }
+  }, 60000);
+
+  // Store timeout so it can be cleared when response arrives
+  window._talentLoadTimeout = timeoutId;
 }
 
 function setupTalentSidebar(char) {
@@ -713,6 +757,27 @@ function setupTalentSidebar(char) {
       document.querySelectorAll('.build-preset').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       _currentBuildType = btn.dataset.buildType;
+
+      // Live-reload talent_builds.json so edits take effect without restart
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const buildsFile = path.join(__dirname, 'talent_builds.json');
+        if (fs.existsSync(buildsFile)) {
+          const raw = JSON.parse(fs.readFileSync(buildsFile, 'utf-8'));
+          // Strip _ prefixed keys
+          const builds = {};
+          for (const key of Object.keys(raw)) {
+            if (!key.startsWith('_')) builds[key] = raw[key];
+          }
+          TALENT_BUILDS = builds;
+          const str = builds[char.class_slug]?.[char.spec_slug]?.[_currentBuildType] || '';
+          console.log(`[Talents] Reloaded builds → ${char.class_slug}/${char.spec_slug}/${_currentBuildType}: ${str ? str.substring(0,30)+'…' : '(empty)'}`);
+        }
+      } catch(e) {
+        console.warn('[Talents] Could not reload builds:', e.message);
+      }
+
       const cacheKey = `${char.class_slug}_${char.spec_slug}`;
       if (TALENT_TREE_CACHE[cacheKey]) {
         renderTalentTree(TALENT_TREE_CACHE[cacheKey], char);
@@ -720,92 +785,127 @@ function setupTalentSidebar(char) {
     });
   });
 
-  // WoWHead guide link
-  const wowheadLink = document.getElementById('wowhead-talent-link');
-  wowheadLink.href = `https://www.wowhead.com/guide/classes/${char.class_slug}/${char.spec_slug}/talent-builds-pve-dps`;
-  wowheadLink.onclick = (e) => {
-    e.preventDefault();
-    if (typeof ipcRenderer !== 'undefined') ipcRenderer.send('open-external', wowheadLink.href);
-    else window.open(wowheadLink.href, '_blank');
-  };
+  // Copy Talents button — copies current build string to clipboard
+  const copyBtn = document.getElementById('copy-talents-btn');
+  copyBtn.addEventListener('click', () => {
+    const buildStr = TALENT_BUILDS[char.class_slug]?.[char.spec_slug]?.[_currentBuildType] || '';
+    if (!buildStr) {
+      const toast = document.getElementById('copy-talents-toast');
+      toast.textContent = 'No build string set';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+      return;
+    }
+    navigator.clipboard.writeText(buildStr).then(() => {
+      const toast = document.getElementById('copy-talents-toast');
+      toast.textContent = 'Copied!';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = buildStr;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      const toast = document.getElementById('copy-talents-toast');
+      toast.textContent = 'Copied!';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    });
+  });
 }
 
 // ── Render Full Talent Tree ─────────────────────────────────────────
 
 function renderTalentTree(treeData, char) {
   const view = document.getElementById('talent-tree-view');
+
+  // Always re-read talent_builds.json for freshest data
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const buildsFile = path.join(__dirname, 'talent_builds.json');
+    if (fs.existsSync(buildsFile)) {
+      const raw = JSON.parse(fs.readFileSync(buildsFile, 'utf-8'));
+      const builds = {};
+      for (const key of Object.keys(raw)) {
+        if (!key.startsWith('_')) builds[key] = raw[key];
+      }
+      TALENT_BUILDS = builds;
+    }
+  } catch(e) { /* ignore */ }
+
   const buildString = TALENT_BUILDS[char.class_slug]?.[char.spec_slug]?.[_currentBuildType] || '';
-  const selections = decodeBuildString(buildString, treeData.class_nodes || [], treeData.spec_nodes || []);
 
-  // Count selected talents for display
-  const selCount = Object.keys(selections).length;
+  // Debug: show what we found
+  const availableTypes = Object.keys(TALENT_BUILDS[char.class_slug]?.[char.spec_slug] || {});
+  console.log(`[Talents] Build lookup: ${char.class_slug}/${char.spec_slug}/${_currentBuildType}`);
+  console.log(`[Talents]   Available types: [${availableTypes.join(', ')}]`);
+  console.log(`[Talents]   String: ${buildString ? buildString.substring(0, 40) + '… (' + buildString.length + ' chars)' : '(EMPTY - add to talent_builds.json)'}`);
 
-  // Build HTML
-  let html = '<div class="talent-tree-container">';
+  const classNodes = treeData.class_nodes || [];
+  const specNodes = treeData.spec_nodes || [];   // includes hero nodes!
+  const heroTrees = treeData.hero_trees || [];
 
-  // Class talents section
-  html += renderTreeSection('Class Talents', treeData.class_nodes || [], selections, 'class');
+  // Decode — treats class + spec (incl hero) as one linear sequence
+  const decodeResult = decodeBuildString(buildString, classNodes, specNodes, heroTrees);
+  const selections = decodeResult.selections || {};
 
-  // Hero talents (if available)
-  if (treeData.hero_trees && treeData.hero_trees.length > 0) {
-    // Show first hero tree (or the one matching the build)
-    const heroTree = treeData.hero_trees[0];
-    html += renderTreeSection(`Hero — ${heroTree.name || 'Hero Talents'}`, heroTree.nodes || [], {}, 'hero');
+  // Build set of ALL hero node IDs (from all hero trees for this spec)
+  const allHeroNodeIds = new Set();
+  const heroTreeByNodeId = {};
+  for (const ht of heroTrees) {
+    if (!ht.nodes) continue;
+    for (const n of ht.nodes) {
+      allHeroNodeIds.add(n.id);
+      heroTreeByNodeId[n.id] = ht.name;
+    }
   }
 
-  // Spec talents section
-  html += renderTreeSection('Spec Talents', treeData.spec_nodes || [], selections, 'spec');
+  // Determine active hero tree: the one with the most selected nodes
+  let activeHeroTree = null;
+  if (heroTrees.length > 0) {
+    let bestCount = 0;
+    for (const ht of heroTrees) {
+      if (!ht.nodes) continue;
+      const count = ht.nodes.filter(n => selections[n.id]).length;
+      if (count > bestCount) { bestCount = count; activeHeroTree = ht; }
+    }
+    if (!activeHeroTree) activeHeroTree = heroTrees[0]; // fallback
+  }
 
+  // Split spec_nodes: hero nodes go to middle column, rest to spec column
+  const activeHeroIds = new Set(activeHeroTree ? activeHeroTree.nodes.map(n => n.id) : []);
+  const pureSpecNodes = specNodes.filter(n => !allHeroNodeIds.has(n.id));
+  const heroDisplayNodes = activeHeroTree ? activeHeroTree.nodes : [];
+
+  console.log(`[Talents] Render: ${classNodes.length} class | ${heroDisplayNodes.length} hero (${activeHeroTree?.name || 'none'}) | ${pureSpecNodes.length} spec | ${Object.keys(selections).length} selected | Build: ${_currentBuildType}`);
+
+  // Render three columns with proper proportions
+  // Class and Spec get equal weight, Hero gets less (it's a small tree)
+  let html = '<div class="talent-tree-container">';
+  html += renderTreeSection(capitalize(char.class_slug), classNodes, selections, 'class', 5);
+  if (heroDisplayNodes.length > 0) {
+    html += renderTreeSection(activeHeroTree.name || 'Hero', heroDisplayNodes, selections, 'hero', 2);
+  }
+  html += renderTreeSection(capitalize(char.spec_slug), pureSpecNodes, selections, 'spec', 5);
   html += '</div>';
-
-  // Build string bar at bottom
-  html += `
-    <div class="talent-build-bar">
-      <input type="text" class="talent-build-string" id="talent-build-input"
-             placeholder="Paste build string here…" value="${escapeHtml(buildString)}" />
-      <button class="talent-copy-btn" id="talent-apply-btn">Apply</button>
-      <button class="talent-copy-btn" id="talent-copy-btn">Copy</button>
-    </div>
-    <div class="build-copy-toast" id="build-copy-toast">Copied!</div>
-  `;
 
   view.innerHTML = html;
 
-  // Wire up build string bar
-  document.getElementById('talent-apply-btn')?.addEventListener('click', () => {
-    const input = document.getElementById('talent-build-input');
-    const str = input.value.trim();
-    if (!str) return;
-    // Save the build string
-    if (!TALENT_BUILDS[char.class_slug]) TALENT_BUILDS[char.class_slug] = {};
-    if (!TALENT_BUILDS[char.class_slug][char.spec_slug]) TALENT_BUILDS[char.class_slug][char.spec_slug] = {};
-    TALENT_BUILDS[char.class_slug][char.spec_slug][_currentBuildType] = str;
-    // Persist via main process
-    sendToPython(`SAVE_BUILD_STRING:${char.class_slug}:${char.spec_slug}:${_currentBuildType}:${str}`);
-    // Re-render
-    renderTalentTree(treeData, char);
-  });
-
-  document.getElementById('talent-copy-btn')?.addEventListener('click', () => {
-    const input = document.getElementById('talent-build-input');
-    navigator.clipboard.writeText(input.value).catch(() => {});
-    const toast = document.getElementById('build-copy-toast');
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 1500);
-  });
-
-  // Wire up tooltips
+  // Wire tooltips
   view.querySelectorAll('.talent-node').forEach(el => {
     const nodeId = parseInt(el.dataset.nodeId);
     const section = el.dataset.section;
     let nodeList;
-    if (section === 'class') nodeList = treeData.class_nodes;
-    else if (section === 'spec') nodeList = treeData.spec_nodes;
-    else if (section === 'hero' && treeData.hero_trees?.[0]) nodeList = treeData.hero_trees[0].nodes;
+    if (section === 'class') nodeList = classNodes;
+    else if (section === 'spec') nodeList = pureSpecNodes;
+    else if (section === 'hero') nodeList = heroDisplayNodes;
     else nodeList = [];
     const node = nodeList.find(n => n.id === nodeId);
     if (!node) return;
-
     el.addEventListener('mouseenter', (e) => showTalentTooltip(e, node, selections));
     el.addEventListener('mousemove', (e) => positionTooltip(e));
     el.addEventListener('mouseleave', () => hideTalentTooltip());
@@ -814,59 +914,46 @@ function renderTalentTree(treeData, char) {
 
 // ── Render One Tree Section ─────────────────────────────────────────
 
-function renderTreeSection(label, nodes, selections, sectionId) {
+function renderTreeSection(label, nodes, selections, sectionId, flexWeight) {
   if (!nodes || nodes.length === 0) return '';
+  flexWeight = flexWeight || 1;
 
-  // Calculate grid bounds from node positions
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  // Use display_row / display_col as integer grid coordinates
+  let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
   for (const n of nodes) {
-    minX = Math.min(minX, n.pos_x); maxX = Math.max(maxX, n.pos_x);
-    minY = Math.min(minY, n.pos_y); maxY = Math.max(maxY, n.pos_y);
+    minRow = Math.min(minRow, n.row); maxRow = Math.max(maxRow, n.row);
+    minCol = Math.min(minCol, n.col); maxCol = Math.max(maxCol, n.col);
   }
 
-  // If pos_x/pos_y are all 0, fall back to row/col
-  const useRowCol = (maxX - minX < 10 && maxY - minY < 10);
-  if (useRowCol) {
-    minX = Infinity; maxX = -Infinity; minY = Infinity; maxY = -Infinity;
-    for (const n of nodes) {
-      minX = Math.min(minX, n.col); maxX = Math.max(maxX, n.col);
-      minY = Math.min(minY, n.row); maxY = Math.max(maxY, n.row);
-    }
-  }
+  const rangeRow = maxRow - minRow || 1;
+  const rangeCol = maxCol - minCol || 1;
 
-  const rangeX = maxX - minX || 1;
-  const rangeY = maxY - minY || 1;
-  const padPct = 6;  // Percentage padding on each side
+  // Percentage positioning with padding so edge nodes aren't clipped
+  const padX = 8, padY = 4;
 
-  // Calculate section height based on number of rows
-  const numRows = useRowCol ? (maxY - minY + 1) : Math.max(4, Math.ceil(rangeY / (rangeX / 8)));
-  const sectionHeight = Math.max(140, numRows * 50 + 30);
-
-  // Map nodes to percentage positions
   const nodePosMap = {};
   for (const n of nodes) {
-    const nx = useRowCol ? n.col : n.pos_x;
-    const ny = useRowCol ? n.row : n.pos_y;
-    const pctX = padPct + ((nx - minX) / rangeX) * (100 - 2 * padPct);
-    const pctY = padPct + ((ny - minY) / rangeY) * (100 - 2 * padPct);
+    const pctX = padX + ((n.col - minCol) / rangeCol) * (100 - 2 * padX);
+    const pctY = padY + ((n.row - minRow) / rangeRow) * (100 - 2 * padY);
     nodePosMap[n.id] = { pctX, pctY };
   }
 
-  // Build SVG lines for connections
+  // SVG connection lines — only draw where BOTH endpoints are in this section
+  const sectionNodeIds = new Set(nodes.map(n => n.id));
   let svgLines = '';
   for (const node of nodes) {
     const target = nodePosMap[node.id];
     if (!target || !node.locked_by) continue;
     for (const depId of node.locked_by) {
+      if (!sectionNodeIds.has(depId)) continue; // skip cross-section refs
       const source = nodePosMap[depId];
       if (!source) continue;
       const bothSelected = selections[depId] && selections[node.id];
-      svgLines += `<line x1="${source.pctX}%" y1="${source.pctY}%" x2="${target.pctX}%" y2="${target.pctY}%"
-        class="${bothSelected ? 'active' : ''}" />`;
+      svgLines += `<line x1="${source.pctX}%" y1="${source.pctY}%" x2="${target.pctX}%" y2="${target.pctY}%" class="${bothSelected ? 'active' : ''}" />`;
     }
   }
 
-  // Build node HTML
+  // Node HTML
   let nodesHtml = '';
   for (const node of nodes) {
     const pos = nodePosMap[node.id];
@@ -896,18 +983,13 @@ function renderTreeSection(label, nodes, selections, sectionId) {
   }
 
   return `
-    <div class="talent-section">
+    <div class="talent-section" data-section="${sectionId}" style="flex:${flexWeight} 1 0;min-width:0;">
       <div class="talent-section-label">${label}</div>
-      <div class="talent-section-divider"></div>
-      <div class="talent-grid" style="height:${sectionHeight}px">
+      <div class="talent-grid">
         <svg class="talent-connections" viewBox="0 0 100 100" preserveAspectRatio="none">${svgLines}</svg>
         ${nodesHtml}
       </div>
     </div>`;
-}
-
-function escapeHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function capitalize(str) {
@@ -1205,21 +1287,79 @@ if (ipcRenderer) {
         showEquipmentRefreshing();
       } else if (data.status === 'talent_tree') {
         // Received talent tree data from Blizzard API
+        if (window._talentLoadTimeout) { clearTimeout(window._talentLoadTimeout); window._talentLoadTimeout = null; }
+        window._talentRetried = false;
         const cacheKey = `${data.class_slug}_${data.spec_slug}`;
         TALENT_TREE_CACHE[cacheKey] = data.tree;
-        console.log(`✓ Talent tree loaded: ${data.class_slug}/${data.spec_slug}`);
+        const cn = (data.tree.class_nodes||[]).length;
+        const sn = (data.tree.spec_nodes||[]).length;
+        const hn = (data.tree.hero_trees||[]).map(h => `${h.name||'?'}(${(h.nodes||[]).length})`).join(', ');
+        console.log(`✓ Talent tree cached: ${cacheKey} | ${cn} class nodes, ${sn} spec nodes, hero: [${hn}]`);
         // If talent tab is currently open for this class/spec, render it
         if (_currentTalentChar &&
             _currentTalentChar.class_slug === data.class_slug &&
             _currentTalentChar.spec_slug === data.spec_slug) {
           renderTalentTree(data.tree, _currentTalentChar);
         }
+      } else if (data.status === 'talent_tree_error') {
+        if (window._talentLoadTimeout) { clearTimeout(window._talentLoadTimeout); window._talentLoadTimeout = null; }
+        console.error(`✗ Talent tree error: ${data.class_slug}/${data.spec_slug}: ${data.message}`);
+        // Auto-retry once before showing error to user
+        if (!window._talentRetried) {
+          window._talentRetried = true;
+          console.log('↻ Auto-retrying talent tree fetch…');
+          setTimeout(() => {
+            sendToPython(`FETCH_TALENT_TREE:${_currentTalentChar?.region || 'eu'}:${data.class_slug}:${data.spec_slug}`);
+          }, 1500);
+          return;
+        }
+        window._talentRetried = false;
+        // If talent tab is currently open for this class/spec, show error
+        if (_currentTalentChar &&
+            _currentTalentChar.class_slug === data.class_slug &&
+            _currentTalentChar.spec_slug === data.spec_slug) {
+          const view = document.getElementById('talent-tree-view');
+          if (view) {
+            const msg = (data.message || 'Unknown error').replace(/</g, '&lt;');
+            view.innerHTML = `
+              <div class="talent-empty">
+                <p style="margin-bottom:12px;font-size:13px;">Could not load talent tree</p>
+                <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(200,80,80,0.2);border-radius:6px;padding:12px 16px;margin-bottom:16px;max-width:500px;width:100%;text-align:left;">
+                  <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(200,80,80,0.6);margin-bottom:6px;">Error Details</div>
+                  <div style="font-size:11px;color:var(--text-realm);line-height:1.6;word-break:break-word;">${msg}</div>
+                </div>
+                <button class="btn btn-primary" id="talent-retry-btn">Retry</button>
+              </div>`;
+            document.getElementById('talent-retry-btn')?.addEventListener('click', () => {
+              loadTalents(_currentTalentChar);
+            });
+          }
+        }
       } else if (data.status === 'talent_builds_loaded' && data.builds) {
         // Build strings loaded from talent_builds.json
         TALENT_BUILDS = data.builds;
-        console.log('✓ Build strings loaded for', Object.keys(data.builds).length, 'classes');
-      } else if (data.status === 'build_string_saved') {
-        console.log(`✓ Build string saved: ${data.class_slug}/${data.spec_slug}/${data.build_type}`);
+        const classes = Object.keys(data.builds).filter(k => !k.startsWith('_'));
+        console.log(`✓ Build strings loaded. Classes: [${classes.join(', ')}]`);
+        for (const cls of classes) {
+          if (typeof data.builds[cls] === 'object') {
+            for (const spec of Object.keys(data.builds[cls])) {
+              const types = data.builds[cls][spec];
+              if (typeof types === 'object') {
+                for (const [t, str] of Object.entries(types)) {
+                  console.log(`  ${cls}/${spec}/${t}: ${str ? str.substring(0, 30) + '… (' + str.length + ' chars)' : '(empty)'}`);
+                }
+              }
+            }
+          }
+        }
+        // Re-render talent tree if already open (builds may have arrived after initial render)
+        if (_currentTalentChar) {
+          const ck = `${_currentTalentChar.class_slug}_${_currentTalentChar.spec_slug}`;
+          if (TALENT_TREE_CACHE[ck]) {
+            console.log('↻ Re-rendering talent tree with updated build strings');
+            renderTalentTree(TALENT_TREE_CACHE[ck], _currentTalentChar);
+          }
+        }
       }
     } catch (e) {
       console.error('from-python parse error:', e);
