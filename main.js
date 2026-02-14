@@ -8,7 +8,9 @@ let pyProcess;
 
 // ── Icon: try multiple formats ──────────────────────────────────────
 function getIconPath() {
-  const names = ['icon.png']
+  const names = ['icon.png', 'icon.ico', 'icon.icns', 'logo.png', 'logo.ico',
+                 'innkeeper.png', 'innkeeper.ico', 'innkeeper.icns',
+                 'icon_256.png', 'icon_48.png', 'app-icon.png'];
   const dirs  = [__dirname, path.join(__dirname, 'assets'), path.join(__dirname, 'resources')];
   for (const dir of dirs) {
     for (const name of names) {
@@ -45,12 +47,27 @@ function createWindow() {
   win.loadFile('index.html');
   startPython();
 
-  // Send user-provided build strings to renderer
-  setTimeout(() => {
+  // Wait for renderer to be ready before sending data
+  win.webContents.once('did-finish-load', () => {
+    // Step 1: Send build strings FIRST (must be in TALENT_BUILDS before trees render)
     try {
       let builds = {};
       if (fs.existsSync(BUILDS_FILE)) {
-        builds = JSON.parse(fs.readFileSync(BUILDS_FILE, 'utf-8'));
+        const raw = JSON.parse(fs.readFileSync(BUILDS_FILE, 'utf-8'));
+        // Strip keys starting with _ (like _README, _example_format)
+        for (const key of Object.keys(raw)) {
+          if (!key.startsWith('_')) builds[key] = raw[key];
+        }
+        console.log(`[Main] Loaded talent_builds.json: classes = [${Object.keys(builds).join(', ')}]`);
+        for (const cls of Object.keys(builds)) {
+          if (typeof builds[cls] === 'object') {
+            for (const spec of Object.keys(builds[cls])) {
+              const types = Object.keys(builds[cls][spec] || {});
+              const hasStrings = types.filter(t => builds[cls][spec][t] && builds[cls][spec][t].length > 10);
+              console.log(`[Main]   ${cls}/${spec}: types=[${types.join(',')}] valid_strings=${hasStrings.length}`);
+            }
+          }
+        }
       }
       win?.webContents.send('from-python', JSON.stringify({
         status: 'talent_builds_loaded', builds
@@ -58,7 +75,34 @@ function createWindow() {
     } catch (e) {
       console.error('[Main] Error reading talent_builds.json:', e.message);
     }
-  }, 1500);
+
+    // Step 2: Pre-load disk-cached talent trees (TALENT_BUILDS is already set above)
+    try {
+      const cacheDir = path.join(__dirname, 'talent_tree_cache');
+      if (fs.existsSync(cacheDir)) {
+        const files = fs.readdirSync(cacheDir).filter(f => f.endsWith('.json'));
+        for (const file of files) {
+          try {
+            const data = JSON.parse(fs.readFileSync(path.join(cacheDir, file), 'utf-8'));
+            const base = file.replace('.json', '');
+            const sepIdx = base.lastIndexOf('_');
+            if (sepIdx > 0 && data.class_nodes && data.spec_nodes) {
+              const class_slug = base.substring(0, sepIdx);
+              const spec_slug = base.substring(sepIdx + 1);
+              win?.webContents.send('from-python', JSON.stringify({
+                status: 'talent_tree', class_slug, spec_slug, tree: data
+              }));
+              console.log(`[Main] Pre-loaded cached tree: ${class_slug}/${spec_slug} (${data.class_nodes.length} class + ${data.spec_nodes.length} spec nodes)`);
+            }
+          } catch (fe) {
+            console.error(`[Main] Error reading cache file ${file}:`, fe.message);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Main] Error scanning talent_tree_cache:', e.message);
+    }
+  });
 }
 
 // ── Python backend ──────────────────────────────────────────────────
