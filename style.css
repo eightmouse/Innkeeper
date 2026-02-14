@@ -209,8 +209,12 @@ body::before {
 }
 
 #titlebar-logo {
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
-  opacity: 0.85;
+  display: block;
+  object-fit: contain;
+  border-radius: 3px;
 }
 
 #titlebar-title {
@@ -220,6 +224,7 @@ body::before {
   letter-spacing: 0.2em;
   color: #a0c8a8;
   text-shadow: 0 0 10px rgba(58, 138, 80, 0.4);
+  line-height: 1;
 }
 
 #menubar {
@@ -799,19 +804,6 @@ body::before {
   flex-direction: column;
 }
 
-.talent-embed-container {
-  flex: 1;
-  position: relative;
-}
-
-.talent-embed-container iframe {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
 .vault-content,
 .professions-content {
   flex: 1;
@@ -933,6 +925,8 @@ body::before {
   font-size: 11px;
   text-decoration: none;
   transition: all 0.15s;
+  cursor: pointer;
+  width: 100%;
 }
 
 .wowhead-link:hover {
@@ -945,10 +939,20 @@ body::before {
   opacity: 0.6;
 }
 
+.copy-talents-toast {
+  text-align: center;
+  font-size: 10px;
+  color: var(--accent);
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.copy-talents-toast.show { opacity: 1; }
+
 /* Talent tree view — native renderer */
 .talent-tree-view {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -959,42 +963,52 @@ body::before {
 /* ── Native Talent Tree ─────────────── */
 
 .talent-tree-container {
-  flex: 1;
   display: flex;
-  flex-direction: column;
-  padding: 16px;
-  gap: 12px;
+  flex-direction: row;
+  flex: 1;
   min-height: 0;
+  min-width: 0;
+  padding: 4px 0;
+  gap: 0;
 }
 
+/* Each section fills proportional width via flex-grow from JS */
 .talent-section {
-  flex: 1;
   position: relative;
-  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-right: 1px solid rgba(58, 138, 80, 0.08);
+}
+.talent-section:last-child {
+  border-right: none;
+}
+
+.talent-section[data-section="hero"] {
+  background: rgba(58, 138, 80, 0.03);
 }
 
 .talent-section-label {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  padding-left: 4px;
+  color: rgba(58, 138, 80, 0.4);
+  text-align: center;
+  padding: 2px 4px 0;
+  flex-shrink: 0;
 }
 
-.talent-section-divider {
-  height: 1px;
-  background: linear-gradient(90deg, rgba(58,138,80,0.3), transparent);
-  margin: 4px 0;
-}
-
+/* Grid fills section, nodes positioned by percentage */
 .talent-grid {
   position: relative;
-  width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
 }
 
+/* SVG connection lines overlay */
 .talent-grid svg.talent-connections {
   position: absolute;
   inset: 0;
@@ -1005,103 +1019,107 @@ body::before {
 }
 
 .talent-grid svg.talent-connections line {
-  stroke: rgba(58, 138, 80, 0.15);
-  stroke-width: 2;
+  stroke: rgba(40, 70, 50, 0.35);
+  stroke-width: 1.5;
+  stroke-linecap: round;
 }
 .talent-grid svg.talent-connections line.active {
-  stroke: rgba(58, 138, 80, 0.5);
+  stroke: rgba(58, 138, 80, 0.55);
   stroke-width: 2;
+  filter: drop-shadow(0 0 2px rgba(58, 138, 80, 0.3));
 }
 
 /* ── Talent Node ─────────────── */
 
 .talent-node {
   position: absolute;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   transform: translate(-50%, -50%);
   z-index: 1;
-  cursor: pointer;
-  transition: all 0.15s;
+  cursor: default;
+  transition: transform 0.12s;
 }
 
 .talent-node-inner {
   width: 100%;
   height: 100%;
   border-radius: 6px;
-  background: rgba(10, 18, 14, 0.9);
-  border: 2px solid rgba(58, 138, 80, 0.15);
+  background: rgba(8, 14, 10, 0.95);
+  border: 2px solid rgba(40, 60, 48, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: all 0.15s;
+  transition: all 0.12s;
   position: relative;
 }
 
-/* Octagonal clip for active talents (WoW-style) */
+/* Active talents — square with rounded corners (default) */
 .talent-node[data-type="ACTIVE"] .talent-node-inner {
   border-radius: 6px;
 }
 
-/* Circular clip for passive talents */
+/* Passive talents — circular */
 .talent-node[data-type="PASSIVE"] .talent-node-inner {
   border-radius: 50%;
 }
 
-/* Diamond clip for choice talents */
+/* Choice talents — diamond (rotated square) */
 .talent-node[data-type="CHOICE"] .talent-node-inner {
   transform: rotate(45deg);
   border-radius: 4px;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   margin: 4px;
 }
 .talent-node[data-type="CHOICE"] .talent-node-inner img {
   transform: rotate(-45deg);
-  width: 130%;
-  height: 130%;
+  width: 140%;
+  height: 140%;
 }
 
-/* Node icon */
+/* Node icon — desaturated when not selected */
 .talent-node-inner img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  filter: grayscale(100%) brightness(0.4);
-  transition: filter 0.15s;
+  filter: grayscale(100%) brightness(0.35);
+  transition: filter 0.12s;
 }
 
 /* Letter fallback when no icon */
 .talent-node-letter {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  color: rgba(58, 138, 80, 0.3);
+  color: rgba(58, 138, 80, 0.2);
   user-select: none;
 }
 
-/* Rank badge */
+/* Rank badge (for multi-rank talents) */
 .talent-rank-badge {
   position: absolute;
-  bottom: -2px;
-  right: -2px;
+  bottom: -3px;
+  right: -3px;
   font-size: 8px;
   font-weight: 700;
-  color: var(--text-muted);
-  background: rgba(6,10,8,0.9);
-  border: 1px solid rgba(58,138,80,0.2);
+  color: rgba(120, 150, 130, 0.5);
+  background: rgba(6,10,8,0.95);
+  border: 1px solid rgba(40,60,48,0.3);
   border-radius: 3px;
   padding: 0 3px;
-  line-height: 1.4;
+  line-height: 1.5;
   z-index: 2;
 }
 
-/* ── Selected state ─────────────── */
+/* ── Selected state — full color, glowing border ─────────────── */
 
 .talent-node.selected .talent-node-inner {
   border-color: var(--accent);
-  box-shadow: 0 0 10px rgba(58, 138, 80, 0.3), inset 0 0 6px rgba(58, 138, 80, 0.1);
+  box-shadow: 0 0 8px rgba(58, 138, 80, 0.35),
+              0 0 20px rgba(58, 138, 80, 0.1),
+              inset 0 0 6px rgba(58, 138, 80, 0.08);
 }
 
 .talent-node.selected .talent-node-inner img {
@@ -1114,16 +1132,19 @@ body::before {
 
 .talent-node.selected .talent-rank-badge {
   color: var(--accent);
-  border-color: var(--accent);
+  border-color: rgba(58,138,80,0.4);
 }
 
-/* Hover */
+/* Hover — subtle scale */
+.talent-node:hover {
+  z-index: 5;
+}
 .talent-node:hover .talent-node-inner {
   border-color: rgba(58, 138, 80, 0.6);
-  transform: scale(1.1);
+  transform: scale(1.12);
 }
 .talent-node[data-type="CHOICE"]:hover .talent-node-inner {
-  transform: rotate(45deg) scale(1.1);
+  transform: rotate(45deg) scale(1.12);
 }
 
 /* ── Talent Tooltip ─────────────── */
@@ -1131,22 +1152,23 @@ body::before {
 .talent-tooltip {
   position: fixed;
   z-index: 9999;
-  max-width: 300px;
-  background: rgba(8, 14, 10, 0.96);
+  max-width: 320px;
+  min-width: 200px;
+  background: rgba(6, 10, 8, 0.97);
   border: 1px solid rgba(58, 138, 80, 0.35);
   border-radius: 8px;
   padding: 12px 14px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.12s;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  transition: opacity 0.1s;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
 }
 .talent-tooltip.visible { opacity: 1; }
 
 .talent-tooltip-name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #e8f5e8;
   margin-bottom: 4px;
 }
 
@@ -1158,51 +1180,8 @@ body::before {
 
 .talent-tooltip-desc {
   font-size: 11px;
-  color: var(--text-realm);
-  line-height: 1.5;
-}
-
-/* ── Build String Bar ─────────────── */
-
-.talent-build-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: rgba(0,0,0,0.3);
-  border-top: 1px solid rgba(58,138,80,0.12);
-  flex-shrink: 0;
-}
-
-.talent-build-string {
-  flex: 1;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 10px;
-  color: var(--text-muted);
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(58,138,80,0.15);
-  border-radius: 4px;
-  padding: 6px 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.talent-copy-btn {
-  padding: 6px 14px;
-  font-size: 10px;
-  font-weight: 500;
-  background: rgba(58,138,80,0.15);
-  border: 1px solid rgba(58,138,80,0.3);
-  border-radius: 4px;
-  color: var(--accent);
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.talent-copy-btn:hover {
-  background: rgba(58,138,80,0.25);
-  color: var(--text-primary);
+  color: rgba(180, 210, 190, 0.85);
+  line-height: 1.55;
 }
 
 .talent-loading, .talent-empty {
@@ -1225,66 +1204,6 @@ body::before {
 
 /* Light theme talent support */
 
-/* Quality borders */
-.talent-node-wow.quality-rare {
-  border-color: #0070dd;
-  box-shadow: 0 0 6px rgba(0, 112, 221, 0.3);
-}
-
-.talent-node-wow.quality-epic {
-  border-color: #a335ee;
-  box-shadow: 0 0 6px rgba(163, 53, 238, 0.3);
-}
-
-.talent-node-wow.active {
-  background: linear-gradient(135deg, var(--talent-color) 0%, rgba(10, 20, 12, 0.9) 100%);
-  box-shadow: 0 0 12px var(--talent-color);
-}
-
-.talent-icon {
-  font-size: 20px;
-  filter: grayscale(0.6);
-  transition: filter 0.2s;
-}
-
-.talent-node-wow.active .talent-icon {
-  filter: grayscale(0);
-}
-
-.talent-rank {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  background: rgba(0,0,0,0.8);
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 3px;
-  padding: 1px 3px;
-  font-size: 8px;
-  font-weight: 600;
-  color: #fff;
-  line-height: 1;
-}
-
-/* Light theme 3-column talent support */
-[data-theme="light"] .talent-column {
-  background: rgba(255,255,255,0.4);
-  border: 1px solid rgba(58, 138, 80, 0.2);
-}
-
-[data-theme="light"] .talent-column-center {
-  background: rgba(58, 138, 80, 0.12);
-}
-
-[data-theme="light"] .talent-column-title {
-  border-bottom: 1px solid rgba(58, 138, 80, 0.2);
-}
-
-[data-theme="light"] .talent-node-wow {
-  background: rgba(255, 255, 255, 0.8);
-  border: 2px solid rgba(0,0,0,0.25);
-}
-
-/* Light theme talent support */
 [data-theme="light"] .talent-sidebar {
   background: rgba(255,255,255,0.3);
   border-right: 1px solid rgba(58, 138, 80, 0.2);
@@ -1317,13 +1236,14 @@ body::before {
   color: #2a5a35;
 }
 
-[data-theme="light"] .talent-node {
-  background: rgba(255, 255, 255, 0.6);
-  border: 2px solid rgba(0,0,0,0.15);
+[data-theme="light"] .talent-node-inner {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0,0,0,0.18);
 }
 
-[data-theme="light"] .talent-node::before {
-  background: rgba(0,0,0,0.03);
+[data-theme="light"] .talent-node.selected .talent-node-inner {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(58, 138, 80, 0.3);
 }
 
 [data-theme="light"] .talent-actions {
