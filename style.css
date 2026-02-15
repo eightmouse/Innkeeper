@@ -1017,14 +1017,13 @@ body::before {
 }
 
 .talent-grid svg.talent-connections line {
-  stroke: rgba(40, 70, 50, 0.35);
-  stroke-width: 1.5;
+  stroke: rgba(40, 70, 50, 0.3);
+  stroke-width: 0.4;
   stroke-linecap: round;
 }
 .talent-grid svg.talent-connections line.active {
-  stroke: rgba(58, 138, 80, 0.55);
-  stroke-width: 2;
-  filter: drop-shadow(0 0 2px rgba(58, 138, 80, 0.3));
+  stroke: rgba(58, 138, 80, 0.5);
+  stroke-width: 0.6;
 }
 
 /* ── Talent Node ─────────────── */
