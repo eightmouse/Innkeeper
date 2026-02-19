@@ -28,10 +28,10 @@ Started WoW not long ago and I found myself closing and opening WoWhead for buil
 - More???
 
 ## Screenshots
-<img width="600" height="200" alt="1" src="https://github.com/user-attachments/assets/51c84e45-74de-4a02-8894-e40259e16efb" />
-<img width="600" height="200" alt="2" src="https://github.com/user-attachments/assets/8552477b-6ea7-42dd-b200-8798aa67817f" />
-<img width="600" height="200" alt="3" src="https://github.com/user-attachments/assets/ea38203a-d11e-4e90-bb56-fcc6bcada0f9" />
-<img width="600" height="200" alt="4" src="https://github.com/user-attachments/assets/f1bfee97-f137-402e-b312-e31e3a5a558d" />
+<img width="400" height="640" alt="1" src="https://github.com/user-attachments/assets/51c84e45-74de-4a02-8894-e40259e16efb" />
+<img width="400" height="640" alt="2" src="https://github.com/user-attachments/assets/8552477b-6ea7-42dd-b200-8798aa67817f" />
+<img width="400" height="640" alt="3" src="https://github.com/user-attachments/assets/ea38203a-d11e-4e90-bb56-fcc6bcada0f9" />
+<img width="400" height="640" alt="4" src="https://github.com/user-attachments/assets/f1bfee97-f137-402e-b312-e31e3a5a558d" />
 
 ## FaQ
 ***Q: Why Electron?*** <br />
