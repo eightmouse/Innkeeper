@@ -22,9 +22,9 @@ Started WoW not long ago and I found myself closing and opening WoWhead for buil
   - [x] World Quests
   - [x] Reset Timers
 - [x] Character Equipment
-- [] Talents tab
-- [] Vault tab
-- [] Profession tab
+- [ ] Talents tab
+- [ ] Vault tab
+- [ ] Profession tab
 - More???
 
 ## Screenshots
