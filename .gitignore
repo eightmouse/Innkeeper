@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 settings.local.json
+talent_tree_cache
 
 # Python
 __pycache__/
