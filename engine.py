@@ -327,7 +327,7 @@ SPECS_MAP = {
     'warlock': ['affliction', 'demonology', 'destruction'],
     'monk': ['brewmaster', 'mistweaver', 'windwalker'],
     'druid': ['balance', 'feral', 'guardian', 'restoration'],
-    'demon-hunter': ['havoc', 'vengeance'],
+    'demon-hunter': ['havoc', 'vengeance', 'devourer'],
     'evoker': ['devastation', 'preservation', 'augmentation']
 }
 
@@ -344,7 +344,7 @@ SPEC_IDS = {
     'warlock':      {'affliction': 265, 'demonology': 266, 'destruction': 267},
     'monk':         {'brewmaster': 268, 'mistweaver': 270, 'windwalker': 269},
     'druid':        {'balance': 102, 'feral': 103, 'guardian': 104, 'restoration': 105},
-    'demon-hunter': {'havoc': 577, 'vengeance': 581},
+    'demon-hunter': {'havoc': 577, 'vengeance': 581, 'devourer': 1480},
     'evoker':       {'devastation': 1467, 'preservation': 1468, 'augmentation': 1473},
 }
 
