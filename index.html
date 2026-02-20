@@ -147,7 +147,6 @@
       <button class="detail-tab" data-tab="talents">Talents</button>
       <button class="detail-tab" data-tab="vault">Vault</button>
       <button class="detail-tab" data-tab="professions">Professions</button>
-      <div class="tab-spacer"></div>
     </div>
 
     <!-- Body: tab content panels -->
@@ -238,6 +237,7 @@
 </div>
 
 <div id="toast"></div>
+<div id="talent-fetch-notify"></div>
 
 <script>
 'use strict';
@@ -525,10 +525,19 @@ let TALENT_BUILDS = {};          // Build strings per class/spec/type
 let _currentTalentChar = null;   // Currently displayed character
 let _currentBuildType = 'raid';  // Current active preset
 let _talentTooltipEl = null;     // Shared tooltip element
+let _talentFetchInProgress = false; // True while talent tree is being fetched
+
+function showTalentFetchNotify(msg) {
+  const el = document.getElementById('talent-fetch-notify');
+  el.innerHTML = `<div class="spinner"></div><span>${msg}</span>`;
+  el.classList.add('show');
+}
+
+function hideTalentFetchNotify() {
+  document.getElementById('talent-fetch-notify').classList.remove('show');
+}
 
 // ── Build String Decoder ────────────────────────────────────────────
-
-/* index.html - Replace BitReader and decodeBuildString */
 
 class BitReader {
   constructor(bytes) {
@@ -548,64 +557,97 @@ class BitReader {
   get remaining() { return (this.data.length * 8) - this.bitPos; }
 }
 
-function decodeBuildString(exportString, classNodes, specNodes, heroTrees) {
+function decodeBuildString(exportString, classNodes, specNodes, heroTrees, allNodeIds) {
   /**
    * WoW Talent Export String Decoder (TWW format, LSB-first).
-   * Verified against simc sc_import.cpp and wowtools.
+   * Custom base64: each char → 6-bit value packed LSB-first into bytes.
    *
-   * Format: header(152) then for EACH node (class sorted by ID, then spec sorted by ID):
-   *   1 bit  : isSelected
+   * Header: version(8) + specId(16) + treeHash(128) = 152 bits
+   * Then for EACH node (all class+spec IDs sorted, including nodes from other specs):
+   *   isSelected (1 bit)
    *   If selected:
-   *     1 bit  : isPartialRank  (ALWAYS present, even for single-rank and choice nodes)
-   *     If partial: ceil(log2(max_ranks + 1)) bits for rank
-   *     If choice node: 1 bit for choice index
+   *     isPurchased (1 bit)
+   *     If purchased:
+   *       isPartiallyRanked (1 bit)
+   *       If partial: ranksPurchased (6 bits fixed)
+   *       isChoiceNode (1 bit, from stream)
+   *       If choice: choiceEntryIndex (2 bits)
    *
-   * spec_nodes includes hero nodes — no separate hero section in the bitstream.
+   * Uses allNodeIds (full tree) to iterate ALL nodes, not just spec-filtered ones.
    * Active hero tree is determined by which tree has the most selected nodes.
    */
   const result = { selections: {}, activeHeroTreeName: null };
   if (!exportString) return result;
 
   try {
-    let b64 = exportString.trim().replace(/-/g, '+').replace(/_/g, '/');
-    while (b64.length % 4 !== 0) b64 += '=';
-    const bytes = new Uint8Array(atob(b64).split('').map(c => c.charCodeAt(0)));
+    // WoW uses a custom base64 where each char is a 6-bit value packed LSB-first into bytes
+    const WOW_B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    const str = exportString.trim();
+    const totalBits = str.length * 6;
+    const bytes = new Uint8Array(Math.ceil(totalBits / 8));
+    let bitPos = 0;
+    for (const ch of str) {
+      const val = WOW_B64.indexOf(ch);
+      if (val < 0) continue;
+      for (let i = 0; i < 6; i++) {
+        if (val & (1 << i)) {
+          bytes[bitPos >> 3] |= (1 << (bitPos & 7));
+        }
+        bitPos++;
+      }
+    }
     const reader = new BitReader(bytes);
 
     // Header: version(8) + specId(16) + treeHash(128) = 152 bits
     if (reader.remaining < 152) return result;
-    reader.read(152);
+    const version = reader.read(8);
+    const specId = reader.read(16);
+    reader.read(128); // tree hash
 
-    // One flat sequence: class nodes sorted by ID, then spec nodes sorted by ID
-    const allNodes = [
-      ...[...classNodes].sort((a, b) => a.id - b.id),
-      ...[...specNodes].sort((a, b) => a.id - b.id),
-    ];
+    // Build lookup from our spec-filtered nodes
+    const nodeMap = {};
+    for (const n of classNodes) nodeMap[n.id] = n;
+    for (const n of specNodes) nodeMap[n.id] = n;
+
+    // Use the full ordered node ID list (all 208 nodes for DK, etc.)
+    // For IDs not in our display data, use a placeholder so bits advance correctly
+    let allNodes;
+    if (allNodeIds && allNodeIds.length > 0) {
+      allNodes = allNodeIds.map(id => nodeMap[id] || { id: 0, max_ranks: 1, type: 'ACTIVE' });
+    } else {
+      // Fallback: old behavior
+      allNodes = [
+        ...[...classNodes].sort((a, b) => a.id - b.id),
+        ...[...specNodes].sort((a, b) => a.id - b.id),
+      ];
+    }
 
     for (const node of allNodes) {
       if (reader.remaining < 1) break;
       const isSelected = reader.read(1);
       if (!isSelected) continue;
 
+      // Blizzard format: isPurchased(1) → if purchased: isPartial(1) → if partial: rank(6) → isChoice(1) → if choice: choiceIdx(2)
+      const isPurchased = reader.read(1);
       let rank = node.max_ranks || 1;
       let choice = -1;
 
-      // Partial-rank bit is ALWAYS present for selected nodes
-      const isPartial = reader.read(1);
-      if (isPartial) {
-        const rankBits = Math.ceil(Math.log2((node.max_ranks || 1) + 1));
-        if (rankBits > 0) {
-          rank = reader.read(rankBits);
+      if (isPurchased) {
+        const isPartial = reader.read(1);
+        if (isPartial) {
+          rank = reader.read(6); // fixed 6-bit rank
           if (rank === 0) rank = 1;
         }
+        const isChoice = reader.read(1);
+        if (isChoice) {
+          choice = reader.read(2);
+        }
       }
+      // else: granted (selected but not purchased — free node), rank stays at max
 
-      // Choice index bit: only for choice nodes, comes AFTER partial
-      if (node.type === 'CHOICE') {
-        choice = reader.read(1);
+      if (node.id !== 0) {
+        result.selections[node.id] = { rank, choice };
       }
-
-      result.selections[node.id] = { rank, choice };
     }
 
     // Determine active hero tree by counting which has the most selected nodes
@@ -721,11 +763,15 @@ function loadTalents(char) {
     <span>Fetching talent tree for ${capitalize(char.spec_slug)} ${capitalize(char.class_slug)}…</span>
     <span style="font-size:10px;color:var(--text-muted);margin-top:4px;">(First load — cached after)</span>
   </div>`;
+  _talentFetchInProgress = true;
+  showTalentFetchNotify(`Fetching ${capitalize(char.spec_slug)} ${capitalize(char.class_slug)} talents…`);
   sendToPython(`FETCH_TALENT_TREE:${char.region}:${char.class_slug}:${char.spec_slug}`);
 
   // Client-side timeout — generous for first load (icon fetching takes time)
   const timeoutId = setTimeout(() => {
     if (_currentTalentChar === char && !TALENT_TREE_CACHE[cacheKey]) {
+      _talentFetchInProgress = false;
+      hideTalentFetchNotify();
       view.innerHTML = `
         <div class="talent-empty">
           <p>Request timed out.</p>
@@ -822,14 +868,14 @@ function renderTalentTree(treeData, char) {
   } catch(e) { /* ignore */ }
 
   const buildString = TALENT_BUILDS[char.class_slug]?.[char.spec_slug]?.[_currentBuildType] || '';
-  console.log(`[Talents] ${char.class_slug}/${char.spec_slug}/${_currentBuildType}: ${buildString ? buildString.length + ' chars' : 'EMPTY'}`);
 
   const classNodes = treeData.class_nodes || [];
   const specNodes = treeData.spec_nodes || [];
   const heroTrees = treeData.hero_trees || [];
 
-  // Decode (one flat sequence: class + spec, spec includes hero nodes)
-  const { selections, activeHeroTreeName } = decodeBuildString(buildString, classNodes, specNodes, heroTrees);
+  // Decode (one flat sequence using full node ID list from tree data)
+  const allNodeIds = treeData.all_node_ids || [];
+  const { selections, activeHeroTreeName } = decodeBuildString(buildString, classNodes, specNodes, heroTrees, allNodeIds);
 
   // Split spec_nodes into hero display + pure spec
   const allHeroNodeIds = new Set();
@@ -1142,6 +1188,10 @@ const addModal  = document.getElementById('add-modal');
 const inputName = document.getElementById('input-name');
 
 document.getElementById('add-btn').addEventListener('click', () => {
+  if (_talentFetchInProgress) {
+    showToast('Wait for talents to be fetched first');
+    return;
+  }
   addModal.classList.add('open');
   loadRealms(inputRegion.value);
   inputName.focus();
@@ -1267,6 +1317,8 @@ if (ipcRenderer) {
         showEquipmentRefreshing();
       } else if (data.status === 'talent_tree') {
         // Received talent tree data from Blizzard API
+        _talentFetchInProgress = false;
+        hideTalentFetchNotify();
         if (window._talentLoadTimeout) { clearTimeout(window._talentLoadTimeout); window._talentLoadTimeout = null; }
         window._talentRetried = false;
         const cacheKey = `${data.class_slug}_${data.spec_slug}`;
@@ -1294,6 +1346,8 @@ if (ipcRenderer) {
           return;
         }
         window._talentRetried = false;
+        _talentFetchInProgress = false;
+        hideTalentFetchNotify();
         // If talent tab is currently open for this class/spec, show error
         if (_currentTalentChar &&
             _currentTalentChar.class_slug === data.class_slug &&
