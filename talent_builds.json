@@ -1,235 +1,235 @@
 {
   "death-knight": {
     "frost": {
-      "raid": "",
-      "mythic": "",
-      "delves": ""
+      "raid": "CsPAAAAAAAAAAAAAAAAAAAAAAYAmZMjZAz2MzMzMLmZkZwwMzMGmxMzMzMzMDAAAAAAAAAAbmNDDMwsphG2wMzMzMAAGAwMA",
+      "mythic": "CsPAAAAAAAAAAAAAAAAAAAAAAYAzMMjZAzmZmZmZxMjmZwwMjx4BmxMzMzMzMDAAAAAAAAAAbmNDDMwsphG2wMzMzMAAGAwMA",
+      "delves": "CsPAAAAAAAAAAAAAAAAAAAAAAYAzMMjZAzmZmZmZxMjmZwwMjx4BmxMzMzMzMDAAAAAAAAAAbmNDDMwsphG2wMzMzMAAGAwMA"
     },
     "unholy": {
-      "raid": "",
-      "mythic": "",
-      "delves": ""
+      "raid": "CwPAAAAAAAAAAAAAAAAAAAAAAAYmhZMDDzmZmZa2MzYMjBAAAAAAAgZGmZAwyMGz2MzYGzA2MLwQAzGDNWAwMAwMzYGAzMMDA",
+      "mythic": "CwPAAAAAAAAAAAAAAAAAAAAAAAwMjZMDDz2MzMTDzMGzYAAAAAAAAYmhZGAsMMmtZmxMmBsYWghAmNGasgBMDAjZmhBwMDzA",
+      "delves": "CwPAAAAAAAAAAAAAAAAAAAAAAAwMjZMDDz2MzMTDzMGzYAAAAAAAAYmhZGAsMjxsNzMmxAsYWghAmFGasAgZAYMzMmBwMDzA"
     },
     "blood": {
-      "raid": "",
-      "mythic": "",
-      "delves": ""
+      "raid": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWGzMmxYMMbzMz0MLGjxMGAAAAYmZmZmZmZYGjBAMzMzAAAgxADQwywEYYBwMMDAgZGADA",
+      "mythic": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWmZGmxYmhZZmZmmZxYMmxAAAAAzMmZmZmZYGjBAjZmZGAAAMGYACWGmADLAmxMAAMzAAA",
+      "delves": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWGzMmxYMMbzMz0MLGjxMGAAAAYmxMzMzMDzYMAYMzMzAAAgxADQwywEYYBwMMDAgZGADA"
     }
   },
 
   "warrior": {
     "arms": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CcEAAAAAAAAAAAAAAAAAAAAAAAzMzsMzYmZAAAAMMNMGzwyMzDMzgxMDAAAAgZWmZAZwy2ALAgZQIzgNghNz2YYZmlBYmBgZMA", 
+      "mythic": "CcEAAAAAAAAAAAAAAAAAAAAAAgZmxsMzMzYGAAAghphxwMbLzMPwMjZGzMAAAAAGbmBWiBwMGWAwMCNGsAMYsNY2MbDmZAAMDA", 
+      "delves": "CcEAAAAAAAAAAAAAAAAAAAAAAgZmxsMzMzYGAAAghphxwMbLzMPwMjZGzMAAAAAGbmBWiBwMGWAwMCNGsAMYsNY2MbDmZAAMDA" 
     },
     "fury": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgGDzwMsMz8AzMDjZmZGzMzsMzMGzMLDzMAAQMWWGYBMBzwEYG2AM2Y2GAAADjZmhBA", 
+      "mythic": "CgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgGDjZMjlZGzYmZMzYGzYmlZmxYmZZMzMAAQYAwyiRDDIDMjFADMbDAmZAMMzMDGA", 
+      "delves": "CgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgGDjZMjlZGzYmZMzYGzYmlZmxYmZZMzMAAQYAwyiRDDIDMjFADMbDAmZAMMzMDGA" 
     },
     "protection": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CkEAAAAAAAAAAAAAAAAAAAAAA02AAAzMDzMzMzMzmxsMMGz0YGDLjxMDzYmBAAAALDAzYAGAssgGzAYEzsxYGzAz2AgZGAAGAA", 
+      "mythic": "CkEAAAAAAAAAAAAAAAAAAAAAAkBAAGzwMzMzMmtZmZZYMGNmZGWmZMzwwMDAAAAWGAmxAMAYZBNmBwImZDzMzMwsNAYmBAgBA", 
+      "delves": "CkEAAAAAAAAAAAAAAAAAAAAAA02AAAzMjZmZmxMzmZmlhxY0YmZYZmxMDDzMAAAAYZAYGAAmxwGBMDoxMLMmxMwsNAAzMAgBA" 
     }
   },
 
   "paladin": {
     "holy": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CEEAAAAAAAAAAAAAAAAAAAAAAAAAAYBAMAAglxMzYGzMzGjxYWGbzMLmpJGzYmZYY2yAwAG2AbsMjZWmtZmZrBAAAYBA2MMmxMAAgZGmxY0A", 
+      "mythic": "CEEAAAAAAAAAAAAAAAAAAAAAAAAAAYBAMDAwglxMzMzYmZWgxwyYbmZxMNxwYmZYY2yAwAwGYjlZmZWmtZmZrBAAAYhNMDbGYGzAAAmZYGjRD", 
+      "delves": "CEEAAAAAAAAAAAAAAAAAAAAAAAAAAMLAgBAwglZmZmZGzMWgxMWGbmZxoJGzgZYY2yAwAwGYjlZmBABAMsstYZMsxGgFDMDDDAzMAMjxIA" 
     },
     "protection": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CIEAAAAAAAAAAAAAAAAAAAAAAsNzMPAzyMLjZMzMWGmhZhZMAADAAAAAASzMbmxMDjZ2aDADMDA2AAAIAjZbbpNGLGYAAzwYAwMDAmZQA", 
+      "mythic": "CIEAAAAAAAAAAAAAAAAAAAAAAsZAWGLzMjZmZZZYmZmlZZGDAAAAAAAA00MziZMzwYGBADYAD2AAAzMZmZxAAsZGMAgZYMAAmBMzMIA", 
+      "delves": "CIEAAAAAAAAAAAAAAAAAAAAAAsZAWGLzMjZmZZZYmZmlZZGDAAAAAAAA00MziZMzwYGBADYAD2AAAzMZmZxAAsZGMAgZYMAAmBMzMIA" 
     },
     "retribution": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CYEAAAAAAAAAAAAAAAAAAAAAAAAAAAAQzy2MzsMMzAAAAAAwoMMMzYbY2GmZbGjxMDzYhtBAAkZ02YMDAYDwAgxMMwMGzG2mBDjZMA", 
+      "mythic": "CYEAAAAAAAAAAAAAAAAAAAAAAAAAAAAQzy2MzsMGzMAAAAAAmpMMMzYbY2GmZbmZMGDzYhNAAgMj2GjZAAbAGAMmhBmxMzGWmBDjhBA", 
+      "delves": "CYEAAAAAAAAAAAAAAAAAAAAAAAAAAAAQzyyMzsMzMzMDAAAAAwMlhBzYbY2GmZzMMegZwYhtBAAkZ02YMDAYDwAAmhBGmZWw2MYMjZMA" 
     }
   },
 
   "hunter": {
     "beast-mastery": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "C0PAAAAAAAAAAAAAAAAAAAAAAYzYgBAYYDyYBAAzw2YmlZGmxMDDzMGzMmZGzYGMGzYmhx0MAAAAAgZAAAYmxAzMABMLgNA", 
+      "mythic": "C0PAAAAAAAAAAAAAAAAAAAAAAAMGG2gFYGQDbAAYGzyMzsYGmZmZGzMMmxMMzYGzwMGGzwyYaGAAAAAAAAAMGzMgZgAmFwGA", 
+      "delves": "C0PAAAAAAAAAAAAAAAAAAAAAAAMGG2gFYGQDbAAYGzyMzsZGmZmZGzMMmxMMzMzYGmZGGzMw0MAAAAAAAAAYMmBYGIYZmFA" 
     },
     "marksmanship": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "C4PAAAAAAAAAAAAAAAAAAAAAAwCMwwohBwMYDAAAAAAAAYGzYGmxMzYGMmmxYmZ222MzMDzMYmZZwsMYGAAgHYMGAMTbMMAbDA", 
+      "mythic": "C4PAAAAAAAAAAAAAAAAAAAAAAwCMwwohBwMYDAAAAAAAAYGzYGbzYGjZY5BMNjxMjltNzMzwMzwMzyYMLDzMAAAGjBAj2gZA2GA", 
+      "delves": "C4PAAAAAAAAAAAAAAAAAAAAAAwCMwwohBwMYDAAAAAAAAYGzYGmxMGzAmmxYmZW22MzMDzMDzMLDmlBzAAAGjZGAMabhlZA2GA" 
     },
     "survival": { 
       "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "mythic": "C8PAAAAAAAAAAAAAAAAAAAAAAMWgBmxohBwMBbmZmZMzDsNDAAAAAAzYGzwMGzYG8AmmBAAAAMAAW2mZsZmZGjxYAwAGGjZmNA", 
+      "delves": "C8PAAAAAAAAAAAAAAAAAAAAAAMWgBmxohBwMBbmZmZMzDsNDAAAAAAzMzYGmxYGzMMmmBAAAAMAAW2mZsZmZGMGAwAwYMzsB" 
     }
   },
 
   "rogue": {
     "assassination": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CMQAAAAAAAAAAAAAAAAAAAAAAYmZMLzAAAAAAwsNYZGAAAAAQ2mZmxDMzYMzMzsNz2MzMYMzMzYmxwAYgNYY0AQWGwmBAzMjB", 
+      "mythic": "CMQAAAAAAAAAAAAAAAAAAAAAA4BmZmZxAAAAAAwsNYbGAAAAAQ2mZmxDMzYMzMzsNz2MjxDMzMzMGmZMGADsBDjGAyyA2MAYmxMA", 
+      "delves": "CMQAAAAAAAAAAAAAAAAAAAAAA4BmZmZxAAAAAAwsNYbGAAAAAQ2mZmxDMzYMzMzsNz2MjxDMzMzMGmZMGADsBDjGAyyA2MAYmxMA" 
     },
     "outlaw": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CQQAAAAAAAAAAAAAAAAAAAAAAAgBMGzYmZbmZmx4BMb8AzMzy0ygtZAAAAAA22mZmxDMzMzMmZmtBAAAgZGAMGGGyAWYhwGDwMDGA", 
+      "mythic": "CQQAAAAAAAAAAAAAAAAAAAAAAAgBMmZGmxMzMjZegZ24BmZGTLD2mBAAAAAYbbmZGPwMzMzYmZWGAAAAmZAwYYYIDYhFCbMAzMYA", 
+      "delves": "CQQAAAAAAAAAAAAAAAAAAAAAAAgBMmZGmxMzMjZegZ24BmZGTLD2mBAAAAAMbbzMzwMzMzYmZ2GAAAAGDAGDDDZALsQYjBYmBzA" 
     },
     "subtlety": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CUQAAAAAAAAAAAAAAAAAAAAAAAgx2MAAAAAwsMGLTMbbjxMMDegZmZGjZbmZGbbzMz4BmZMgZ2GAAAAGMGmlBGAghJkZBzwMDwMA", 
+      "mythic": "CUQAAAAAAAAAAAAAAAAAAAAAAAgx2MAAAAAwsMGLTMbbjxMMjxDMzMzYMbzYGbbzMz4BmZMgZ2GAAAAGMGwYYYgBsoFiNMDYmBzA", 
+      "delves": "CUQAAAAAAAAAAAAAAAAAAAAAAAgx2MAAAAAwsMGLTMbLjxMMjxDMzMzYMbzYGbbzMz4BmZMgZ2GAAAAGMGwYYYgBsoFiNMDYmBzA" 
     }
   },
 
   "priest": {
     "discipline": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CAQAAAAAAAAAAAAAAAAAAAAAAADsMGWmZMYGmZbmtZmZmxMDAAAAAAAAAgBLzwMzMDGzMwMNTjBYmNMEGDAjBLAAwYwYwMAmZmA", 
+      "mythic": "CAQAAAAAAAAAAAAAAAAAAAAAAADsMGWmZMmZGmZbmtZmZmhZAAAAAAAAAAMYZGmZmZwYmxgpZiBYmNMEGDAjBLAAwYGGDmBwMzEA", 
+      "delves": "CAQAAAAAAAAAAAAAAAAAAAAAAADsMGWmZMmZGmZbmtZmZmhZAAAAAAAAAAMYxwMzMjNjxw2mpZiBYmNMEGDAjBLAAwYGzYwAwMzEA" 
     },
     "holy": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CEQAAAAAAAAAAAAAAAAAAAAAAwYAAAAAAAGjZmlZmZMzMDzMDLzwMAAAAGsMDzMzMMzYGAzUDgZWwQYMAMGYhxsBIDDjhZGAzMDA", 
+      "mythic": "CEQAAAAAAAAAAAAAAAAAAAAAAwYAAAAAAAMmxYMDzMzwMzwyMzMDAAAgBLzwMzMDzYmBwMFAmFMEGDAjBWMzYDQzYGGDmBYmZGA", 
+      "delves": "CEQAAAAAAAAAAAAAAAAAAAAAAwYAAAAAAAbGzYWGzwMjhZGjlZmZGAAAADWMMzMzYzYmxsthZKAgZxMxmBAGD2MGbAaYGGDmxyAMA" 
     },
     "shadow": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CIQAAAAAAAAAAAAAAAAAAAAAAMYYAAAAAAAAAAAAwYbmxYZMmZ2MjZG2MYmZGbIzYxMNAmxAABY2mNgZjBYmxMZMzMjZjZgZwMBA", 
+      "mythic": "CIQAAAAAAAAAAAAAAAAAAAAAAMYYAAAAAAAAAAAAwYbmxYZMmZ2MjZG2MYmZGbIzYxMNAmxAABY2mNgZjBYmxMZMzMjZjZgZwMBA", 
+      "delves": "CIQAAAAAAAAAAAAAAAAAAAAAAMYYAAAAAAAAAAAAwYbmxYZMmZ2MjZG2MYmZGbIzYxMNAmxAABY2mNgZjBYmxMZMzMjZjZgZwMBA" 
     }
   },
 
   "shaman": {
     "elemental": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAmZZZmxMzMbLLjxMmZAAAAAMzGMgBMbMhMLAwsMzMjx2iJMzYsMzMzYYxixCmZmZBAYAAGDDA", 
+      "mythic": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbLzMmZmZZbZMmxMAAAAAAmxwGAmRoxGAMLzMzYstYCzMGLzMzMGWsYsgZmZWAAGAzMwwA", 
+      "delves": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAmZZZmxMzMbLLjxMmZAAAAAbmZDGwAmNmQmFAYWmZmxYbxEmZMWmZmZMsYxYBzMzsAAMAAMMA" 
     },
     "enhancement": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CcQAAAAAAAAAAAAAAAAAAAAAAMzMzMzMzMzMzMzMzYGAAAAAAAAAAAMW0YbAMTwGAWmxMGLLzAzMbsMzMzwwYGAADwYGxMDAMA", 
+      "mythic": "CcQAAAAAAAAAAAAAAAAAAAAAAMzMzMzMzMzMzMzYGzAAAAAAAAAALAYG0YbAMC2AYWmxMGLLGYmZjlZMzMwYGAAgxYmJmZAGMA", 
+      "delves": "CcQAAAAAAAAAAAAAAAAAAAAAAMzMzMzMzMzMzMzYGzAAAAAAAAAAAgxiGbDgZC2AYWmxMGLLzAzMYxMzMjBmBAwAjxMiZGAYA" 
     },
     "restoration": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CgQAAAAAAAAAAAAAAAAAAAAAAAAAAgBAAAAjZMbLbDzMPwYmZmZYGGLwAEMLMBGLmhB2GDa2WmZYGzCLmZmxMMLDAAAMzMAYmhxA", 
+      "mythic": "CgQAAAAAAAAAAAAAAAAAAAAAAAAAAgBAAAAjZMbLbzwMzMzMzYYwYBGggZhJwYBzMY2mZQz2yMDzYWYxYmxMMLDAAGgZmBAzMYGA", 
+      "delves": "CgQAAAAAAAAAAAAAAAAAAAAAAAAAAgBAAAAjZMW2mhZmZmZmxMGMWgBIYWYCMWwMDmtZmhmtlZGMzglZMzYGmFAAYAmZGAMzwMA" 
     }
   },
 
   "mage": {
     "arcane": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "C4DAAAAAAAAAAAAAAAAAAAAAAYGGLzMzswDMzQzMGAAAGAAEwMDWmZiFAA2GzMzY2WsMzMjZGjxMzYswMmxMAADAAgZWAAzAAM", 
+      "mythic": "C4DAAAAAAAAAAAAAAAAAAAAAAMzwYZmZmFMzQzMGAAAGAAEwMDWmZiFAA2GmZGz2ilZmZMzYMmZmZswMmxMAADAAgZWAAzAAM", 
+      "delves": "C4DAAAAAAAAAAAAAAAAAAAAAAMzwYZmZmFMzQzMGAAAGAAEwMDWmZiFAA2GmZGz2ilZmZMzYMmZmZswMmxMAADAAgZWAAzAAM" 
     },
     "fire": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "C8DAAAAAAAAAAAAAAAAAAAAAAYGGLzMzsgZIzMzAAAwMLzYYZABAAsYmhtxMzMDAAAAAYzMjZGAAMGmZmZmZmNgZGQMjxgBA", 
+      "mythic": "C8DAAAAAAAAAAAAAAAAAAAAAAYGGLzMzsgZGZmxAAAwAAmZmssYGAgNzMjtxMzMWAAAAAgNzMmZAAwYGGzMzMz2AgZIMGDmBA", 
+      "delves": "C8DAAAAAAAAAAAAAAAAAAAAAAMzALzMzsgZGZmxAAAwMLzYmZZWgAAAWMzM2mZmZmHYBAAAAA2MzMz8AAAYGjZmZmZmZBAgwYAA" 
     },
     "frost": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CAEAAAAAAAAAAAAAAAAAAAAAAYGGLzYmFmZmYGmZMjZWMzMzMjZAAAgZGsMz0GAAAAAAYDgttxMzMYWmxYGWAAAYmFgZiZADA", 
+      "mythic": "CAEAAAAAAAAAAAAAAAAAAAAAAYGGLzYmFmZmYGmZmZmZ2MzMzMMDAAAMzglZm2AAAAAAALAstNmZmBzmxYmxGAAAzsBMTGDAA", 
+      "delves": "CAEAAAAAAAAAAAAAAAAAAAAAAYGGLzYmFmZmYGmZmZmZ2MzMzMMDAAAMzglZm2AAAAAAALAstNmZmBzmxYmxGAAAzsBMTGDAA" 
     }
   },
 
   "warlock": {
     "affliction": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CkQAAAAAAAAAAAAAAAAAAAAAAgZMzoZjhZmxsMAAAzMLz2MzsYGAYssMwAmgZYLww2AAAwMAAAAzMzMmBmxMzMzgZmZGAwAA", 
+      "mythic": "CkQAAAAAAAAAAAAAAAAAAAAAAwMGzoZjx2MzMzyAAAmZmlZbmZWGDAwyyADYCmBBG2GAAAMAAAMzwwMbzMmBzMzMGmZmBAYAA", 
+      "delves": "CkQAAAAAAAAAAAAAAAAAAAAAAwMGzoZjx2MzMzyAAAmZmlZbmZWGDAwyyADYCmBBG2GAAAMAAAMzwwMbzMmBzMzMGmZmBAYAA" 
     },
     "demonology": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CoQAAAAAAAAAAAAAAAAAAAAAAwMjZGNbMMzMmlBAAAAAAAMmBAgtRb0wiZmZsMLzMzwAAzMmZmZmBYMjZGAAgxMzMGGMjBA", 
+      "mythic": "CoQAAAAAAAAAAAAAAAAAAAAAAwMjZGNbMMzMmlBAAAAAAAMmBAgtRb0wixMjlxMmZMAwMzMMzMDwYGzMAAAjZmZMGsNzMA", 
+      "delves": "CoQAAAAAAAAAAAAAAAAAAAAAAwMjZGNbMMzMmlBAAAAAAAMmBAgtRb0wixMjlZbGzwAAzMzYmZmBYMjZGAAgxMzMGD2mxAA" 
     },
     "destruction": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CsQAAAAAAAAAAAAAAAAAAAAAAwMjZGNbMMzMmlZBzMLGjFzAAgZmxMzsAGzAIgtB0YhBAAGDM2AwMDwMzYMAAAMzMDAAzMA", 
+      "mythic": "CsQAAAAAAAAAAAAAAAAAAAAAAwMzDMzoZjBzMmlZzwMLzMWWMDAAwsNzMLWAwwohBwsFbMAAwMGmBAgZGMmxMDAAAzMzAAgZA", 
+      "delves": "CsQAAAAAAAAAAAAAAAAAAAAAAwMjZGNbMMzMmlZZYmZxYWWMDAAGzYmZWsADMMaYAMbxGDAAMAjNAAzgZmxYAAAYmZGAAmZA" 
     }
   },
 
   "monk": {
     "brewmaster": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CwQAAAAAAAAAAAAAAAAAAAAAAAAAAgZbzYGPwYWM2mxMDAAAAAAALLYEzMwMMYGjZmZwsgZMzywymltZZYWAAgNEAAAbzSzMzsYGWAYgpxAAAA", 
+      "mythic": "CwQAAAAAAAAAAAAAAAAAAAAAAAAAAgZZzYGzwyM2MmZAAAAAAAYZBmYmBmhBzgZmZwshZMzyw2mltZbGzCAAshAAAYbWamZmNzwGADMNAGAA", 
+      "delves": "CwQAAAAAAAAAAAAAAAAAAAAAAAAAAgZZzYGzwix2MmZMAAAAAAALLgYmBmhBzgZmZwshZMzywymltZbY2AAgNEAAAmlmZmZxMsBwMYaMgBAA" 
     },
     "mistweaver": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "C4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAghx2MwmFzYmZbGbYmZYmlttZGLMjmxMgBDGzyMzMDzG8AYxEAAAAABYxyYhZGAAYAAmBMwYRGzA", 
+      "mythic": "C4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMWmZZYxixMjNjlltZ4B2Mz22yMjFmRzYGwgBjxMzMDzGMMLzEAAAAABYx2YhZGAAAAwMgBYRGzA", 
+      "delves": "C4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMWmZZML2mxMjNDYMzmZ222mZswQzYGLYwAGzMzMMbwwsMTAAAAAEgFbjNmZAAAAAzAGYGyYGA" 
     },
     "windwalker": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "C0QAAAAAAAAAAAAAAAAAAAAAAMzMD2GGsMzMbzAAAAAAAAAAAAsMMCzYbYAzYYmxgZBzwsMTAAbmZbmhxMzAAYDAYWamZmFAMwMAglxQMA", 
+      "mythic": "C0QAAAAAAAAAAAAAAAAAAAAAAMzYMghZZmZ2mxAAAAAAAAAAAALDzEmhhBMjhZGDmNMDzyMBAsZmtxwYmZAAsBAMLNzMzCwwAzAAWGDxAA", 
+      "delves": "C0QAAAAAAAAAAAAAAAAAAAAAAMzYMghZZmZ2mxAAAAAAAAAAAALDzEmhhBMjhZGDmNMDzyMBAsZmtxwYmZAAsBAMLNzMzCwwAzAAWGDxAA" 
     }
   },
 
   "druid": {
     "balance": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CYGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWoMbNMmZgxswMzMLMwwMbzYGzYbsMjZGDzGGAMALbATmZZEAAAgNzMPwMD2MMGzAYmBAA", 
+      "mythic": "CYGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWoMbNjxMDwsYmZmBDMjZWmZxMzYZsMzyYMYBDAGLmZAjRgJAAAALmZmZGsZYMGAAmZAA", 
+      "delves": "CYGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWoMbNjxMDwswMzMLMwMmZbsNjZmtxyMGjBLYAwAssBMZmtRAAAA2YmZmBbLDjxMAmZAAA" 
     },
     "feral": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CcGAAAAAAAAAAAAAAAAAAAAAAAAAAAAwYMMmZmZmxstxyMbzYGPwMDAAAALBzixwMjaGzCzMzYMDDAAAAAgBGAAAAZMbjZGQgFwMDwCDGAAAzsBA", 
+      "mythic": "CcGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAmZ2MzMzMmZ2M2GbzMzMPwMDAAAALBzixwMjaGzCzMzsMmBAAAAAAGAAAAgMmtZmZABWAzMALMYAAAY2A", 
+      "delves": "CcGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAmZ2MzMzMmZ2M2GbzMzMPwMDAAAALBzixwMjaGzCzMzsMmBAAAAAAGAAAAgMmtZmZABWAzMALMYAAAY2A" 
     },
     "guardian": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CgGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgZmxs4BGzDM2MLzMPgZZZghhRT0MzsYmZmxMzAAAAAAww2MAAAAUGzyMmBAwCm5BAWMDGMYZbAwMLA", 
+      "mythic": "CgGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgZmZml5BmZMWMLeg5BmZZZgZzwoJamZWYmZmlxMAAAAAAMsNDYxMDYMAmCAAAshZeAgFzgBDW2AMzAA", 
+      "delves": "CgGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgZmZml5BmZMWMLeg5BmZZZgZzwoJamZWYmZmlxMAAAAAAMsNDYxMDYMAmCAAAshZeAgFzgBDW2AMzAA" 
     },
     "restoration": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CkGAAAAAAAAAAAAAAAAAAAAAAMjxMLz2MmZY2GmxMYswAAAAAAAAAAAbDa2YMNDjZMLzMzMDDmBAAAAAAwYAbGLYaYZAAACYBmZwMDQzAgZGAAA", 
+      "mythic": "CkGAAAAAAAAAAAAAAAAAAAAAAMMmxYGzMjZb4BYmZZML2mBAAAAAAAAAAbDa2gpZYGjZxMzMjZgBAAAAAAwYAAIAAgZbs1sYYjxMDMzCoZAAmZAA", 
+      "delves": "CkGAAAAAAAAAAAAAAAAAAAAAAMMmxYGzMjZbmZYYhZx2MAAAAAAAAAAYbQzmhpZYGjZxMzMzyMwAAAAAAAYMAAEAAwws1sMWsBz8AYGLgmBAYmBAA" 
     }
   },
 
   "demon-hunter": {
     "havoc": { 
-    "raid": "", 
-    "mythic": "", 
-    "delves": "" 
+    "raid": "CEkAAAAAAAAAAAAAAAAAAAAAAYGYmZ2MmZmxMzkxMDAAAAAAYWMGGmZsMzM2mtZmZWGzglBMLmBmNphZGDbAAAAAAAAMzgBAAAA", 
+    "mythic": "CEkAAAAAAAAAAAAAAAAAAAAAAYmZmZmZ2MmZmxYmMmZAAAAAAAzixwwMDjZsNbmZGjBWGwsZGYWkGzMjZsBAAAMAAAAmZwAAAAA", 
+    "delves": "CEkAAAAAAAAAAAAAAAAAAAAAAYmZmZmZ2MmZmxYmMmZAAAAAAAzixwwMDjZsNbmZGjBWGwsZGYWkGzMjZsBAAAMAAAAmZwAAAAA" 
   },
     "vengeance": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CUkAAAAAAAAAAAAAAAAAAAAAAAAYMzMjZmZkZmZYYmZGDzYmxMmxMzwMmZsxMGDAAAAAAAEwMzYDAAAADGzwMabmZGAYAAAAA", 
+      "mythic": "CUkAAAAAAAAAAAAAAAAAAAAAAAAYMzMjhZkZmBWMjZwMjZGz8AzMzYYmtZGbMjxYGAAAAAAABMzM2AAAAwAzMMj2mZmBAGAAAA", 
+      "delves": "CUkAAAAAAAAAAAAAAAAAAAAAAAAYMzMjhZkZmBWMjZwMjZGz8AzYGjZmtZGbMjxYGAAAAAAABMzM2AAAAwAzYMj2mZmBAGAAAA" 
     }
   },
 
   "evoker": {
     "devastation": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CsbBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgZmZwMDGMgBjZaGzMZMWmZmZGmZmZGwMmZGzMbjZwMwwMAwCYGmAbBLDDAzAA", 
+      "mythic": "CsbBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgZGjZmZmZGMYGGDTDzMZMWGmZGGzMzAmZmxYmZbmZwMwwMAwGYGmAbBLDDAzMA", 
+      "delves": "CsbBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwMzMDMDzgBGGDTjZmpZMzyMmZmZGzMzAmZGDzMbzMDMADAGjGbDIDEshBmZwMA" 
     },
     "preservation": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CwbBAAAAAAAAAAAAAAAAAAAAAAAAAAAYmZ2WGYGzMPwsYMzMzyAAAwYGzwMmRmxAAAAMzMTGzMzMbjZAAYMDAGYohGwCMmZAA", 
+      "mythic": "CwbBAAAAAAAAAAAAAAAAAAAAAAAAAAAmZmZ2MwwMzDMLmZmhNAAAmhxMYMjMzMAAAgtZmZyYmZmxYGAAGzAgBGaoBjFYMzAAA", 
+      "delves": "CwbBAAAAAAAAAAAAAAAAAAAAAAAAAAAmZmZ2MwYmZGMzMDbAAAYYMDGzIzMDAAAYZmZmMGzMjZmBAgxMAAMjGawYBGzMADA" 
     },
     "augmentation": { 
-      "raid": "", 
-      "mythic": "", 
-      "delves": "" 
+      "raid": "CEcBAAAAAAAAAAAAAAAAAAAAAMmxMbzMzMWGYmlZMGmZDAAAAAGAAMzAGMmaMzMDAAAAmxMYmZbMzAzsZALgxwwAYmI2wMDMzAA", 
+      "mythic": "CEcBAAAAAAAAAAAAAAAAAAAAAMmZmZbmZmhBmZZGjhZ2AAAAAAAAwMwMY8A1YmZGAAAAMzMjxMjxMDMzmBsAGDDDgZiYDzMDmZAA", 
+      "delves": "CEcBAAAAAAAAAAAAAAAAAAAAAMmZmZbmZmhBmZZGjhZ2AAAAAAAAwMwMY8A1YmZGAAAAMzMjxMjxMDMzmBsAGDDDgZiYDzMDmZAA" 
     }
   }
 }
