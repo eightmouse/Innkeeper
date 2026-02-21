@@ -2,514 +2,502 @@
 # @Author: eightmouse
 
 # ------------[      MODULES      ]------------ #
-import json, requests, os, sys, shutil, time, asyncio
+import json, requests, os, sys, shutil
 from datetime import datetime, timedelta, timezone
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
 
 UTC     = timezone.utc
 basedir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
-load_dotenv(os.path.join(basedir, '.env'))
 
 SERVER_URL = "https://innkeper.onrender.com"
 DATA_FILE  = os.path.join(basedir, 'characters.json')
 
-BLIZZARD_CLIENT_ID     = os.getenv("BLIZZARD_CLIENT_ID")
-BLIZZARD_CLIENT_SECRET = os.getenv("BLIZZARD_CLIENT_SECRET")
-
 # ============================================================
-#  FASTAPI SERVER  (runs on Render via uvicorn engine:app)
+#  FASTAPI SERVER  (only when imported by uvicorn on Render)
 # ============================================================
 
-app = FastAPI(title="Innkeeper API", version="1.0")
+if __name__ != "__main__":
+    import time, asyncio
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from dotenv import load_dotenv
+    from fastapi import FastAPI, HTTPException
 
-# ────────────────────  Token Management  ────────────────────
+    load_dotenv()
 
-_token_cache: dict[str, dict] = {}
-TOKEN_TTL = 24 * 3600 - 300              # evict 5 min before 24 h expiry
+    BLIZZARD_CLIENT_ID     = os.getenv("BLIZZARD_CLIENT_ID")
+    BLIZZARD_CLIENT_SECRET = os.getenv("BLIZZARD_CLIENT_SECRET")
 
-def get_access_token(region: str = "eu") -> str | None:
-    cached = _token_cache.get(region)
-    if cached and cached["expires"] > time.time():
-        return cached["token"]
-    r = requests.post(
-        f"https://{region}.battle.net/oauth/token",
-        data={"grant_type": "client_credentials"},
-        auth=(BLIZZARD_CLIENT_ID, BLIZZARD_CLIENT_SECRET),
-        timeout=10,
-    )
-    if r.status_code == 200:
-        token = r.json()["access_token"]
-        _token_cache[region] = {"token": token, "expires": time.time() + TOKEN_TTL}
-        return token
-    return None
+    app = FastAPI(title="Innkeeper API", version="1.0")
 
-# ────────────────────  Blizzard HTTP helper  ────────────────
+    # ────────────────────  Token Management  ────────────────────
 
-def _blizzard_get(url, params, token, timeout=15):
-    r = requests.get(url, params=params,
-                     headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
-    if r.status_code == 200:
-        return r.json()
-    return None
+    _token_cache: dict[str, dict] = {}
+    TOKEN_TTL = 24 * 3600 - 300
 
-def _params(region, locale="en_US", namespace_prefix="profile"):
-    return {"namespace": f"{namespace_prefix}-{region}", "locale": locale}
-
-def _slug(realm):
-    return realm.lower().replace(" ", "-").replace("'", "").replace(".", "")
-
-# ────────────────────  Lookup maps  ─────────────────────────
-
-SPECS_MAP = {
-    'warrior': ['arms', 'fury', 'protection'],
-    'paladin': ['holy', 'protection', 'retribution'],
-    'hunter': ['beast-mastery', 'marksmanship', 'survival'],
-    'rogue': ['assassination', 'outlaw', 'subtlety'],
-    'priest': ['discipline', 'holy', 'shadow'],
-    'death-knight': ['blood', 'frost', 'unholy'],
-    'shaman': ['elemental', 'enhancement', 'restoration'],
-    'mage': ['arcane', 'fire', 'frost'],
-    'warlock': ['affliction', 'demonology', 'destruction'],
-    'monk': ['brewmaster', 'mistweaver', 'windwalker'],
-    'druid': ['balance', 'feral', 'guardian', 'restoration'],
-    'demon-hunter': ['havoc', 'vengeance', 'devourer'],
-    'evoker': ['devastation', 'preservation', 'augmentation'],
-}
-
-SPEC_IDS = {
-    'warrior':      {'arms': 71, 'fury': 72, 'protection': 73},
-    'paladin':      {'holy': 65, 'protection': 66, 'retribution': 70},
-    'hunter':       {'beast-mastery': 253, 'marksmanship': 254, 'survival': 255},
-    'rogue':        {'assassination': 259, 'outlaw': 260, 'subtlety': 261},
-    'priest':       {'discipline': 256, 'holy': 257, 'shadow': 258},
-    'death-knight': {'blood': 250, 'frost': 251, 'unholy': 252},
-    'shaman':       {'elemental': 262, 'enhancement': 263, 'restoration': 264},
-    'mage':         {'arcane': 62, 'fire': 63, 'frost': 64},
-    'warlock':      {'affliction': 265, 'demonology': 266, 'destruction': 267},
-    'monk':         {'brewmaster': 268, 'mistweaver': 270, 'windwalker': 269},
-    'druid':        {'balance': 102, 'feral': 103, 'guardian': 104, 'restoration': 105},
-    'demon-hunter': {'havoc': 577, 'vengeance': 581, 'devourer': 1480},
-    'evoker':       {'devastation': 1467, 'preservation': 1468, 'augmentation': 1473},
-}
-
-def _get_class_slug(class_id):
-    return {
-        1: "warrior", 2: "paladin", 3: "hunter", 4: "rogue",
-        5: "priest", 6: "death-knight", 7: "shaman", 8: "mage",
-        9: "warlock", 10: "monk", 11: "druid", 12: "demon-hunter", 13: "evoker"
-    }.get(class_id, "warrior")
-
-def _get_spec_slug(spec_name):
-    return spec_name.lower().replace(" ", "-") if spec_name else ""
-
-# ────────────────────  Blizzard data helpers  ───────────────
-
-def _fetch_character(region, realm, name, token):
-    return _blizzard_get(
-        f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{name.lower()}",
-        _params(region), token)
-
-def _fetch_character_media(region, realm, name, token):
-    data = _blizzard_get(
-        f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{name.lower()}/character-media",
-        _params(region), token)
-    if not data:
-        return {}
-    assets = {a["key"]: a["value"] for a in data.get("assets", [])}
-    result = {}
-    for key in ("render", "main-raw", "main"):
-        if key in assets:
-            result["render"] = assets[key]
-            break
-    if "avatar" in assets:
-        result["avatar"] = assets["avatar"]
-    return result
-
-def _build_character_dict(data, region, realm, name, token):
-    cls   = data.get("character_class", {})
-    spec  = data.get("active_spec", {})
-    media = _fetch_character_media(region, realm, name, token)
-    return {
-        "name":         data.get("name", name),
-        "level":        data.get("level", "?"),
-        "realm":        realm,
-        "region":       region,
-        "portrait_url": media.get("render"),
-        "avatar_url":   media.get("avatar"),
-        "class_id":     cls.get("id"),
-        "class_name":   cls.get("name", ""),
-        "spec_name":    spec.get("name", ""),
-        "class_slug":   _get_class_slug(cls.get("id")),
-        "spec_slug":    _get_spec_slug(spec.get("name", "")),
-        "item_level":   data.get("average_item_level", 0),
-    }
-
-def _fetch_realms(region, token):
-    data = _blizzard_get(
-        f"https://{region}.api.blizzard.com/data/wow/realm/index",
-        _params(region, namespace_prefix="dynamic"), token)
-    if data:
-        return sorted([r["name"] for r in data["realms"]])
-    return []
-
-def _fetch_equipment(region, realm, name, token):
-    data = _blizzard_get(
-        f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{name.lower()}/equipment",
-        _params(region), token)
-    if not data:
-        return []
-
-    items_basic = []
-    for item in data.get("equipped_items", []):
-        slot    = item.get("slot", {}).get("type", "")
-        quality = item.get("quality", {}).get("type", "COMMON")
-        ilvl    = item.get("level", {}).get("value", 0)
-        iname   = item.get("name", "")
-        item_id = item.get("item", {}).get("id")
-        items_basic.append({"slot": slot, "name": iname, "ilvl": ilvl,
-                            "quality": quality, "icon_url": None, "_item_id": item_id})
-
-    def _fetch_icon(item_id):
-        mr = _blizzard_get(
-            f"https://{region}.api.blizzard.com/data/wow/media/item/{item_id}",
-            _params(region, namespace_prefix="static"), token, timeout=10)
-        if mr:
-            icon_assets = {a["key"]: a["value"] for a in mr.get("assets", [])}
-            return icon_assets.get("icon")
+    def get_access_token(region: str = "eu") -> str | None:
+        cached = _token_cache.get(region)
+        if cached and cached["expires"] > time.time():
+            return cached["token"]
+        r = requests.post(
+            f"https://{region}.battle.net/oauth/token",
+            data={"grant_type": "client_credentials"},
+            auth=(BLIZZARD_CLIENT_ID, BLIZZARD_CLIENT_SECRET),
+            timeout=10,
+        )
+        if r.status_code == 200:
+            token = r.json()["access_token"]
+            _token_cache[region] = {"token": token, "expires": time.time() + TOKEN_TTL}
+            return token
         return None
 
-    ids_to_fetch = [(i, it["_item_id"]) for i, it in enumerate(items_basic) if it["_item_id"]]
-    with ThreadPoolExecutor(max_workers=12) as executor:
-        futures = {executor.submit(_fetch_icon, item_id): idx for idx, item_id in ids_to_fetch}
-        for future in as_completed(futures):
-            idx = futures[future]
-            items_basic[idx]["icon_url"] = future.result()
+    # ────────────────────  Blizzard HTTP helper  ────────────────
 
-    for it in items_basic:
-        it.pop("_item_id", None)
-    return items_basic
+    def _blizzard_get(url, params, token, timeout=15):
+        r = requests.get(url, params=params,
+                         headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
+        if r.status_code == 200:
+            return r.json()
+        return None
 
-# ────────────────────  Talent tree helpers  ─────────────────
+    def _params(region, locale="en_US", namespace_prefix="profile"):
+        return {"namespace": f"{namespace_prefix}-{region}", "locale": locale}
 
-def _safe_get(obj, key, default=None):
-    if isinstance(obj, dict):
-        return obj.get(key, default)
-    return default
+    def _slug(realm):
+        return realm.lower().replace(" ", "-").replace("'", "").replace(".", "")
 
-def _parse_node(node):
-    raw_type = node.get('node_type', 'ACTIVE')
-    if isinstance(raw_type, dict):
-        node_type = raw_type.get('type', 'ACTIVE')
-    elif isinstance(raw_type, str):
-        node_type = raw_type
-    else:
-        node_type = 'ACTIVE'
+    # ────────────────────  Lookup maps  ─────────────────────────
 
-    raw_deps = node.get('locked_by', [])
-    locked_by = []
-    for dep in raw_deps:
-        if isinstance(dep, int):
-            locked_by.append(dep)
-        elif isinstance(dep, dict):
-            locked_by.append(dep.get('id', 0))
-
-    n = {
-        'id':         node.get('id', 0),
-        'row':        node.get('display_row', 0),
-        'col':        node.get('display_col', 0),
-        'pos_x':      node.get('raw_position_x', 0),
-        'pos_y':      node.get('raw_position_y', 0),
-        'type':       node_type,
-        'max_ranks':  0,
-        'entries':    [],
-        'locked_by':  locked_by,
+    SPEC_IDS = {
+        'warrior':      {'arms': 71, 'fury': 72, 'protection': 73},
+        'paladin':      {'holy': 65, 'protection': 66, 'retribution': 70},
+        'hunter':       {'beast-mastery': 253, 'marksmanship': 254, 'survival': 255},
+        'rogue':        {'assassination': 259, 'outlaw': 260, 'subtlety': 261},
+        'priest':       {'discipline': 256, 'holy': 257, 'shadow': 258},
+        'death-knight': {'blood': 250, 'frost': 251, 'unholy': 252},
+        'shaman':       {'elemental': 262, 'enhancement': 263, 'restoration': 264},
+        'mage':         {'arcane': 62, 'fire': 63, 'frost': 64},
+        'warlock':      {'affliction': 265, 'demonology': 266, 'destruction': 267},
+        'monk':         {'brewmaster': 268, 'mistweaver': 270, 'windwalker': 269},
+        'druid':        {'balance': 102, 'feral': 103, 'guardian': 104, 'restoration': 105},
+        'demon-hunter': {'havoc': 577, 'vengeance': 581, 'devourer': 1480},
+        'evoker':       {'devastation': 1467, 'preservation': 1468, 'augmentation': 1473},
     }
 
-    ranks = node.get('ranks', [])
-    n['max_ranks'] = max(len(ranks), 1)
+    def _get_class_slug(class_id):
+        return {
+            1: "warrior", 2: "paladin", 3: "hunter", 4: "rogue",
+            5: "priest", 6: "death-knight", 7: "shaman", 8: "mage",
+            9: "warlock", 10: "monk", 11: "druid", 12: "demon-hunter", 13: "evoker"
+        }.get(class_id, "warrior")
 
-    if ranks and isinstance(ranks[0], dict) and ranks[0].get('choice_of_tooltips'):
-        n['type'] = 'CHOICE'
-        n['max_ranks'] = 1
-        for ct in ranks[0]['choice_of_tooltips']:
-            if not isinstance(ct, dict):
-                continue
-            st = _safe_get(ct, 'spell_tooltip', {})
-            sp = _safe_get(st, 'spell', {})
-            talent_ref = _safe_get(ct, 'talent', {})
-            n['entries'].append({
-                'name':        _safe_get(sp, 'name') or _safe_get(talent_ref, 'name', '?'),
-                'spell_id':    _safe_get(sp, 'id', 0) if isinstance(sp, dict) else (sp if isinstance(sp, int) else 0),
-                'description': _safe_get(st, 'description', ''),
-                'cast_time':   _safe_get(st, 'cast_time', ''),
-                'cooldown':    _safe_get(st, 'cooldown', ''),
-                'range':       _safe_get(st, 'range', ''),
-            })
-    else:
-        for rank_info in ranks:
-            if not isinstance(rank_info, dict):
-                continue
-            tt = _safe_get(rank_info, 'tooltip', {})
-            st = _safe_get(tt, 'spell_tooltip', {})
-            sp = _safe_get(st, 'spell', {})
-            talent_ref = _safe_get(tt, 'talent', {})
-            n['entries'].append({
-                'name':        _safe_get(sp, 'name') or _safe_get(talent_ref, 'name', '?'),
-                'spell_id':    _safe_get(sp, 'id', 0) if isinstance(sp, dict) else (sp if isinstance(sp, int) else 0),
-                'description': _safe_get(st, 'description', ''),
-                'cast_time':   _safe_get(st, 'cast_time', ''),
-                'cooldown':    _safe_get(st, 'cooldown', ''),
-                'range':       _safe_get(st, 'range', ''),
-            })
+    def _get_spec_slug(spec_name):
+        return spec_name.lower().replace(" ", "-") if spec_name else ""
 
-    return n
+    # ────────────────────  Blizzard data helpers  ───────────────
 
-def _parse_talent_tree(raw, active_spec_id=None):
-    result = {'class_nodes': [], 'spec_nodes': [], 'hero_trees': []}
+    def _fetch_character(region, realm, name, token):
+        return _blizzard_get(
+            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{name.lower()}",
+            _params(region), token)
 
-    for node in raw.get('class_talent_nodes', []):
-        if isinstance(node, dict):
-            result['class_nodes'].append(_parse_node(node))
+    def _fetch_character_media(region, realm, name, token):
+        data = _blizzard_get(
+            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{name.lower()}/character-media",
+            _params(region), token)
+        if not data:
+            return {}
+        assets = {a["key"]: a["value"] for a in data.get("assets", [])}
+        result = {}
+        for key in ("render", "main-raw", "main"):
+            if key in assets:
+                result["render"] = assets[key]
+                break
+        if "avatar" in assets:
+            result["avatar"] = assets["avatar"]
+        return result
 
-    for node in raw.get('spec_talent_nodes', []):
-        if isinstance(node, dict):
-            result['spec_nodes'].append(_parse_node(node))
+    def _build_character_dict(data, region, realm, name, token):
+        cls   = data.get("character_class", {})
+        spec  = data.get("active_spec", {})
+        media = _fetch_character_media(region, realm, name, token)
+        return {
+            "name":         data.get("name", name),
+            "level":        data.get("level", "?"),
+            "realm":        realm,
+            "region":       region,
+            "portrait_url": media.get("render"),
+            "avatar_url":   media.get("avatar"),
+            "class_id":     cls.get("id"),
+            "class_name":   cls.get("name", ""),
+            "spec_name":    spec.get("name", ""),
+            "class_slug":   _get_class_slug(cls.get("id")),
+            "spec_slug":    _get_spec_slug(spec.get("name", "")),
+            "item_level":   data.get("average_item_level", 0),
+        }
 
-    hero_raw = raw.get('hero_talent_trees', [])
-    if isinstance(hero_raw, list):
-        for ht in hero_raw:
-            if not isinstance(ht, dict):
-                continue
-            hero_nodes_raw = ht.get('hero_talent_nodes', [])
-            if not isinstance(hero_nodes_raw, list):
-                hero_nodes_raw = []
+    def _fetch_realms(region, token):
+        data = _blizzard_get(
+            f"https://{region}.api.blizzard.com/data/wow/realm/index",
+            _params(region, namespace_prefix="dynamic"), token)
+        if data:
+            return sorted([r["name"] for r in data["realms"]])
+        return []
 
-            ht_specs = ht.get('playable_specializations', [])
-            if ht_specs and active_spec_id:
-                spec_ids_in_tree = set()
-                for sp_ref in ht_specs:
-                    if isinstance(sp_ref, int):
-                        spec_ids_in_tree.add(sp_ref)
-                    elif isinstance(sp_ref, dict):
-                        sid = sp_ref.get('id')
-                        if sid is not None:
-                            spec_ids_in_tree.add(int(sid))
-                if spec_ids_in_tree and active_spec_id not in spec_ids_in_tree:
-                    continue
+    def _fetch_equipment(region, realm, name, token):
+        data = _blizzard_get(
+            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{name.lower()}/equipment",
+            _params(region), token)
+        if not data:
+            return []
 
-            hero = {
-                'id':    ht.get('id', 0) if isinstance(ht.get('id'), int) else 0,
-                'name':  ht.get('name', '') if isinstance(ht.get('name'), str) else str(ht.get('name', '')),
-                'nodes': [_parse_node(n) for n in hero_nodes_raw if isinstance(n, dict)]
-            }
-            result['hero_trees'].append(hero)
+        items_basic = []
+        for item in data.get("equipped_items", []):
+            slot    = item.get("slot", {}).get("type", "")
+            quality = item.get("quality", {}).get("type", "COMMON")
+            ilvl    = item.get("level", {}).get("value", 0)
+            iname   = item.get("name", "")
+            item_id = item.get("item", {}).get("id")
+            items_basic.append({"slot": slot, "name": iname, "ilvl": ilvl,
+                                "quality": quality, "icon_url": None, "_item_id": item_id})
 
-    result['class_nodes'].sort(key=lambda n: n['id'])
-    result['spec_nodes'].sort(key=lambda n: n['id'])
-    return result
+        def _fetch_icon(item_id):
+            mr = _blizzard_get(
+                f"https://{region}.api.blizzard.com/data/wow/media/item/{item_id}",
+                _params(region, namespace_prefix="static"), token, timeout=10)
+            if mr:
+                icon_assets = {a["key"]: a["value"] for a in mr.get("assets", [])}
+                return icon_assets.get("icon")
+            return None
 
-def _attach_spell_icons(parsed, region, token):
-    all_spell_ids = set()
-    all_nodes = list(parsed.get('class_nodes', [])) + list(parsed.get('spec_nodes', []))
-    for ht in parsed.get('hero_trees', []):
-        if isinstance(ht, dict):
-            all_nodes += ht.get('nodes', [])
-    for node in all_nodes:
-        if not isinstance(node, dict):
-            continue
-        for entry in node.get('entries', []):
-            if not isinstance(entry, dict):
-                continue
-            sid = entry.get('spell_id')
-            if sid and isinstance(sid, int):
-                all_spell_ids.add(sid)
+        ids_to_fetch = [(i, it["_item_id"]) for i, it in enumerate(items_basic) if it["_item_id"]]
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            futures = {executor.submit(_fetch_icon, item_id): idx for idx, item_id in ids_to_fetch}
+            for future in as_completed(futures):
+                idx = futures[future]
+                items_basic[idx]["icon_url"] = future.result()
 
-    if not all_spell_ids:
-        return
+        for it in items_basic:
+            it.pop("_item_id", None)
+        return items_basic
 
-    icon_map = {}
+    # ────────────────────  Talent tree helpers  ─────────────────
 
-    def _fetch_one_icon(spell_id):
-        try:
-            r = requests.get(
-                f"https://{region}.api.blizzard.com/data/wow/media/spell/{spell_id}",
-                params={"namespace": f"static-{region}", "locale": "en_US"},
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=10)
-            if r.status_code == 200:
-                for a in r.json().get("assets", []):
-                    if isinstance(a, dict) and a.get("key") == "icon":
-                        return (spell_id, a.get("value"))
-        except Exception:
-            pass
-        return (spell_id, None)
+    def _safe_get(obj, key, default=None):
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return default
 
-    with ThreadPoolExecutor(max_workers=12) as executor:
-        futures = [executor.submit(_fetch_one_icon, sid) for sid in all_spell_ids]
-        for future in as_completed(futures):
-            sid, url = future.result()
-            if url:
-                icon_map[sid] = url
-
-    for node in all_nodes:
-        if not isinstance(node, dict):
-            continue
-        for entry in node.get('entries', []):
-            if not isinstance(entry, dict):
-                continue
-            sid = entry.get('spell_id')
-            if sid and sid in icon_map:
-                entry['icon_url'] = icon_map[sid]
-
-def _fetch_talent_tree_from_blizzard(region, class_slug, spec_slug):
-    spec_id = SPEC_IDS.get(class_slug, {}).get(spec_slug)
-    if not spec_id:
-        raise ValueError(f"Unknown spec: {class_slug}/{spec_slug}")
-
-    token = get_access_token(region)
-    if not token:
-        raise ConnectionError("Failed to get Blizzard API token")
-
-    spec_data = _blizzard_get(
-        f"https://{region}.api.blizzard.com/data/wow/playable-specialization/{spec_id}",
-        {"namespace": f"static-{region}", "locale": "en_US"}, token)
-    if not spec_data:
-        raise ConnectionError(f"Blizzard API returned no data for spec {spec_id}")
-
-    spec_tree_ref = spec_data.get('spec_talent_tree')
-    if not spec_tree_ref:
-        talent_trees = spec_data.get('talent_trees', [])
-        if talent_trees:
-            spec_tree_ref = talent_trees[0]
+    def _parse_node(node):
+        raw_type = node.get('node_type', 'ACTIVE')
+        if isinstance(raw_type, dict):
+            node_type = raw_type.get('type', 'ACTIVE')
+        elif isinstance(raw_type, str):
+            node_type = raw_type
         else:
-            raise ValueError(f"No talent tree reference found. Keys: {list(spec_data.keys())}")
+            node_type = 'ACTIVE'
 
-    tree_id = None
-    if isinstance(spec_tree_ref, int):
-        tree_id = spec_tree_ref
-    elif isinstance(spec_tree_ref, dict):
-        tree_href = ''
-        key_obj = spec_tree_ref.get('key')
-        if isinstance(key_obj, dict):
-            tree_href = key_obj.get('href', '')
-        elif isinstance(key_obj, str):
-            tree_href = key_obj
-        if '/talent-tree/' in tree_href:
-            parts = tree_href.split('/talent-tree/')[1].split('/')
-            try:
-                tree_id = int(parts[0])
-            except (ValueError, IndexError):
-                pass
-        if not tree_id:
-            tree_id = spec_tree_ref.get('id')
+        raw_deps = node.get('locked_by', [])
+        locked_by = []
+        for dep in raw_deps:
+            if isinstance(dep, int):
+                locked_by.append(dep)
+            elif isinstance(dep, dict):
+                locked_by.append(dep.get('id', 0))
 
-    if not tree_id:
-        raise ValueError(f"Could not extract tree ID from: {spec_tree_ref}")
+        n = {
+            'id':         node.get('id', 0),
+            'row':        node.get('display_row', 0),
+            'col':        node.get('display_col', 0),
+            'pos_x':      node.get('raw_position_x', 0),
+            'pos_y':      node.get('raw_position_y', 0),
+            'type':       node_type,
+            'max_ranks':  0,
+            'entries':    [],
+            'locked_by':  locked_by,
+        }
 
-    raw_tree = _blizzard_get(
-        f"https://{region}.api.blizzard.com/data/wow/talent-tree/{tree_id}/playable-specialization/{spec_id}",
-        {"namespace": f"static-{region}", "locale": "en_US"}, token)
-    if not raw_tree:
-        raise ConnectionError(f"Blizzard API returned no data for tree {tree_id}")
+        ranks = node.get('ranks', [])
+        n['max_ranks'] = max(len(ranks), 1)
 
-    all_node_ids = set()
-    def _collect_node_ids(tree_json):
-        for node in tree_json.get('class_talent_nodes', []):
-            if isinstance(node, dict) and 'id' in node:
-                all_node_ids.add(node['id'])
-        for node in tree_json.get('spec_talent_nodes', []):
-            if isinstance(node, dict) and 'id' in node:
-                all_node_ids.add(node['id'])
-        for ht in tree_json.get('hero_talent_trees', []):
+        if ranks and isinstance(ranks[0], dict) and ranks[0].get('choice_of_tooltips'):
+            n['type'] = 'CHOICE'
+            n['max_ranks'] = 1
+            for ct in ranks[0]['choice_of_tooltips']:
+                if not isinstance(ct, dict):
+                    continue
+                st = _safe_get(ct, 'spell_tooltip', {})
+                sp = _safe_get(st, 'spell', {})
+                talent_ref = _safe_get(ct, 'talent', {})
+                n['entries'].append({
+                    'name':        _safe_get(sp, 'name') or _safe_get(talent_ref, 'name', '?'),
+                    'spell_id':    _safe_get(sp, 'id', 0) if isinstance(sp, dict) else (sp if isinstance(sp, int) else 0),
+                    'description': _safe_get(st, 'description', ''),
+                    'cast_time':   _safe_get(st, 'cast_time', ''),
+                    'cooldown':    _safe_get(st, 'cooldown', ''),
+                    'range':       _safe_get(st, 'range', ''),
+                })
+        else:
+            for rank_info in ranks:
+                if not isinstance(rank_info, dict):
+                    continue
+                tt = _safe_get(rank_info, 'tooltip', {})
+                st = _safe_get(tt, 'spell_tooltip', {})
+                sp = _safe_get(st, 'spell', {})
+                talent_ref = _safe_get(tt, 'talent', {})
+                n['entries'].append({
+                    'name':        _safe_get(sp, 'name') or _safe_get(talent_ref, 'name', '?'),
+                    'spell_id':    _safe_get(sp, 'id', 0) if isinstance(sp, dict) else (sp if isinstance(sp, int) else 0),
+                    'description': _safe_get(st, 'description', ''),
+                    'cast_time':   _safe_get(st, 'cast_time', ''),
+                    'cooldown':    _safe_get(st, 'cooldown', ''),
+                    'range':       _safe_get(st, 'range', ''),
+                })
+
+        return n
+
+    def _parse_talent_tree(raw, active_spec_id=None):
+        result = {'class_nodes': [], 'spec_nodes': [], 'hero_trees': []}
+
+        for node in raw.get('class_talent_nodes', []):
+            if isinstance(node, dict):
+                result['class_nodes'].append(_parse_node(node))
+
+        for node in raw.get('spec_talent_nodes', []):
+            if isinstance(node, dict):
+                result['spec_nodes'].append(_parse_node(node))
+
+        hero_raw = raw.get('hero_talent_trees', [])
+        if isinstance(hero_raw, list):
+            for ht in hero_raw:
+                if not isinstance(ht, dict):
+                    continue
+                hero_nodes_raw = ht.get('hero_talent_nodes', [])
+                if not isinstance(hero_nodes_raw, list):
+                    hero_nodes_raw = []
+
+                ht_specs = ht.get('playable_specializations', [])
+                if ht_specs and active_spec_id:
+                    spec_ids_in_tree = set()
+                    for sp_ref in ht_specs:
+                        if isinstance(sp_ref, int):
+                            spec_ids_in_tree.add(sp_ref)
+                        elif isinstance(sp_ref, dict):
+                            sid = sp_ref.get('id')
+                            if sid is not None:
+                                spec_ids_in_tree.add(int(sid))
+                    if spec_ids_in_tree and active_spec_id not in spec_ids_in_tree:
+                        continue
+
+                hero = {
+                    'id':    ht.get('id', 0) if isinstance(ht.get('id'), int) else 0,
+                    'name':  ht.get('name', '') if isinstance(ht.get('name'), str) else str(ht.get('name', '')),
+                    'nodes': [_parse_node(n) for n in hero_nodes_raw if isinstance(n, dict)]
+                }
+                result['hero_trees'].append(hero)
+
+        result['class_nodes'].sort(key=lambda n: n['id'])
+        result['spec_nodes'].sort(key=lambda n: n['id'])
+        return result
+
+    def _attach_spell_icons(parsed, region, token):
+        all_spell_ids = set()
+        all_nodes = list(parsed.get('class_nodes', [])) + list(parsed.get('spec_nodes', []))
+        for ht in parsed.get('hero_trees', []):
             if isinstance(ht, dict):
-                for node in ht.get('hero_talent_nodes', []):
-                    if isinstance(node, dict) and 'id' in node:
-                        all_node_ids.add(node['id'])
+                all_nodes += ht.get('nodes', [])
+        for node in all_nodes:
+            if not isinstance(node, dict):
+                continue
+            for entry in node.get('entries', []):
+                if not isinstance(entry, dict):
+                    continue
+                sid = entry.get('spell_id')
+                if sid and isinstance(sid, int):
+                    all_spell_ids.add(sid)
 
-    _collect_node_ids(raw_tree)
+        if not all_spell_ids:
+            return
 
-    sibling_specs = SPEC_IDS.get(class_slug, {})
-    for sib_slug, sib_id in sibling_specs.items():
-        if sib_id == spec_id:
-            continue
-        try:
-            sib_data = _blizzard_get(
-                f"https://{region}.api.blizzard.com/data/wow/talent-tree/{tree_id}/playable-specialization/{sib_id}",
-                {"namespace": f"static-{region}", "locale": "en_US"}, token)
-            if sib_data:
-                _collect_node_ids(sib_data)
-        except Exception:
-            pass
+        icon_map = {}
 
-    parsed = _parse_talent_tree(raw_tree, spec_id)
-    parsed['all_node_ids'] = sorted(all_node_ids)
+        def _fetch_one_icon(spell_id):
+            try:
+                r = requests.get(
+                    f"https://{region}.api.blizzard.com/data/wow/media/spell/{spell_id}",
+                    params={"namespace": f"static-{region}", "locale": "en_US"},
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=10)
+                if r.status_code == 200:
+                    for a in r.json().get("assets", []):
+                        if isinstance(a, dict) and a.get("key") == "icon":
+                            return (spell_id, a.get("value"))
+            except Exception:
+                pass
+            return (spell_id, None)
 
-    _attach_spell_icons(parsed, region, token)
-    return parsed
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            futures = [executor.submit(_fetch_one_icon, sid) for sid in all_spell_ids]
+            for future in as_completed(futures):
+                sid, url = future.result()
+                if url:
+                    icon_map[sid] = url
 
-# ────────────────────  Auto-add semaphore  ──────────────────
+        for node in all_nodes:
+            if not isinstance(node, dict):
+                continue
+            for entry in node.get('entries', []):
+                if not isinstance(entry, dict):
+                    continue
+                sid = entry.get('spell_id')
+                if sid and sid in icon_map:
+                    entry['icon_url'] = icon_map[sid]
 
-_auto_add_semaphore = asyncio.Semaphore(1)
+    def _fetch_talent_tree_from_blizzard(region, class_slug, spec_slug):
+        spec_id = SPEC_IDS.get(class_slug, {}).get(spec_slug)
+        if not spec_id:
+            raise ValueError(f"Unknown spec: {class_slug}/{spec_slug}")
 
-# ────────────────────  Endpoints  ───────────────────────────
+        token = get_access_token(region)
+        if not token:
+            raise ConnectionError("Failed to get Blizzard API token")
 
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+        spec_data = _blizzard_get(
+            f"https://{region}.api.blizzard.com/data/wow/playable-specialization/{spec_id}",
+            {"namespace": f"static-{region}", "locale": "en_US"}, token)
+        if not spec_data:
+            raise ConnectionError(f"Blizzard API returned no data for spec {spec_id}")
 
-@app.get("/realms/{region}")
-async def realms(region: str):
-    token = get_access_token(region)
-    if not token:
-        raise HTTPException(502, "Failed to get Blizzard API token")
-    return {"region": region, "realms": _fetch_realms(region, token)}
+        spec_tree_ref = spec_data.get('spec_talent_tree')
+        if not spec_tree_ref:
+            talent_trees = spec_data.get('talent_trees', [])
+            if talent_trees:
+                spec_tree_ref = talent_trees[0]
+            else:
+                raise ValueError(f"No talent tree reference found. Keys: {list(spec_data.keys())}")
 
-@app.get("/character/{region}/{realm}/{name}")
-async def character(region: str, realm: str, name: str):
-    token = get_access_token(region)
-    if not token:
-        raise HTTPException(502, "Failed to get Blizzard API token")
-    data = _fetch_character(region, realm, name, token)
-    if not data:
-        raise HTTPException(404, f"Character {name} not found on {realm}-{region}")
-    return _build_character_dict(data, region, realm, name, token)
+        tree_id = None
+        if isinstance(spec_tree_ref, int):
+            tree_id = spec_tree_ref
+        elif isinstance(spec_tree_ref, dict):
+            tree_href = ''
+            key_obj = spec_tree_ref.get('key')
+            if isinstance(key_obj, dict):
+                tree_href = key_obj.get('href', '')
+            elif isinstance(key_obj, str):
+                tree_href = key_obj
+            if '/talent-tree/' in tree_href:
+                parts = tree_href.split('/talent-tree/')[1].split('/')
+                try:
+                    tree_id = int(parts[0])
+                except (ValueError, IndexError):
+                    pass
+            if not tree_id:
+                tree_id = spec_tree_ref.get('id')
 
-@app.get("/equipment/{region}/{realm}/{name}")
-async def equipment(region: str, realm: str, name: str):
-    token = get_access_token(region)
-    if not token:
-        raise HTTPException(502, "Failed to get Blizzard API token")
-    return _fetch_equipment(region, realm, name, token)
+        if not tree_id:
+            raise ValueError(f"Could not extract tree ID from: {spec_tree_ref}")
 
-@app.get("/talent-tree/{region}/{class_slug}/{spec_slug}")
-async def talent_tree(region: str, class_slug: str, spec_slug: str):
-    try:
-        return _fetch_talent_tree_from_blizzard(region, class_slug, spec_slug)
-    except (ValueError, ConnectionError) as e:
-        raise HTTPException(400, str(e))
+        raw_tree = _blizzard_get(
+            f"https://{region}.api.blizzard.com/data/wow/talent-tree/{tree_id}/playable-specialization/{spec_id}",
+            {"namespace": f"static-{region}", "locale": "en_US"}, token)
+        if not raw_tree:
+            raise ConnectionError(f"Blizzard API returned no data for tree {tree_id}")
 
-@app.post("/auto-add")
-async def auto_add(body: dict):
-    region = body.get("region", "eu")
-    name   = body.get("name", "")
-    if not name:
-        raise HTTPException(400, "Missing 'name'")
-    if _auto_add_semaphore.locked():
-        raise HTTPException(429, "Another auto-add scan is already running. Try again later.")
-    async with _auto_add_semaphore:
+        all_node_ids = set()
+        def _collect_node_ids(tree_json):
+            for node in tree_json.get('class_talent_nodes', []):
+                if isinstance(node, dict) and 'id' in node:
+                    all_node_ids.add(node['id'])
+            for node in tree_json.get('spec_talent_nodes', []):
+                if isinstance(node, dict) and 'id' in node:
+                    all_node_ids.add(node['id'])
+            for ht in tree_json.get('hero_talent_trees', []):
+                if isinstance(ht, dict):
+                    for node in ht.get('hero_talent_nodes', []):
+                        if isinstance(node, dict) and 'id' in node:
+                            all_node_ids.add(node['id'])
+
+        _collect_node_ids(raw_tree)
+
+        sibling_specs = SPEC_IDS.get(class_slug, {})
+        for sib_slug, sib_id in sibling_specs.items():
+            if sib_id == spec_id:
+                continue
+            try:
+                sib_data = _blizzard_get(
+                    f"https://{region}.api.blizzard.com/data/wow/talent-tree/{tree_id}/playable-specialization/{sib_id}",
+                    {"namespace": f"static-{region}", "locale": "en_US"}, token)
+                if sib_data:
+                    _collect_node_ids(sib_data)
+            except Exception:
+                pass
+
+        parsed = _parse_talent_tree(raw_tree, spec_id)
+        parsed['all_node_ids'] = sorted(all_node_ids)
+
+        _attach_spell_icons(parsed, region, token)
+        return parsed
+
+    # ────────────────────  Auto-add semaphore  ──────────────────
+
+    _auto_add_semaphore = asyncio.Semaphore(1)
+
+    # ────────────────────  Endpoints  ───────────────────────────
+
+    @app.get("/health")
+    async def health():
+        return {"status": "ok"}
+
+    @app.get("/realms/{region}")
+    async def realms(region: str):
         token = get_access_token(region)
         if not token:
             raise HTTPException(502, "Failed to get Blizzard API token")
-        realm_names = _fetch_realms(region, token)
-        if not realm_names:
-            raise HTTPException(502, "Could not fetch realm list")
-        for realm_name in realm_names:
-            data = _fetch_character(region, realm_name, name, token)
-            if data:
-                return _build_character_dict(data, region, realm_name, name, token)
-        raise HTTPException(404, f"Character '{name}' not found in any {region} realm")
+        return {"region": region, "realms": _fetch_realms(region, token)}
+
+    @app.get("/character/{region}/{realm}/{name}")
+    async def character(region: str, realm: str, name: str):
+        token = get_access_token(region)
+        if not token:
+            raise HTTPException(502, "Failed to get Blizzard API token")
+        data = _fetch_character(region, realm, name, token)
+        if not data:
+            raise HTTPException(404, f"Character {name} not found on {realm}-{region}")
+        return _build_character_dict(data, region, realm, name, token)
+
+    @app.get("/equipment/{region}/{realm}/{name}")
+    async def equipment(region: str, realm: str, name: str):
+        token = get_access_token(region)
+        if not token:
+            raise HTTPException(502, "Failed to get Blizzard API token")
+        return _fetch_equipment(region, realm, name, token)
+
+    @app.get("/talent-tree/{region}/{class_slug}/{spec_slug}")
+    async def talent_tree(region: str, class_slug: str, spec_slug: str):
+        try:
+            return _fetch_talent_tree_from_blizzard(region, class_slug, spec_slug)
+        except (ValueError, ConnectionError) as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/auto-add")
+    async def auto_add(body: dict):
+        region = body.get("region", "eu")
+        name   = body.get("name", "")
+        if not name:
+            raise HTTPException(400, "Missing 'name'")
+        if _auto_add_semaphore.locked():
+            raise HTTPException(429, "Another auto-add scan is already running. Try again later.")
+        async with _auto_add_semaphore:
+            token = get_access_token(region)
+            if not token:
+                raise HTTPException(502, "Failed to get Blizzard API token")
+            realm_names = _fetch_realms(region, token)
+            if not realm_names:
+                raise HTTPException(502, "Could not fetch realm list")
+            for realm_name in realm_names:
+                data = _fetch_character(region, realm_name, name, token)
+                if data:
+                    return _build_character_dict(data, region, realm_name, name, token)
+            raise HTTPException(404, f"Character '{name}' not found in any {region} realm")
 
 # ============================================================
 #  LOCAL CLIENT  (runs via python engine.py in Electron app)
