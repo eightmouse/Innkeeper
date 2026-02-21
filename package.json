@@ -1,13 +1,59 @@
 {
   "name": "innkeeper",
   "version": "1.0.0",
-  "description": "",
+  "description": "A World of Warcraft character tracker",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
-  },  
+    "start": "electron .",
+    "build:engine:win": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv engine.py",
+    "build:engine:linux": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv engine.py",
+    "build:win": "npm run build:engine:win && electron-builder --win",
+    "build:linux": "npm run build:engine:linux && electron-builder --linux"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^35.1.5",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.eightmouse.innkeeper",
+    "productName": "Innkeeper",
+    "files": [
+      "main.js",
+      "index.html",
+      "style.css",
+      "logo.png",
+      "icon.*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "talent_builds.json",
+        "to": "talent_builds.json"
+      }
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "icon.ico",
+      "extraResources": [
+        {
+          "from": "dist-engine/engine.exe",
+          "to": "engine.exe"
+        }
+      ]
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "icon.png",
+      "extraResources": [
+        {
+          "from": "dist-engine/engine",
+          "to": "engine"
+        }
+      ]
+    }
+  }
 }
