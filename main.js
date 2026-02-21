@@ -59,15 +59,6 @@ function createWindow() {
           if (!key.startsWith('_')) builds[key] = raw[key];
         }
         console.log(`[Main] Loaded talent_builds.json: classes = [${Object.keys(builds).join(', ')}]`);
-        for (const cls of Object.keys(builds)) {
-          if (typeof builds[cls] === 'object') {
-            for (const spec of Object.keys(builds[cls])) {
-              const types = Object.keys(builds[cls][spec] || {});
-              const hasStrings = types.filter(t => builds[cls][spec][t] && builds[cls][spec][t].length > 10);
-              console.log(`[Main]   ${cls}/${spec}: types=[${types.join(',')}] valid_strings=${hasStrings.length}`);
-            }
-          }
-        }
       }
       win?.webContents.send('from-python', JSON.stringify({
         status: 'talent_builds_loaded', builds
@@ -115,39 +106,29 @@ function startPython() {
   });
 
   let buffer = '';
+  let ready = false;
   pyProcess.stdout.on('data', (chunk) => {
     buffer += chunk.toString();
     const lines = buffer.split('\n');
     buffer = lines.pop();
     lines.forEach(line => {
       line = line.trim();
-      if (line) win?.webContents.send('from-python', line);
+      if (!line) return;
+      win?.webContents.send('from-python', line);
+      if (!ready) {
+        try {
+          const data = JSON.parse(line);
+          if (data.status === 'ready') {
+            ready = true;
+            pyProcess.stdin.write('GET_CHARACTERS\n');
+          }
+        } catch {}
+      }
     });
   });
 
   pyProcess.stderr.on('data', (d) => console.error('[Python]', d.toString().trim()));
   pyProcess.on('close', (code) => console.log('[Python] Exited with code', code));
-
-  // Wait for ready signal, then request characters
-  let ready = false;
-  const handler = (_, raw) => {
-    if (ready) return;
-    try {
-      const data = JSON.parse(raw);
-      if (data.status === 'ready') {
-        ready = true;
-        pyProcess.stdin.write('GET_CHARACTERS\n');
-      }
-    } catch {}
-  };
-  ipcMain.on('from-python-internal', handler);
-
-  pyProcess.stdout.on('data', (chunk) => {
-    chunk.toString().split('\n').forEach(line => {
-      line = line.trim();
-      if (line) ipcMain.emit('from-python-internal', null, line);
-    });
-  });
 }
 
 // ── IPC ─────────────────────────────────────────────────────────────
@@ -187,7 +168,10 @@ ipcMain.on('to-python', (_, cmd) => {
 ipcMain.on('window-close',    () => win?.close());
 ipcMain.on('window-minimize', () => win?.minimize());
 ipcMain.on('window-maximize', () => win?.isMaximized() ? win.unmaximize() : win.maximize());
-ipcMain.on('open-external',   (_, url) => shell.openExternal(url));
+ipcMain.on('open-external',   (_, url) => {
+  try { if (/^https?:\/\//i.test(url)) shell.openExternal(url); }
+  catch (e) { console.error('[Main] open-external error:', e.message); }
+});
 
 // ── App lifecycle ───────────────────────────────────────────────────
 app.whenReady().then(createWindow);
