@@ -19,6 +19,8 @@ node_modules/
 dist/
 out/
 build/
+dist-engine/
+*.spec
 
 # OS
 .DS_Store
