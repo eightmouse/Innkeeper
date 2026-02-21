@@ -6,7 +6,10 @@ import json, requests, os, sys, shutil
 from datetime import datetime, timedelta, timezone
 
 UTC     = timezone.utc
-basedir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+if getattr(sys, 'frozen', False):
+    basedir = os.path.abspath(os.path.dirname(sys.executable))
+else:
+    basedir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 SERVER_URL = "https://innkeper.onrender.com"
 AUTH_KEY   = "InnkeeperApp-2026"
@@ -687,6 +690,13 @@ def _char_from_server(data):
 # ────────────────────  Main loop  ───────────────────────────
 
 def main():
+    global basedir, DATA_FILE
+    if '--datadir' in sys.argv:
+        idx = sys.argv.index('--datadir')
+        if idx + 1 < len(sys.argv):
+            basedir = sys.argv[idx + 1]
+            DATA_FILE = os.path.join(basedir, 'characters.json')
+
     emit({"status": "ready"})
     emit({"status": "connecting"})
 
