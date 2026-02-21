@@ -1351,6 +1351,13 @@ if (ipcRenderer) {
         showToast('Character not found — check name and realm', true);
       } else if (data.status === 'error') {
         showToast(data.message || 'Something went wrong', true);
+      } else if (data.status === 'connecting') {
+        showFetchNotify('server', 'Connecting to Blizzard services…');
+      } else if (data.status === 'connected') {
+        hideFetchNotify('server');
+      } else if (data.status === 'connect_failed') {
+        hideFetchNotify('server');
+        showToast('Could not reach server — online features may not work', true);
       } else if (data.status === 'realms') {
         realmCache[data.region] = data.realms;
         if (data.region === inputRegion.value) showRealmSuggestions(realmInput.value);

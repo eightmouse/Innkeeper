@@ -688,14 +688,18 @@ def _char_from_server(data):
 
 def main():
     emit({"status": "ready"})
+    emit({"status": "connecting"})
 
-    # Non-blocking health check (warning only)
     try:
-        h = requests.get(f"{SERVER_URL}/health", timeout=5)
-        if h.status_code != 200:
+        h = requests.get(f"{SERVER_URL}/health", timeout=30)
+        if h.status_code == 200:
+            emit({"status": "connected"})
+        else:
             print(f"[engine] Server health check failed: {h.status_code}", file=sys.stderr)
+            emit({"status": "connect_failed"})
     except Exception as e:
         print(f"[engine] Server unreachable ({e}) — online features may fail", file=sys.stderr)
+        emit({"status": "connect_failed"})
 
     characters = load_data()
     for char in characters:
