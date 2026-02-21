@@ -108,7 +108,8 @@ function createWindow() {
 // ── Python backend ──────────────────────────────────────────────────
 function startPython() {
   const script = path.join(__dirname, 'engine.py');
-  pyProcess = spawn('python', [script], {
+  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  pyProcess = spawn(pythonCmd, [script], {
     cwd: __dirname,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
