@@ -9,6 +9,7 @@ UTC     = timezone.utc
 basedir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 SERVER_URL = "https://innkeper.onrender.com"
+AUTH_KEY   = "InnkeeperApp-2026"
 DATA_FILE  = os.path.join(basedir, 'characters.json')
 
 # ============================================================
@@ -19,14 +20,26 @@ if __name__ != "__main__":
     import time, asyncio
     from concurrent.futures import ThreadPoolExecutor, as_completed
     from dotenv import load_dotenv
-    from fastapi import FastAPI, HTTPException
+    from fastapi import FastAPI, HTTPException, Request
 
     load_dotenv()
 
     BLIZZARD_CLIENT_ID     = os.getenv("BLIZZARD_CLIENT_ID")
     BLIZZARD_CLIENT_SECRET = os.getenv("BLIZZARD_CLIENT_SECRET")
+    AUTH_KEY               = os.getenv("AUTH_KEY", "")
 
     app = FastAPI(title="Innkeeper API", version="1.0")
+
+    # ────────────────────  Auth middleware  ──────────────────────
+
+    @app.middleware("http")
+    async def _check_auth(request: Request, call_next):
+        if request.url.path == "/health":
+            return await call_next(request)
+        if request.headers.get("X-Auth-Key") != AUTH_KEY:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+        return await call_next(request)
 
     # ────────────────────  Token Management  ────────────────────
 
@@ -505,9 +518,11 @@ if __name__ != "__main__":
 
 # ────────────────────  Server HTTP helpers  ─────────────────
 
+_AUTH_HEADERS = {"X-Auth-Key": AUTH_KEY}
+
 def _server_get(path, timeout=30):
     try:
-        r = requests.get(f"{SERVER_URL}{path}", timeout=timeout)
+        r = requests.get(f"{SERVER_URL}{path}", headers=_AUTH_HEADERS, timeout=timeout)
         if r.status_code == 200:
             return r.json()
         print(f"[engine] Server GET {path} → {r.status_code}: {r.text[:200]}", file=sys.stderr)
@@ -518,7 +533,7 @@ def _server_get(path, timeout=30):
 
 def _server_post(path, body, timeout=30):
     try:
-        r = requests.post(f"{SERVER_URL}{path}", json=body, timeout=timeout)
+        r = requests.post(f"{SERVER_URL}{path}", json=body, headers=_AUTH_HEADERS, timeout=timeout)
         if r.status_code == 200:
             return r.json()
         print(f"[engine] Server POST {path} → {r.status_code}: {r.text[:200]}", file=sys.stderr)
