@@ -22,7 +22,7 @@ Started WoW not long ago and I found myself closing and opening WoWhead for buil
   - [x] World Quests
   - [x] Reset Timers
 - [x] Character Equipment
-- [ ] Talents tab
+- [x] Talents tab
 - [ ] Vault tab
 - [ ] Profession tab
 - More???
@@ -42,6 +42,13 @@ Started WoW not long ago and I found myself closing and opening WoWhead for buil
 
 ***Q: Did you use AI to help you develop the app?*** <br />
 *A: Yes. When used correctly it's an amazing tool that provides help. I see it no differently than using StackOverflow or Google, with the difference that at least I'm not get bullied for asking/expressing myself poorly. If this bothers you I apologize, this app might not be for you.*
+
+***Q: I'm on Linux/MacOS can I still use this app?*** <br />
+*A: Like Ronnie Coleman once said, 'YEAH BUDDY!'*
+
+## Known bugs
+- Demon Hunter (Devourer) nodes/skills not displaying correctly.
+
 
 ## Notes
 - Download is not available yet, I'm still building the app and I want it to have enough features and stability before releasing it to the pubblic.
