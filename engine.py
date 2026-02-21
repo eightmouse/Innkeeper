@@ -2,7 +2,7 @@
 # @Author: eightmouse
 
 # ------------[      MODULES      ]------------ #
-import json, requests, os, sys
+import json, requests, os, sys, shutil
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -854,7 +854,6 @@ def main():
         elif command == "CLEAR_TALENT_CACHE":
             cache_dir = os.path.join(basedir, 'talent_tree_cache')
             if os.path.exists(cache_dir):
-                import shutil
                 shutil.rmtree(cache_dir)
             emit({"status": "success", "message": "Talent tree cache cleared"})
 
