@@ -1,0 +1,104 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Python dependencies
+        run: pip install pyinstaller requests
+
+      - name: Build engine binary
+        run: npm run build:engine:win
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Build portable exe
+        run: npx electron-builder --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Innkeeper-Windows
+          path: dist/*.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Python dependencies
+        run: pip install pyinstaller requests
+
+      - name: Build engine binary
+        run: npm run build:engine:linux
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Build AppImage
+        run: npx electron-builder --linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Innkeeper-Linux
+          path: dist/*.AppImage
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Python dependencies
+        run: pip install pyinstaller requests
+
+      - name: Build engine binary
+        run: npm run build:engine:mac
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Build DMG
+        run: npx electron-builder --mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Innkeeper-macOS
+          path: dist/*.dmg
