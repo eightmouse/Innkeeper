@@ -25,9 +25,9 @@
       "main.js",
       "index.html",
       "style.css",
+      "background.webp",
       "logo.png",
-      "icon.*",
-      "assets/**/*"
+      "logo.ico"
     ],
     "extraResources": [
       {
@@ -37,7 +37,7 @@
     ],
     "win": {
       "target": "portable",
-      "icon": "icon.ico",
+      "icon": "logo.ico",
       "extraResources": [
         {
           "from": "dist-engine/engine.exe",
