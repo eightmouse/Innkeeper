@@ -1204,7 +1204,7 @@ function showRealmSuggestions(query) {
 }
 
 function loadRealms(region) {
-  if (!realmCache[region]) sendToPython(`GET_REALMS:${region}`);
+  if (!realmCache[region] || realmCache[region].length === 0) sendToPython(`GET_REALMS:${region}`);
 }
 
 const realmInput  = document.getElementById('input-realm');
