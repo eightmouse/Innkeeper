@@ -21,6 +21,8 @@
   "build": {
     "appId": "com.eightmouse.innkeeper",
     "productName": "Innkeeper",
+    "icon": "icon.ico",
+    "afterPack": "./afterPack.js",
     "files": [
       "main.js",
       "index.html",
@@ -37,7 +39,6 @@
     ],
     "win": {
       "target": "portable",
-      "icon": "icon.ico",
       "extraResources": [
         {
           "from": "dist-engine/engine.exe",
