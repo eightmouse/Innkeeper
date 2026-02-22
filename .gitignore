@@ -4,7 +4,6 @@
 !.env.example
 settings.local.json
 talent_tree_cache
-afterPack.js
 
 # Python
 __pycache__/
