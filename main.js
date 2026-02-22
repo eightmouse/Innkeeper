@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 const { spawn } = require('child_process');
@@ -72,6 +72,12 @@ function createWindow() {
       contextIsolation: false,
     },
   });
+
+  // Disable menu and DevTools in packaged builds
+  if (isPackaged) {
+    Menu.setApplicationMenu(null);
+    win.webContents.on('devtools-opened', () => win.webContents.closeDevTools());
+  }
 
   win.loadFile('index.html');
   seedDataFiles();
