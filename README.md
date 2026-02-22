@@ -53,7 +53,3 @@ Started WoW not long ago and I found myself closing and opening WoWhead for buil
 
 ## Known bugs
 - Demon Hunter (Devourer) nodes/skills not displaying correctly.
-
-## Notes
-- Download is not available yet, I'm still building the app and I want it to have enough features and stability before releasing it to the pubblic.
-
