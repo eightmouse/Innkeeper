@@ -8,7 +8,9 @@
     "build:engine:win": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv engine.py",
     "build:engine:linux": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv engine.py",
     "build:win": "npm run build:engine:win && electron-builder --win",
-    "build:linux": "npm run build:engine:linux && electron-builder --linux"
+    "build:linux": "npm run build:engine:linux && electron-builder --linux",
+    "build:mac": "npm run build:engine:mac && electron-builder --mac",
+    "build:engine:mac": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv engine.py"
   },
   "keywords": [],
   "author": "",
@@ -48,6 +50,16 @@
     },
     "linux": {
       "target": "AppImage",
+      "icon": "logo.png",
+      "extraResources": [
+        {
+          "from": "dist-engine/engine",
+          "to": "engine"
+        }
+      ]
+    },
+    "mac": {
+      "target": "dmg",
       "icon": "logo.png",
       "extraResources": [
         {
