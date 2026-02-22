@@ -1,3 +1,5 @@
+![Build Status](https://github.com/eightmouse/Innkeper/actions/workflows/build.yml/badge.svg)
+
 # Innkeeper
 
 ## Disclaimer
