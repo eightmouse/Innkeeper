@@ -37,6 +37,11 @@ Started WoW not long ago and I found myself closing and opening WoWhead for buil
 ***Q: Why Electron?*** <br />
 *A: I know that it's quite hated for it's memory usage, super valid and agreable critique. I thought about other options but I'm not confident and skilled enough to use other frameworks. Tauri could've achieved same results with less memory usage but as I said, that would've been out of my skill reach!* <br />
 
+***Q: Why Portable and no installer?*** <br />
+*A: Because installers can be bloat. I don't plan on having THAT many features to make an installer worth.* <br />
+  *- For Windows: You get a standalone .exe. No registry changes, no "Program Files" clutter, no leftover junk.* <br />
+  *- For Linux: You get an AppImage. It’s distro-agnostic and runs anywhere.* <br />
+  
 ***Q: Will you add X?*** <br />
 *A: As I mentioned, the goal for this app is not to replace the resources already available but more of a 'quick but less' alternative. So, suggestions are welcomed but I can't guarantee I will add specific things unless they're more of a QoL than anything.*
 
