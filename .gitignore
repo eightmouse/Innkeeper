@@ -5,6 +5,7 @@
 settings.local.json
 talent_tree_cache
 afterPack.js
+build.yml
 
 # Python
 __pycache__/
