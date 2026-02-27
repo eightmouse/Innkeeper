@@ -976,14 +976,14 @@ body::before {
 }
 
 .talent-grid svg.talent-connections line {
-  stroke: rgba(40, 70, 50, 0.3);
-  stroke-width: 2px;                  /* Changed to px units */
+  stroke: rgba(58, 100, 70, 0.4);
+  stroke-width: 2px;
   stroke-linecap: round;
-  vector-effect: non-scaling-stroke;  /* <--- Fixes the unequal thickness */
+  vector-effect: non-scaling-stroke;
 }
 .talent-grid svg.talent-connections line.active {
-  stroke: rgba(58, 138, 80, 0.5);
-  stroke-width: 3px;                  /* Changed to px units */
+  stroke: rgba(58, 138, 80, 0.7);
+  stroke-width: 3px;
 }
 
 /* ── Talent Node ─────────────── */
