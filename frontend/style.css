@@ -658,7 +658,9 @@ body::before {
   gap: 8px;
 }
 .theme-btn {
-  padding: 6px 16px;
+  flex: 1;
+  padding: 6px 0;
+  text-align: center;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(58, 138, 80, 0.2);
   border-radius: 4px;
