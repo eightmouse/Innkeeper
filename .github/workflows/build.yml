@@ -90,7 +90,7 @@ jobs:
         run: npm run build:engine:mac
 
       - name: Upscale icon to 512x512 for macOS
-        run: sips -z 512 512 logo.png
+        run: sips -z 512 512 assets/logo.png
 
       - name: Install Node dependencies
         run: npm install
