@@ -14,7 +14,9 @@ function getDataDir() {
 }
 
 function getBuildsFile() {
-  return path.join(getDataDir(), 'talent_builds.json');
+  return isPackaged
+    ? path.join(getDataDir(), 'talent_builds.json')
+    : path.join(__dirname, 'assets', 'talent_builds.json');
 }
 
 // ── Icon: try multiple formats ──────────────────────────────────────
@@ -22,7 +24,7 @@ function getIconPath() {
   const names = ['icon.png', 'icon.ico', 'icon.icns', 'logo.png', 'logo.ico',
                  'innkeeper.png', 'innkeeper.ico', 'innkeeper.icns',
                  'icon_256.png', 'icon_48.png', 'app-icon.png'];
-  const dirs  = [__dirname, path.join(__dirname, 'assets'), path.join(__dirname, 'resources')];
+  const dirs  = [path.join(__dirname, 'assets'), __dirname, path.join(__dirname, 'resources')];
   for (const dir of dirs) {
     for (const name of names) {
       const p = path.join(dir, name);
@@ -79,7 +81,7 @@ function createWindow() {
     win.webContents.on('devtools-opened', () => win.webContents.closeDevTools());
   }
 
-  win.loadFile('index.html');
+  win.loadFile(path.join(__dirname, 'frontend', 'index.html'));
   seedDataFiles();
   startPython();
 
@@ -157,9 +159,9 @@ function startPython() {
     console.log('[Main] Spawned packaged engine:', enginePath, '--datadir', dataDir);
   } else {
     // Dev: run python engine.py as before
-    const script = path.join(__dirname, 'engine.py');
+    const script = path.join(__dirname, 'backend', 'engine.py');
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-    pyProcess = spawn(pythonCmd, [script], {
+    pyProcess = spawn(pythonCmd, [script, '--datadir', __dirname], {
       cwd: __dirname,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
