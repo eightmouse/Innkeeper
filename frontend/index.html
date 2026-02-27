@@ -118,6 +118,10 @@
           <button class="theme-btn" data-theme="light">Light</button>
         </div>
       </div>
+      <div class="setting-row">
+        <div class="setting-label">App Update</div>
+        <button class="btn update-btn" id="update-btn" disabled>Checking…</button>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="settings-close">Close</button>
@@ -1460,6 +1464,12 @@ document.querySelectorAll('.theme-btn').forEach(btn => {
   btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
 });
 
+// Update button
+document.getElementById('update-btn').addEventListener('click', () => {
+  if (ipcRenderer) ipcRenderer.send('open-external', 'https://github.com/eightmouse/Innkeper/releases/latest');
+  else window.open('https://github.com/eightmouse/Innkeper/releases/latest', '_blank');
+});
+
 // Load saved theme
 try {
   const saved = localStorage.getItem('innkeeper-theme');
@@ -1620,6 +1630,19 @@ if (ipcRenderer) {
           showToast(`Spec changed to ${newChar.spec_name} — loading talents…`);
         } else {
           showToast('Spec is up to date');
+        }
+      } else if (data.status === 'update_check') {
+        const btn = document.getElementById('update-btn');
+        if (data.updateAvailable) {
+          btn.textContent = `Update to v${data.latestVersion}`;
+          btn.disabled = false;
+          btn.classList.add('update-available');
+          btn.classList.remove('update-uptodate');
+          showToast(`Innkeeper v${data.latestVersion} is available!`);
+        } else {
+          btn.textContent = 'Up to date';
+          btn.classList.add('update-uptodate');
+          btn.classList.remove('update-available');
         }
       } else if (data.status === 'spec_refresh_error') {
         const btn = document.getElementById('refresh-spec-btn');
