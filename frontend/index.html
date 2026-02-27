@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <title>Innkeeper</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
 <div id="app">
 
   <div id="titlebar">
     <div id="titlebar-left">
-      <img id="titlebar-logo" src="logo.png" alt="Innkeeper" />
+      <img id="titlebar-logo" src="../assets/logo.png" alt="Innkeeper" />
       <span id="titlebar-title">INNKEEPER</span>
       <div id="menubar">
         <div class="menu-item" id="menu-settings">Settings</div>
@@ -295,6 +295,11 @@ const QUALITY_COLOR = {
   HEIRLOOM:  '#00ccff',
 };
 
+const QUALITY_LABEL = {
+  POOR:'Poor', COMMON:'Common', UNCOMMON:'Uncommon', RARE:'Rare',
+  EPIC:'Epic', LEGENDARY:'Legendary', ARTIFACT:'Artifact', HEIRLOOM:'Heirloom',
+};
+
 // Armory slot layout — left col top-to-bottom, right col top-to-bottom
 const EQUIP_LEFT  = ['HEAD','NECK','SHOULDER','BACK','CHEST','SHIRT','TABARD','WRIST'];
 const EQUIP_RIGHT = ['HANDS','WAIST','LEGS','FEET','RING_1','RING_2','TRINKET_1','TRINKET_2'];
@@ -545,6 +550,7 @@ let TALENT_BUILDS = {};          // Build strings per class/spec/type
 let _currentTalentChar = null;   // Currently displayed character
 let _currentBuildType = 'raid';  // Current active preset
 let _talentTooltipEl = null;     // Shared tooltip element
+let _equipTooltipEl = null;      // Equipment tooltip element
 let _talentFetchInProgress = false; // True while talent tree is being fetched
 let _equipFetchInProgress = false;  // True while equipment is being fetched
 
@@ -805,20 +811,47 @@ function showTalentTooltip(e, node, selections) {
   positionTooltip(e);
 }
 
-function positionTooltip(e) {
-  if (!_talentTooltipEl) return;
+function positionTooltip(e, el) {
+  const tooltipEl = el || _talentTooltipEl;
+  if (!tooltipEl) return;
   const pad = 12;
   let x = e.clientX + pad;
   let y = e.clientY + pad;
-  const rect = _talentTooltipEl.getBoundingClientRect();
+  const rect = tooltipEl.getBoundingClientRect();
   if (x + rect.width > window.innerWidth) x = e.clientX - rect.width - pad;
   if (y + rect.height > window.innerHeight) y = e.clientY - rect.height - pad;
-  _talentTooltipEl.style.left = x + 'px';
-  _talentTooltipEl.style.top = y + 'px';
+  tooltipEl.style.left = x + 'px';
+  tooltipEl.style.top = y + 'px';
 }
 
 function hideTalentTooltip() {
   if (_talentTooltipEl) _talentTooltipEl.classList.remove('visible');
+}
+
+// ── Equipment Tooltip ───────────────────────────────────────────────
+
+function initEquipTooltip() {
+  if (_equipTooltipEl) return;
+  _equipTooltipEl = document.createElement('div');
+  _equipTooltipEl.className = 'equip-tooltip';
+  document.body.appendChild(_equipTooltipEl);
+}
+
+function showEquipTooltip(e, item, slotLabel) {
+  initEquipTooltip();
+  const color = QUALITY_COLOR[item.quality] || QUALITY_COLOR.COMMON;
+  const qualityName = QUALITY_LABEL[item.quality] || item.quality;
+  _equipTooltipEl.innerHTML = `
+    <div class="equip-tooltip-name" style="color:${color}">${escapeHtml(item.name)}</div>
+    <div class="equip-tooltip-meta">${escapeHtml(slotLabel)} · ${escapeHtml(qualityName)}</div>
+    <div class="equip-tooltip-ilvl">Item Level ${item.ilvl}</div>
+  `;
+  _equipTooltipEl.classList.add('visible');
+  positionTooltip(e, _equipTooltipEl);
+}
+
+function hideEquipTooltip() {
+  if (_equipTooltipEl) _equipTooltipEl.classList.remove('visible');
 }
 
 // ── Main: Load Talents ──────────────────────────────────────────────
@@ -1243,6 +1276,9 @@ function renderEquipCol(container, slots, bySlot, side) {
       row.innerHTML = side === 'left'
         ? nameHtml + iconHtml
         : iconHtml + nameHtml;
+      row.addEventListener('mouseenter', e => showEquipTooltip(e, item, label));
+      row.addEventListener('mousemove',  e => positionTooltip(e, _equipTooltipEl));
+      row.addEventListener('mouseleave', hideEquipTooltip);
     } else {
       const emptyHtml = `<div class="equip-icon equip-icon-empty"></div><div class="equip-info"><div class="equip-name equip-empty-slot">${label}</div></div>`;
       row.innerHTML = side === 'left'
