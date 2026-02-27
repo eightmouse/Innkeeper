@@ -16,8 +16,8 @@ Utilizing the official Blizzard API and supplemental data from WoWHead, providin
 It's a personal project that I started a while ago to push my skills further while taking breaks between WoW sessions. <br />
 Started building it few weeks prior to pushing it to GitHub, mostly due to the fact that I was not planning on actually developing something 'complete' but here we are. <br />
 
-Innkeeper was born out of a simple need: I was tired of alt-tabbing to WoWHead just to check a build or a timer. I wanted a 'digestible' desktop companion that felt like part of the game UI. Because I'm layz. <br />
-Started WoW not long ago and I found myself closing and opening WoWhead for builds over and over, I wanted something on my desktop that I could access quickly, because I'm lazy. <br />
+Innkeeper was born out of a simple need: I was tired of alt-tabbing to WoWHead just to check a build or a timer. I wanted a 'digestible' desktop companion that felt like part of the game UI.<br />
+Started WoW not long ago and I found myself closing and opening WoWhead for builds over and over, I wanted something on my desktop that I could access quickly, because I'm lazy.<br />
 
 ## ✨ Key Features
 Innkeeper brings your character data to your desktop without the overhead of a web browser.<br />
