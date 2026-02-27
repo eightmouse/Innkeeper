@@ -1070,6 +1070,16 @@ function renderTreeSection(label, nodes, selections, sectionId, flexWeight) {
     nodePosMap[n.id] = { pctX, pctY };
   }
 
+  // Center topmost node(s) under section label (fixes hero tree misalignment)
+  if (sectionId === 'hero') {
+    const topVis = visibleNodes.filter(n => n.pos_y === minY);
+    if (topVis.length > 0) {
+      const avgTopX = topVis.reduce((s, n) => s + nodePosMap[n.id].pctX, 0) / topVis.length;
+      const shiftX = 50 - avgTopX;
+      for (const id in nodePosMap) nodePosMap[id].pctX += shiftX;
+    }
+  }
+
   // SVG connection lines — only draw where BOTH endpoints are in this section
   const sectionNodeIds = new Set(nodes.map(n => n.id));
   let svgLines = '';
