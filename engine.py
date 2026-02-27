@@ -845,6 +845,32 @@ def main():
                     emit({"status": "equipment_error", "name": name, "realm": realm,
                           "message": "Could not fetch equipment from server"})
 
+        elif command.startswith("REFRESH_SPEC:"):
+            parts = command.split(":", 3)
+            if len(parts) == 4:
+                _, region, realm, name = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if not char:
+                    emit({"status": "spec_refresh_error",
+                          "message": f"Character {name} on {realm} not found locally"})
+                    continue
+                data = _server_get(f"/character/{region}/{realm}/{name}")
+                if data:
+                    old_spec = char.spec_slug
+                    char.spec_name    = data.get("spec_name", char.spec_name)
+                    char.spec_slug    = data.get("spec_slug", char.spec_slug)
+                    char.item_level   = data.get("item_level", char.item_level)
+                    char.portrait_url = data.get("portrait_url", char.portrait_url)
+                    char.avatar_url   = data.get("avatar_url", char.avatar_url)
+                    spec_changed = (old_spec != char.spec_slug)
+                    if spec_changed:
+                        save_data(characters)
+                    emit({"status": "spec_refreshed", "name": name, "realm": realm,
+                          "character": char.to_dict(), "spec_changed": spec_changed})
+                else:
+                    emit({"status": "spec_refresh_error",
+                          "message": "Could not fetch character data from server"})
+
         elif command.startswith("FETCH_TALENT_TREE:"):
             parts = command.split(":", 3)
             if len(parts) == 4:
