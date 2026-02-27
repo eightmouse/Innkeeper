@@ -2,6 +2,8 @@ name: Build
 
 on:
   workflow_dispatch:
+  release:
+    types: [published]
 
 jobs:
   build-windows:
@@ -37,6 +39,12 @@ jobs:
           name: Innkeeper-Windows
           path: dist/*.exe
 
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/*.exe --clobber
+
   build-linux:
     runs-on: ubuntu-latest
     steps:
@@ -69,6 +77,12 @@ jobs:
         with:
           name: Innkeeper-Linux
           path: dist/*.AppImage
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/*.AppImage --clobber
 
   build-macos:
     runs-on: macos-latest
@@ -105,3 +119,9 @@ jobs:
         with:
           name: Innkeeper-macOS
           path: dist/*.dmg
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/*.dmg --clobber
