@@ -824,7 +824,8 @@ def main():
                     emit({"status": "equipment", "name": name, "realm": realm,
                           "items": items if items else [], "cached": False})
                 else:
-                    emit({"status": "error", "message": "Could not fetch equipment from server"})
+                    emit({"status": "equipment_error", "name": name, "realm": realm,
+                          "message": "Could not fetch equipment from server"})
 
         elif command.startswith("REFRESH_EQUIPMENT:"):
             parts = command.split(":", 3)
@@ -841,7 +842,8 @@ def main():
                     emit({"status": "equipment", "name": name, "realm": realm,
                           "items": items if items else [], "cached": False})
                 else:
-                    emit({"status": "error", "message": "Could not fetch equipment from server"})
+                    emit({"status": "equipment_error", "name": name, "realm": realm,
+                          "message": "Could not fetch equipment from server"})
 
         elif command.startswith("FETCH_TALENT_TREE:"):
             parts = command.split(":", 3)
