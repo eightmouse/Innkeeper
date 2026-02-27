@@ -19,6 +19,13 @@ Started building it few weeks prior to pushing it to GitHub, mostly due to the f
 Innkeeper was born out of a simple need: I was tired of alt-tabbing to WoWHead just to check a build or a timer. I wanted a 'digestible' desktop companion that felt like part of the game UI.<br />
 Started WoW not long ago and I found myself closing and opening WoWhead for builds over and over, I wanted something on my desktop that I could access quickly, because I'm lazy.<br />
 
+## Supported Regions
+Innkeeper utilizes the Blizzard Battle.net API to fetch character data from the following regions:
+* **North America (NA)**
+* **Europe (EU)**
+* **Korea (KR)**
+* **Taiwan (TW)**
+
 ## ✨ Key Features
 Innkeeper brings your character data to your desktop without the overhead of a web browser.<br />
 * **Progression Tracking:** Keep tabs on your Raid progress, Mythic+ ratings, and World Quest completion at a glance.
@@ -38,6 +45,12 @@ Innkeeper brings your character data to your desktop without the overhead of a w
 2. Download the version for your OS (`.exe` for Windows, `.AppImage` for Linux, `.dmg` for MacOS).
 
 ## FaQ
+***Q: Why does the app take a long time to load character data on the first launch?*** <br />
+*A: Innkeeper utilizes a backend hosted on a Render free instance.<br />
+Due to the service's resource management, the server may enter a sleep state after a period of inactivity.<br /> 
+The initial request of a session may require up to 60 seconds for the instance to "spin up."<br />
+Subsequent interactions will be processed with standard latency.<br />*
+
 ***Q: Why Electron?*** <br />
 *A: I know that it's quite hated for it's memory usage, super valid and agreable critique, HOWEVER: <br />
 It leverages modern web standards (HTML5/CSS3) for the user interface while maintaining a unified codebase for cross-platform distribution.<br />
@@ -58,3 +71,5 @@ Tauri could've achieved same results with less memory usage but as I said, that 
 
 ***Q: I'm on Linux/MacOS can I still use this app?*** <br />
 *A: Like Ronnie Coleman once said, 'YEAH BUDDY!'.*
+
+
