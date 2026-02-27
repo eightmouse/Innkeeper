@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
-const path = require('path');
-const fs   = require('fs');
+const path  = require('path');
+const fs    = require('fs');
+const https = require('https');
 const { spawn } = require('child_process');
 
 let win;
@@ -132,6 +133,9 @@ function createWindow() {
     } catch (e) {
       console.error('[Main] Error scanning talent_tree_cache:', e.message);
     }
+
+    // Step 3: Check for app updates (silent)
+    checkForUpdates();
   });
 }
 
@@ -234,6 +238,32 @@ ipcMain.on('open-external',   (_, url) => {
   try { if (/^https?:\/\//i.test(url)) shell.openExternal(url); }
   catch (e) { console.error('[Main] open-external error:', e.message); }
 });
+
+// ── Update check ────────────────────────────────────────────────────
+function checkForUpdates() {
+  const options = {
+    hostname: 'api.github.com',
+    path: '/repos/eightmouse/Innkeper/releases/latest',
+    headers: { 'User-Agent': 'Innkeeper-App' },
+  };
+  https.get(options, (res) => {
+    let body = '';
+    res.on('data', (chunk) => { body += chunk; });
+    res.on('end', () => {
+      try {
+        const release = JSON.parse(body);
+        const latestVersion = (release.tag_name || '').replace(/^v/, '');
+        const currentVersion = app.getVersion();
+        const updateAvailable = latestVersion && latestVersion !== currentVersion;
+        win?.webContents.send('from-python', JSON.stringify({
+          status: 'update_check',
+          updateAvailable,
+          latestVersion,
+        }));
+      } catch (_) { /* silent */ }
+    });
+  }).on('error', () => { /* silent */ });
+}
 
 // ── App lifecycle ───────────────────────────────────────────────────
 app.whenReady().then(createWindow);
