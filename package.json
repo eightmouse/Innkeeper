@@ -5,12 +5,12 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build:engine:win": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv engine.py",
-    "build:engine:linux": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv engine.py",
+    "build:engine:win": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv backend/engine.py",
+    "build:engine:linux": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv backend/engine.py",
     "build:win": "npm run build:engine:win && electron-builder --win",
     "build:linux": "npm run build:engine:linux && electron-builder --linux",
     "build:mac": "npm run build:engine:mac && electron-builder --mac",
-    "build:engine:mac": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv engine.py"
+    "build:engine:mac": "pyinstaller --onefile --distpath dist-engine --name engine --exclude-module uvicorn --exclude-module fastapi --exclude-module dotenv backend/engine.py"
   },
   "keywords": [],
   "author": "",
@@ -23,19 +23,16 @@
   "build": {
     "appId": "com.eightmouse.innkeeper",
     "productName": "Innkeeper",
-    "icon": "icon.ico",
+    "icon": "assets/icon.ico",
     "afterPack": "./afterPack.js",
     "files": [
       "main.js",
-      "index.html",
-      "style.css",
-      "background.webp",
-      "logo.png",
-      "logo.ico"
+      "frontend/**/*",
+      "assets/**/*"
     ],
     "extraResources": [
       {
-        "from": "talent_builds.json",
+        "from": "assets/talent_builds.json",
         "to": "talent_builds.json"
       }
     ],
@@ -50,7 +47,7 @@
     },
     "linux": {
       "target": "AppImage",
-      "icon": "logo.png",
+      "icon": "assets/logo.png",
       "extraResources": [
         {
           "from": "dist-engine/engine",
@@ -60,7 +57,7 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "logo.png",
+      "icon": "assets/logo.png",
       "extraResources": [
         {
           "from": "dist-engine/engine",
