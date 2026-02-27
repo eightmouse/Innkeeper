@@ -602,6 +602,11 @@ function decodeBuildString(exportString, classNodes, specNodes, heroTrees, allNo
    *
    * Uses allNodeIds (full tree) to iterate ALL nodes, not just spec-filtered ones.
    * Active hero tree is determined by which tree has the most selected nodes.
+   *
+   * Auto-correction: The Blizzard REST API may omit certain tree nodes (e.g.
+   * SubTreeSelection gate nodes) that the in-game C_Traits.GetTreeNodes includes.
+   * After decoding, we check for parent-child violations and retry with extra
+   * phantom nodes prepended to correct any bit alignment shift.
    */
   const result = { selections: {}, activeHeroTreeName: null };
   if (!exportString) return result;
@@ -623,59 +628,106 @@ function decodeBuildString(exportString, classNodes, specNodes, heroTrees, allNo
         bitPos++;
       }
     }
-    const reader = new BitReader(bytes);
 
-    // Header: version(8) + specId(16) + treeHash(128) = 152 bits
-    if (reader.remaining < 152) return result;
-    const version = reader.read(8);
-    const specId = reader.read(16);
-    reader.read(128); // tree hash
-
-    // Build lookup from our spec-filtered nodes
+    // Build lookup from all node sources (class, spec, AND hero)
     const nodeMap = {};
     for (const n of classNodes) nodeMap[n.id] = n;
     for (const n of specNodes) nodeMap[n.id] = n;
+    for (const ht of heroTrees) {
+      for (const n of (ht.nodes || [])) {
+        if (!nodeMap[n.id]) nodeMap[n.id] = n;
+      }
+    }
 
-    // Use the full ordered node ID list (all 208 nodes for DK, etc.)
-    // For IDs not in our display data, use a placeholder so bits advance correctly
-    let allNodes;
+    // Build parent map for violation checking
+    const parentMap = {};
+    for (const n of [...classNodes, ...specNodes]) {
+      if (n.locked_by && n.locked_by.length > 0) parentMap[n.id] = n.locked_by;
+    }
+    for (const ht of heroTrees) {
+      for (const n of (ht.nodes || [])) {
+        if (n.locked_by && n.locked_by.length > 0) parentMap[n.id] = n.locked_by;
+      }
+    }
+
+    // Build sorted node ID list
+    let sortedIds;
     if (allNodeIds && allNodeIds.length > 0) {
-      allNodes = allNodeIds.map(id => nodeMap[id] || { id: 0, max_ranks: 1, type: 'ACTIVE' });
+      sortedIds = [...allNodeIds].sort((a, b) => a - b);
     } else {
-      // Fallback: old behavior
-      allNodes = [
+      sortedIds = [
         ...[...classNodes].sort((a, b) => a.id - b.id),
         ...[...specNodes].sort((a, b) => a.id - b.id),
-      ];
+      ].map(n => n.id);
     }
 
-    for (const node of allNodes) {
-      if (reader.remaining < 1) break;
-      const isSelected = reader.read(1);
-      if (!isSelected) continue;
+    // Decode helper: reads the bitstream for a given ordered ID list
+    function decodeWithIds(orderedIds) {
+      const reader = new BitReader(bytes);
+      if (reader.remaining < 152) return { selections: {}, remaining: 0 };
+      reader.read(8);   // version
+      reader.read(16);  // specId
+      reader.read(128); // treeHash
 
-      // Blizzard format: isPurchased(1) → if purchased: isPartial(1) → if partial: rank(6) → isChoice(1) → if choice: choiceIdx(2)
-      const isPurchased = reader.read(1);
-      let rank = node.max_ranks || 1;
-      let choice = -1;
+      const selections = {};
+      for (const id of orderedIds) {
+        if (reader.remaining < 1) break;
+        const isSelected = reader.read(1);
+        if (!isSelected) continue;
 
-      if (isPurchased) {
-        const isPartial = reader.read(1);
-        if (isPartial) {
-          rank = reader.read(6); // fixed 6-bit rank
-          if (rank === 0) rank = 1;
+        const isPurchased = reader.read(1);
+        const node = nodeMap[id] || { max_ranks: 1 };
+        let rank = node.max_ranks || 1;
+        let choice = -1;
+
+        if (isPurchased) {
+          const isPartial = reader.read(1);
+          if (isPartial) {
+            rank = reader.read(6);
+            if (rank === 0) rank = 1;
+          }
+          const isChoice = reader.read(1);
+          if (isChoice) choice = reader.read(2);
         }
-        const isChoice = reader.read(1);
-        if (isChoice) {
-          choice = reader.read(2);
-        }
+
+        if (id !== 0) selections[id] = { rank, choice };
       }
-      // else: granted (selected but not purchased — free node), rank stays at max
+      return { selections, remaining: reader.remaining };
+    }
 
-      if (node.id !== 0) {
-        result.selections[node.id] = { rank, choice };
+    // Count parent-child violations (child selected but no parent selected)
+    function countViolations(selections) {
+      let v = 0;
+      for (const id of Object.keys(selections)) {
+        const parents = parentMap[parseInt(id)];
+        if (!parents || parents.length === 0) continue;
+        if (!parents.some(pid => selections[pid])) v++;
+      }
+      return v;
+    }
+
+    // Initial decode
+    let best = decodeWithIds(sortedIds);
+    let bestViolations = countViolations(best.selections);
+
+    // Auto-correction: if violations exist, the Blizzard REST API likely omitted
+    // phantom nodes that the in-game tree includes. Try prepending 1-3 dummy nodes
+    // to shift the bitstream alignment.
+    if (bestViolations > 0) {
+      for (let extra = 1; extra <= 3; extra++) {
+        const correctedIds = [...Array(extra).fill(0), ...sortedIds];
+        const corrected = decodeWithIds(correctedIds);
+        const v = countViolations(corrected.selections);
+        if (v < bestViolations) {
+          best = corrected;
+          bestViolations = v;
+          console.log(`[Talents] Auto-correction: +${extra} phantom node(s) reduced violations from ${countViolations(decodeWithIds(sortedIds).selections)} to ${v}`);
+          if (v === 0) break;
+        }
       }
     }
+
+    result.selections = best.selections;
 
     // Determine active hero tree by counting which has the most selected nodes
     if (heroTrees && heroTrees.length > 0) {
@@ -690,7 +742,7 @@ function decodeBuildString(exportString, classNodes, specNodes, heroTrees, allNo
     }
 
     const sel = Object.keys(result.selections).length;
-    console.log(`[Talents] Decoded: ${sel} selected, hero=${result.activeHeroTreeName || 'none'}, ${reader.remaining} bits left`);
+    console.log(`[Talents] Decoded: ${sel} selected, hero=${result.activeHeroTreeName || 'none'}, ${best.remaining} bits left, ${bestViolations} violations`);
     return result;
   } catch (e) {
     console.error('[Talents] Decode error:', e);
@@ -895,7 +947,6 @@ function renderTalentTree(treeData, char) {
   // Split spec_nodes into hero display + pure spec
   const allHeroNodeIds = new Set();
   let activeHeroTree = null;
-  // Collect all hero talent names (from all trees) to detect duplicate spec nodes
   const allHeroEntryNames = new Set();
   for (const ht of heroTrees) {
     if (!ht.nodes) continue;
@@ -908,9 +959,7 @@ function renderTalentTree(treeData, char) {
   if (!activeHeroTree && heroTrees.length > 0) activeHeroTree = heroTrees[0];
   let heroNodes = activeHeroTree ? [...activeHeroTree.nodes] : [];
 
-  // Filter spec nodes: remove hero tree nodes by ID, and also remove spec nodes
-  // that are name-duplicates of hero tree talents (e.g. Devourer DH has spec nodes
-  // with identical names/positions as Void-Scarred hero nodes — they're vestigial).
+  // Filter spec nodes: remove hero tree duplicates by ID or by name
   const pureSpecNodes = specNodes.filter(n => {
     if (allHeroNodeIds.has(n.id)) return false;
     if (allHeroEntryNames.size > 0 && n.entries && n.entries.length > 0) {
@@ -918,6 +967,28 @@ function renderTalentTree(treeData, char) {
     }
     return true;
   });
+
+  // Transfer selections from name-filtered spec nodes to their hero equivalents
+  const heroEntryToNode = {};
+  for (const n of heroNodes) {
+    for (const e of (n.entries || [])) {
+      if (e.name) heroEntryToNode[e.name] = n.id;
+    }
+  }
+  for (const n of specNodes) {
+    if (allHeroNodeIds.has(n.id)) continue;
+    if (!n.entries || n.entries.length === 0) continue;
+    if (!n.entries.every(e => allHeroEntryNames.has(e.name))) continue;
+    if (selections[n.id]) {
+      for (const e of n.entries) {
+        const heroId = heroEntryToNode[e.name];
+        if (heroId && !selections[heroId]) {
+          selections[heroId] = selections[n.id];
+          break;
+        }
+      }
+    }
+  }
 
   // Calculate flex from visible node position spans
   const visibleSpan = (nodes) => {
@@ -932,6 +1003,16 @@ function renderTalentTree(treeData, char) {
   const classSpan = visibleSpan(classNodes);
   const heroSpan = heroNodes.length > 0 ? visibleSpan(heroNodes) : 0;
   const specSpan = visibleSpan(pureSpecNodes);
+
+  // Debug: log hero node selection state
+  if (heroNodes.length > 0) {
+    const heroSel = heroNodes.filter(n => selections[n.id]);
+    const heroUnsel = heroNodes.filter(n => !selections[n.id]);
+    console.log(`[Talents] Hero tree "${activeHeroTree?.name}": ${heroSel.length} selected, ${heroUnsel.length} unselected`);
+    if (heroUnsel.length > 0) {
+      console.log('[Talents] Unselected hero nodes:', heroUnsel.map(n => `${n.id} (${n.entries?.[0]?.name})`).join(', '));
+    }
+  }
 
   let html = '<div class="talent-tree-container">';
   html += renderTreeSection(capitalize(char.class_slug), classNodes, selections, 'class', classSpan);
