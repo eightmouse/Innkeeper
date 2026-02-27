@@ -46,30 +46,25 @@ Innkeeper brings your character data to your desktop without the overhead of a w
 
 ## FaQ
 ***Q: Why does the app take a long time to load character data on the first launch?*** <br />
-*A: Innkeeper utilizes a backend hosted on a Render free instance.<br />
-Due to the service's resource management, the server may enter a sleep state after a period of inactivity.<br /> 
-The initial request of a session may require up to 60 seconds for the instance to "spin up."<br />
-Subsequent interactions will be processed with standard latency.<br />*
+***A:*** *Innkeeper utilizes a backend hosted on a Render free instance. Due to the service's resource management, the server may enter a sleep state after a period of inactivity. The initial request of a session may require up to 60 seconds for the instance to "spin up." Subsequent interactions will be processed with standard latency.<br />*
 
 ***Q: Why Electron?*** <br />
-*A: I know that it's quite hated for it's memory usage, super valid and agreable critique, HOWEVER: <br />
-It leverages modern web standards (HTML5/CSS3) for the user interface while maintaining a unified codebase for cross-platform distribution.<br />
-I thought about other options but I'm not confident and skilled enough to use other frameworks.<br /> 
-Tauri could've achieved same results with less memory usage but as I said, that would've been out of my skill reach for now!* <br />
+***A:*** *I know that it's quite hated for it's memory usage, super valid and agreable critique, HOWEVER: <br />
+It leverages modern web standards (HTML5/CSS3) for the user interface while maintaining a unified codebase for cross-platform distribution. I thought about other options but I'm not confident and skilled enough to use other frameworks. Tauri could've achieved same results with less memory usage but as I said, that would've been out of my skill reach for now!* <br />
 
 ***Q: Why Portable and no installer?*** <br />
-*A: Because installers can be bloat. I don't plan on having THAT many features to make an installer worth.* <br />
+***A:*** *Because installers can be bloat. I don't plan on having THAT many features to make an installer worth.* <br />
   *- For Windows: You get a standalone .exe. No registry changes, no "Program Files" clutter, no leftover junk.* <br />
   *- For Linux: You get an AppImage. It’s distro-agnostic and runs anywhere.* <br />
   *- For MacOS: Same reasoning applies!* <br />
   
 ***Q: Will you add X?*** <br />
-*A: As I mentioned, the goal for this app is not to replace the resources already available but more of a 'quick but less' alternative. So, suggestions are welcomed but I can't guarantee I will add specific things unless they're more of a QoL than anything.*
+***A:*** *As I mentioned, the goal for this app is not to replace the resources already available but more of a 'quick but less' alternative. So, suggestions are welcomed but I can't guarantee I will add specific things unless they're more of a QoL than anything.*
 
 ***Q: Did you use AI to help you develop the app?*** <br />
-*A: Yes. When used correctly it's an amazing tool that provides help. I see it no differently than using StackOverflow or Google, with the difference that at least I'm not get bullied for asking/expressing myself poorly. If this bothers you I apologize, this app might not be for you.*
+***A:*** *Yes. When used correctly it's an amazing tool that provides help. I see it no differently than using StackOverflow or Google, with the difference that at least I'm not get bullied for asking/expressing myself poorly. If this bothers you I apologize, this app might not be for you.*
 
 ***Q: I'm on Linux/MacOS can I still use this app?*** <br />
-*A: Like Ronnie Coleman once said, 'YEAH BUDDY!'.*
+***A:*** *Like Ronnie Coleman once said, 'YEAH BUDDY!'.*
 
 
