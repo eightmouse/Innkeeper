@@ -2,7 +2,7 @@
 
 :root {
   /* ── Swap this one line to change the background ── */
-  --background-image: url('background.webp');
+  --background-image: url('../assets/background.webp');
 
   --bg:           #080e0a;
   --card-bg:      rgba(8, 16, 10, 0.82);
@@ -1151,6 +1151,47 @@ body::before {
   font-size: 11px;
   color: rgba(180, 210, 190, 0.85);
   line-height: 1.55;
+}
+
+/* ── Equipment Tooltip ─────────────── */
+
+.equip-tooltip {
+  position: fixed;
+  z-index: 9999;
+  max-width: 280px;
+  min-width: 160px;
+  background: rgba(6, 10, 8, 0.97);
+  border: 1px solid rgba(58, 138, 80, 0.35);
+  border-radius: 8px;
+  padding: 10px 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+}
+.equip-tooltip.visible { opacity: 1; }
+
+.equip-tooltip-name {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.equip-tooltip-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.equip-tooltip-ilvl {
+  font-size: 11px;
+  color: var(--accent);
+}
+
+[data-theme="light"] .equip-tooltip {
+  background: rgba(255, 255, 255, 0.97);
+  border-color: rgba(58, 138, 80, 0.3);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
 }
 
 .talent-loading, .talent-empty {
