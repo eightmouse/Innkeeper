@@ -1445,6 +1445,15 @@ if (ipcRenderer) {
         _equipFetchInProgress = false;
         hideFetchNotify('equipment');
         renderEquipment(data.items);
+      } else if (data.status === 'equipment_error') {
+        // Only show error if no equipment is currently displayed (i.e. not a background refresh)
+        if (_equipFetchInProgress) {
+          _equipFetchInProgress = false;
+          hideFetchNotify('equipment');
+          document.getElementById('armory-loading').style.display = 'none';
+          showToast(data.message || 'Could not fetch equipment', true);
+        }
+        // If equipment was already rendered from cache, silently ignore the background refresh failure
       } else if (data.status === 'equipment_refreshing') {
         showEquipmentRefreshing();
       } else if (data.status === 'talent_tree') {
