@@ -836,6 +836,7 @@ class Character:
         self.prof_moxie           = {}
         self.prof_concentration   = {}
         self.prof_spark           = False
+        self.prof_spark_collected_at = None
         self.prof_kp              = {}
         self.prof_kp_last_reset   = None
         self.activities   = {
@@ -879,6 +880,7 @@ class Character:
         last_kp = self.prof_kp_last_reset or datetime.min.replace(tzinfo=UTC)
         if last_kp < weekly_b:
             self.prof_spark = False
+            self.prof_spark_collected_at = None
             for prof_name in self.prof_kp:
                 for src in self.prof_kp[prof_name]:
                     self.prof_kp[prof_name][src] = False
@@ -918,6 +920,7 @@ class Character:
             "prof_moxie":            self.prof_moxie,
             "prof_concentration":    self.prof_concentration,
             "prof_spark":            self.prof_spark,
+            "prof_spark_collected_at": self.prof_spark_collected_at,
             "prof_kp":               self.prof_kp,
             "prof_kp_last_reset":    self.prof_kp_last_reset.isoformat() if self.prof_kp_last_reset else None,
             "activities":            self.activities,
@@ -951,6 +954,7 @@ class Character:
         char.prof_moxie             = d.get("prof_moxie", {})
         char.prof_concentration     = d.get("prof_concentration", {})
         char.prof_spark             = d.get("prof_spark", False)
+        char.prof_spark_collected_at = d.get("prof_spark_collected_at", None)
         char.prof_kp                = d.get("prof_kp", {})
         char.prof_kp_last_reset     = datetime.fromisoformat(d["prof_kp_last_reset"]) if d.get("prof_kp_last_reset") else None
         char.activities           = d["activities"]
@@ -1306,6 +1310,7 @@ def main():
                               "moxie": char.prof_moxie,
                               "concentration": char.prof_concentration,
                               "spark": char.prof_spark,
+                              "spark_collected_at": char.prof_spark_collected_at,
                               "kp": char.prof_kp, "cached": True})
                         continue
 
@@ -1324,6 +1329,7 @@ def main():
                       "moxie": char.prof_moxie if char else {},
                       "concentration": char.prof_concentration if char else {},
                       "spark": char.prof_spark if char else False,
+                      "spark_collected_at": char.prof_spark_collected_at if char else None,
                       "kp": char.prof_kp if char else {},
                       "cached": False})
 
@@ -1339,6 +1345,7 @@ def main():
                           "moxie": char.prof_moxie,
                           "concentration": char.prof_concentration,
                           "spark": char.prof_spark,
+                          "spark_collected_at": char.prof_spark_collected_at,
                           "kp": char.prof_kp})
 
         elif command.startswith("SET_PROF_CONCENTRATION:"):
@@ -1356,6 +1363,7 @@ def main():
                           "moxie": char.prof_moxie,
                           "concentration": char.prof_concentration,
                           "spark": char.prof_spark,
+                          "spark_collected_at": char.prof_spark_collected_at,
                           "kp": char.prof_kp})
 
         elif command.startswith("TOGGLE_PROF_SPARK:"):
@@ -1365,11 +1373,16 @@ def main():
                 char = find_character(characters, name, realm)
                 if char:
                     char.prof_spark = not char.prof_spark
+                    if char.prof_spark:
+                        char.prof_spark_collected_at = datetime.now(UTC).isoformat()
+                    else:
+                        char.prof_spark_collected_at = None
                     save_data(characters)
                     emit({"status": "prof_updated", "name": name, "realm": realm,
                           "moxie": char.prof_moxie,
                           "concentration": char.prof_concentration,
                           "spark": char.prof_spark,
+                          "spark_collected_at": char.prof_spark_collected_at,
                           "kp": char.prof_kp})
 
         elif command.startswith("TOGGLE_PROF_KP:"):
@@ -1386,6 +1399,7 @@ def main():
                           "moxie": char.prof_moxie,
                           "concentration": char.prof_concentration,
                           "spark": char.prof_spark,
+                          "spark_collected_at": char.prof_spark_collected_at,
                           "kp": char.prof_kp})
 
         elif command == "CLEAR_TALENT_CACHE":
