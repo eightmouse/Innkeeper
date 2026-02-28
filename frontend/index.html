@@ -229,7 +229,10 @@
       <div class="detail-tab-panel" id="panel-vault">
         <div class="tab-content-full">
           <div class="vault-content" id="vault-content">
-            <div class="vault-placeholder">Vault data coming soon...</div>
+            <div class="vault-loading" id="vault-loading">
+              <div class="loading-spinner"></div>
+              <div class="loading-text">Loading vault data…</div>
+            </div>
           </div>
         </div>
       </div>
@@ -303,6 +306,16 @@ const QUALITY_LABEL = {
   POOR:'Poor', COMMON:'Common', UNCOMMON:'Uncommon', RARE:'Rare',
   EPIC:'Epic', LEGENDARY:'Legendary', ARTIFACT:'Artifact', HEIRLOOM:'Heirloom',
 };
+
+// ── Vault constants ──────────────────────────────
+const VAULT_DUNGEONS_MILESTONES = [1, 4, 8];
+const VAULT_RAIDS_MILESTONES    = [2, 4, 6];
+const VAULT_WORLD_MILESTONES    = [1, 4, 8];
+const VAULT_DUNGEONS_SLOTS = 8;
+const VAULT_RAIDS_SLOTS    = 6;
+const VAULT_WORLD_SLOTS    = 8;
+let _vaultFetchInProgress  = false;
+let _currentVaultChar      = null;
 
 // Armory slot layout — left col top-to-bottom, right col top-to-bottom
 const EQUIP_LEFT  = ['HEAD','NECK','SHOULDER','BACK','CHEST','SHIRT','TABARD','WRIST'];
@@ -1203,8 +1216,304 @@ function capitalize(str) {
 
 
 function loadVault(char) {
+  _currentVaultChar = char;
   const container = document.getElementById('vault-content');
-  container.innerHTML = '<div class="vault-placeholder">Vault tracking coming in next update...</div>';
+
+  // If cached data exists, render immediately + background refresh
+  if (char.vault_mythic_plus && (char.vault_mythic_plus.best_runs || char.vault_raids)) {
+    renderVault(char.vault_mythic_plus, char.vault_raids || {}, char.vault_world || []);
+    sendToPython(`GET_VAULT:${char.region}:${char.realm}:${char.name}`);
+  } else {
+    // No cache — show loading spinner + toast + bottom-right notification
+    container.innerHTML = `<div class="vault-loading" id="vault-loading">
+      <div class="loading-spinner"></div>
+      <div class="vault-loading-text">Fetching Great Vault data…</div>
+      <div class="vault-loading-hint">Pulling M+ runs and raid kills from Blizzard</div>
+    </div>`;
+    _vaultFetchInProgress = true;
+    showFetchNotify('vault', `Fetching vault data for ${escapeHtml(char.name)}…`);
+    showToast(`Loading vault data for ${char.name}…`);
+    sendToPython(`GET_VAULT:${char.region}:${char.realm}:${char.name}`);
+  }
+}
+
+function renderVault(mythicPlus, raids, world) {
+  const container = document.getElementById('vault-content');
+  if (!container) return;
+
+  const mp = mythicPlus || {};
+  const rd = raids || {};
+  const wd = world || [];
+
+  let html = '<div class="vault-cards">';
+
+  // ── Dungeons Card ──
+  const dungeonSlots = buildDungeonSlots(mp);
+  const dungeonRewards = buildDungeonRewards(mp);
+  const dungeonFilled = dungeonSlots.filter(s => s.filled).length;
+  html += renderVaultCard({
+    id: 'dungeons',
+    title: 'Mythic+',
+    icon: 'https://render.worldofwarcraft.com/us/icons/56/achievement_bg_wineos_underxminutes.jpg',
+    totalSlots: VAULT_DUNGEONS_SLOTS,
+    milestones: VAULT_DUNGEONS_MILESTONES,
+    filledCount: dungeonFilled,
+    slots: dungeonSlots,
+    rewards: dungeonRewards,
+    subtitle: buildDungeonSubtitle(mp),
+    isManual: false,
+  });
+
+  // ── Raids Card ──
+  const raidSlots = buildRaidSlots(rd);
+  const raidRewards = buildRaidRewards(rd);
+  const raidFilled = raidSlots.filter(s => s.filled).length;
+  html += renderVaultCard({
+    id: 'raids',
+    title: 'Raids',
+    icon: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_head_dragon_01.jpg',
+    totalSlots: VAULT_RAIDS_SLOTS,
+    milestones: VAULT_RAIDS_MILESTONES,
+    filledCount: raidFilled,
+    slots: raidSlots,
+    rewards: raidRewards,
+    subtitle: buildRaidSubtitle(rd),
+    isManual: false,
+  });
+
+  // ── World Card ──
+  const worldSlots = buildWorldSlots(wd);
+  const worldFilled = worldSlots.filter(s => s.filled).length;
+  const worldRewards = buildWorldRewards(worldFilled);
+  html += renderVaultCard({
+    id: 'world',
+    title: 'World',
+    icon: 'https://render.worldofwarcraft.com/us/icons/56/quest_khadgar.jpg',
+    totalSlots: VAULT_WORLD_SLOTS,
+    milestones: VAULT_WORLD_MILESTONES,
+    filledCount: worldFilled,
+    slots: worldSlots,
+    rewards: worldRewards,
+    subtitle: worldFilled > 0 ? `${worldFilled} activit${worldFilled === 1 ? 'y' : 'ies'} completed` : 'Click slots to track activities',
+    isManual: true,
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Attach click listeners for world toggles
+  container.querySelectorAll('.vault-world-toggle').forEach(el => {
+    el.addEventListener('click', () => {
+      const slot = parseInt(el.dataset.slot);
+      if (_currentVaultChar && !isNaN(slot)) {
+        sendToPython(`TOGGLE_VAULT_WORLD:${_currentVaultChar.name}:${_currentVaultChar.realm}:${slot}`);
+      }
+    });
+  });
+}
+
+function renderVaultCard({ id, title, icon, totalSlots, milestones, filledCount, slots, rewards, subtitle, isManual }) {
+  const unlockedCount = milestones.filter(m => filledCount >= m).length;
+  const progressText = `${unlockedCount}/3`;
+
+  let slotsHtml = '<div class="vault-slots">';
+  for (let i = 0; i < totalSlots; i++) {
+    const slot = slots[i] || { filled: false, label: '', tooltip: '' };
+    const isMilestone = milestones.includes(i + 1);
+    const isGhost = !slot.filled && isMilestone;
+
+    let cls = 'vault-slot';
+    if (slot.filled) cls += ' vault-slot-filled';
+    if (isMilestone) cls += ' vault-slot-milestone';
+    if (isGhost) cls += ' vault-slot-ghost';
+    if (isManual) cls += ' vault-world-toggle';
+    if (slot.isDetermining && slot.filled) cls += ' vault-slot-determining';
+
+    const dataAttr = isManual ? ` data-slot="${i}"` : '';
+    const tooltipAttr = slot.tooltip ? ` title="${escapeHtml(slot.tooltip)}"` : '';
+
+    slotsHtml += `<div class="${cls}"${dataAttr}${tooltipAttr}>`;
+    if (slot.filled && slot.label) {
+      slotsHtml += `<span class="vault-slot-label">${escapeHtml(slot.label)}</span>`;
+    } else if (isGhost) {
+      slotsHtml += `<span class="vault-slot-ghost-icon">?</span>`;
+    }
+    slotsHtml += '</div>';
+    if (isMilestone) {
+      slotsHtml += '<div class="vault-milestone-marker"></div>';
+    }
+  }
+  slotsHtml += '</div>';
+
+  let rewardsHtml = '<div class="vault-rewards">';
+  for (let i = 0; i < 3; i++) {
+    const reward = rewards[i] || { unlocked: false, ilvl: 0, detail: '' };
+    const rCls = reward.unlocked ? 'vault-reward vault-reward-active' : 'vault-reward vault-reward-locked';
+    const nextHtml = (reward.nextLevel && reward.nextIlvl)
+      ? `<div class="vault-reward-next">+${reward.nextLevel} \u2192 ilvl ${reward.nextIlvl}</div>`
+      : '';
+    rewardsHtml += `<div class="${rCls}">
+      <div class="vault-reward-choice">Choice ${i + 1}</div>
+      <div class="vault-reward-ilvl">${reward.unlocked && reward.ilvl ? `ilvl ${reward.ilvl}` : '\u2014'}</div>
+      <div class="vault-reward-detail">${escapeHtml(reward.detail || '')}</div>
+      ${nextHtml}
+    </div>`;
+  }
+  rewardsHtml += '</div>';
+
+  return `
+    <div class="vault-card" data-vault-id="${id}">
+      <div class="vault-card-header">
+        <img src="${icon}" class="vault-card-icon" alt="${escapeHtml(title)}" />
+        <div class="vault-card-info">
+          <div class="vault-card-title">${escapeHtml(title)}</div>
+          <div class="vault-card-subtitle">${escapeHtml(subtitle || '')}</div>
+        </div>
+        <div class="vault-card-progress">${progressText}</div>
+      </div>
+      ${slotsHtml}
+      ${rewardsHtml}
+    </div>`;
+}
+
+// ── Slot Builder Functions ──────────────────────────────────
+
+function buildDungeonSlots(mp) {
+  const runs = mp.best_runs || [];
+  const determiningPositions = new Set([0, 3, 7]); // 1st, 4th, 8th run
+  const slots = [];
+  for (let i = 0; i < VAULT_DUNGEONS_SLOTS; i++) {
+    if (i < runs.length) {
+      const run = runs[i];
+      const timed = run.is_completed_within_time ? 'timed' : 'depleted';
+      slots.push({
+        filled: true,
+        label: `+${run.keystone_level}`,
+        tooltip: `${run.dungeon} +${run.keystone_level} (${timed})`,
+        isDetermining: determiningPositions.has(i),
+      });
+    } else {
+      slots.push({ filled: false, label: '', tooltip: '', isDetermining: false });
+    }
+  }
+  return slots;
+}
+
+function buildDungeonRewards(mp) {
+  const vr = mp.vault_rewards || {};
+  const runs = mp.best_runs || [];
+  const ilvlMap = mp.keystone_ilvl_map || {};
+  const runIndices = [0, 3, 7]; // 1st, 4th, 8th
+
+  return [1, 2, 3].map(i => {
+    const r = vr[String(i)] || {};
+    if (r.unlocked) {
+      const run = runs[runIndices[i - 1]];
+      const dungeon = run ? run.dungeon : '';
+
+      // Find next ilvl breakpoint — what key level would bump this reward
+      let nextLevel = null, nextIlvl = null;
+      const currentLevel = r.from_level;
+      for (let lvl = currentLevel + 1; lvl <= 16; lvl++) {
+        const lvlIlvl = ilvlMap[String(lvl)] || ilvlMap[lvl];
+        if (lvlIlvl && lvlIlvl > r.ilvl) {
+          nextLevel = lvl;
+          nextIlvl = lvlIlvl;
+          break;
+        }
+      }
+
+      return {
+        unlocked: true, ilvl: r.ilvl,
+        detail: `+${r.from_level} ${dungeon}`,
+        nextLevel, nextIlvl,
+      };
+    }
+    const needed = [1, 4, 8][i - 1];
+    const have = runs.length;
+    return { unlocked: false, ilvl: 0, detail: have < needed ? `need ${needed - have} more` : '', nextLevel: null, nextIlvl: null };
+  });
+}
+
+function buildDungeonSubtitle(mp) {
+  const runs = mp.best_runs || [];
+  if (runs.length === 0) return 'No M+ runs this week';
+  const best = runs[0]?.keystone_level || 0;
+  return `${runs.length} run${runs.length !== 1 ? 's' : ''} \u00B7 best: +${best}`;
+}
+
+function buildRaidSlots(raids) {
+  const kills = raids.kills_this_week || [];
+  const diffShort = { 'LFR': 'L', 'Normal': 'N', 'Heroic': 'H', 'Mythic': 'M' };
+  const slots = [];
+  for (let i = 0; i < VAULT_RAIDS_SLOTS; i++) {
+    if (i < kills.length) {
+      const kill = kills[i];
+      slots.push({
+        filled: true,
+        label: diffShort[kill.difficulty] || 'N',
+        tooltip: `${kill.boss} (${kill.difficulty})`,
+      });
+    } else {
+      slots.push({ filled: false, label: '', tooltip: '' });
+    }
+  }
+  return slots;
+}
+
+function buildRaidRewards(raids) {
+  const kills = raids.kills_this_week || [];
+  const diffIlvl = { 'LFR': 597, 'Normal': 610, 'Heroic': 623, 'Mythic': 636 };
+  const milestones = VAULT_RAIDS_MILESTONES;
+
+  return [0, 1, 2].map(i => {
+    const needed = milestones[i];
+    if (kills.length >= needed) {
+      // Find highest difficulty among qualifying kills
+      const qualifying = kills.slice(0, needed);
+      let bestIlvl = 0;
+      for (const k of qualifying) {
+        const ilvl = diffIlvl[k.difficulty] || 610;
+        if (ilvl > bestIlvl) bestIlvl = ilvl;
+      }
+      return { unlocked: true, ilvl: bestIlvl, detail: `${needed} boss kills` };
+    }
+    return { unlocked: false, ilvl: 0, detail: `need ${needed - kills.length} more` };
+  });
+}
+
+function buildRaidSubtitle(raids) {
+  const kills = raids.kills_this_week || [];
+  if (kills.length === 0) return 'No raid kills this week';
+  const breakdown = raids.difficulty_breakdown || {};
+  const parts = [];
+  for (const [diff, count] of Object.entries(breakdown)) {
+    parts.push(`${count} ${diff}`);
+  }
+  return `${kills.length} kill${kills.length !== 1 ? 's' : ''} \u00B7 ${parts.join(', ')}`;
+}
+
+function buildWorldSlots(world) {
+  const slots = [];
+  for (let i = 0; i < VAULT_WORLD_SLOTS; i++) {
+    const filled = !!(world && world[i]);
+    slots.push({
+      filled,
+      label: filled ? '\u2713' : '',
+      tooltip: filled ? 'Activity completed' : 'Click to toggle',
+    });
+  }
+  return slots;
+}
+
+function buildWorldRewards(filledCount) {
+  return [0, 1, 2].map(i => {
+    const needed = VAULT_WORLD_MILESTONES[i];
+    if (filledCount >= needed) {
+      return { unlocked: true, ilvl: 0, detail: 'Reward unlocked' };
+    }
+    return { unlocked: false, ilvl: 0, detail: `need ${needed - filledCount} more` };
+  });
 }
 
 function closeDetail() {
@@ -1371,7 +1680,7 @@ const addModal  = document.getElementById('add-modal');
 const inputName = document.getElementById('input-name');
 
 document.getElementById('add-btn').addEventListener('click', () => {
-  if (_talentFetchInProgress || _equipFetchInProgress) {
+  if (_talentFetchInProgress || _equipFetchInProgress || _vaultFetchInProgress) {
     showToast('Wait for data to finish fetching first');
     return;
   }
@@ -1644,6 +1953,49 @@ if (ipcRenderer) {
           btn.classList.add('update-uptodate');
           btn.classList.remove('update-available');
         }
+      } else if (data.status === 'vault_data') {
+        _vaultFetchInProgress = false;
+        hideFetchNotify('vault');
+        // Update character cache
+        if (detailIndex !== null && characters[detailIndex]) {
+          const c = characters[detailIndex];
+          if (c.name === data.name && c.realm === data.realm) {
+            c.vault_mythic_plus = data.mythic_plus;
+            c.vault_raids = data.raids;
+            c.vault_world = data.world;
+          }
+        }
+        // Re-render if vault tab is active
+        if (_currentVaultChar && _currentVaultChar.name === data.name && _currentVaultChar.realm === data.realm) {
+          renderVault(data.mythic_plus, data.raids, data.world);
+        }
+      } else if (data.status === 'vault_world_toggled') {
+        // Update character cache
+        if (detailIndex !== null && characters[detailIndex]) {
+          const c = characters[detailIndex];
+          if (c.name === data.name && c.realm === data.realm) {
+            c.vault_world = data.world;
+          }
+        }
+        // Re-render vault
+        if (_currentVaultChar && _currentVaultChar.name === data.name && _currentVaultChar.realm === data.realm) {
+          const c = characters[detailIndex];
+          renderVault(
+            c ? c.vault_mythic_plus || {} : {},
+            c ? c.vault_raids || {} : {},
+            data.world
+          );
+        }
+      } else if (data.status === 'vault_refreshing') {
+        showFetchNotify('vault', 'Refreshing vault data…');
+      } else if (data.status === 'vault_error') {
+        _vaultFetchInProgress = false;
+        hideFetchNotify('vault');
+        const container = document.getElementById('vault-content');
+        if (container) {
+          container.innerHTML = '<div class="vault-placeholder">Could not load vault data. Try again later.</div>';
+        }
+        showToast(data.message || 'Could not fetch vault data', true);
       } else if (data.status === 'spec_refresh_error') {
         const btn = document.getElementById('refresh-spec-btn');
         btn.classList.remove('refreshing');
