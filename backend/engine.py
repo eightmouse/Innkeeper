@@ -16,6 +16,9 @@ SERVER_URL = "https://innkeper.onrender.com"
 AUTH_KEY   = "r7XkP9mQ2zW6vT4nY8sH3dFa1cJuE5LbG0tC" # <-- Hiello :3 , no this is not what you think it is ~
 DATA_FILE  = os.path.join(basedir, 'characters.json')
 
+# ── Shared constants (used by both server and client) ──
+KP_SOURCES = ["Weekly Quest", "Treatise", "Moxie Order", "Field Notes", "Weekly Treasures", "Notebook"]
+
 # ============================================================
 #  FASTAPI SERVER  (only when imported by uvicorn on Render)
 # ============================================================
@@ -134,6 +137,21 @@ if __name__ != "__main__":
         1: 239, 2: 239, 3: 242, 4: 246,
         5: 249, 6: 252, 7: 255, 8: 259,
         9: 262, 10: 265, 11: 268,
+    }
+
+    # ────────────────────  Profession constants  ────────────────
+
+    CONC_MAX = 1000
+    CONC_REGEN_SECONDS = 4 * 86400  # 4 days to full
+
+    PROFESSION_ICONS = {
+        171: "trade_alchemy", 164: "trade_blacksmithing",
+        333: "trade_engraving", 202: "trade_engineering",
+        182: "trade_herbalism", 773: "inv_inscription_tradeskill01",
+        755: "inv_misc_gem_01", 165: "trade_leatherworking",
+        186: "trade_mining", 393: "inv_misc_pelt_wolf_01",
+        197: "trade_tailoring", 185: "inv_misc_food_15",
+        356: "trade_fishing",
     }
 
     def _get_class_slug(class_id):
@@ -335,6 +353,52 @@ if __name__ != "__main__":
             "total_kills":          len(kills_this_week),
             "difficulty_breakdown": diff_breakdown,
         }
+
+    # ────────────────────  Profession data helpers  ─────────────
+
+    def _fetch_professions(region, realm, name, token):
+        data = _blizzard_get(
+            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{_api_name(name)}/professions",
+            _params(region), token)
+        if not data:
+            return {"primaries": []}
+
+        primaries = []
+        for prof in data.get("primaries", []):
+            pid = prof.get("profession", {}).get("id")
+            pname = prof.get("profession", {}).get("name", "Unknown")
+            icon_key = PROFESSION_ICONS.get(pid, "trade_alchemy")
+            icon_url = f"https://render.worldofwarcraft.com/us/icons/56/{icon_key}.jpg"
+
+            # Find Midnight-tier skill (latest expansion tier)
+            skill = 0
+            max_skill = 0
+            for tier in prof.get("tiers", []):
+                # Use the last tier entry (most recent expansion)
+                skill = tier.get("skill_points", 0)
+                max_skill = tier.get("max_skill_points", 0)
+
+            primaries.append({
+                "id": pid,
+                "name": pname,
+                "icon_url": icon_url,
+                "skill": skill,
+                "max_skill": max_skill,
+            })
+
+        return {"primaries": primaries}
+
+    def _concentration_time_to_full(current, updated_at_iso):
+        """Returns seconds until concentration is full, accounting for regen since update."""
+        if not updated_at_iso:
+            return 0
+        updated_at = datetime.fromisoformat(updated_at_iso)
+        elapsed = (datetime.now(UTC) - updated_at).total_seconds()
+        rate = CONC_MAX / CONC_REGEN_SECONDS
+        effective = min(current + elapsed * rate, CONC_MAX)
+        if effective >= CONC_MAX:
+            return 0
+        return (CONC_MAX - effective) / rate
 
     # ────────────────────  Talent tree helpers  ─────────────────
 
@@ -649,6 +713,13 @@ if __name__ != "__main__":
             raise HTTPException(502, "Failed to get Blizzard API token")
         return _fetch_raid_encounters(region, realm, name, token)
 
+    @app.get("/professions/{region}/{realm}/{name}")
+    async def professions(region: str, realm: str, name: str):
+        token = get_access_token(region)
+        if not token:
+            raise HTTPException(502, "Failed to get Blizzard API token")
+        return _fetch_professions(region, realm, name, token)
+
     @app.post("/auto-add")
     async def auto_add(body: dict):
         region = body.get("region", "eu")
@@ -760,6 +831,13 @@ class Character:
         self.vault_world = [None] * 8
         self.vault_last_check = None
         self.vault_world_last_reset = None
+        self.professions          = {}
+        self.professions_last_check = None
+        self.prof_moxie           = {}
+        self.prof_concentration   = {}
+        self.prof_spark           = False
+        self.prof_kp              = {}
+        self.prof_kp_last_reset   = None
         self.activities   = {
             "Raid":         {"status": "available", "reset": "weekly"},
             "Mythic+":      {"status": "available", "reset": "weekly"},
@@ -797,6 +875,15 @@ class Character:
             self.vault_last_check = None
             self.vault_world_last_reset = datetime.now(UTC)
             modified = True
+        # Reset profession weekly tracking on weekly boundary
+        last_kp = self.prof_kp_last_reset or datetime.min.replace(tzinfo=UTC)
+        if last_kp < weekly_b:
+            self.prof_spark = False
+            for prof_name in self.prof_kp:
+                for src in self.prof_kp[prof_name]:
+                    self.prof_kp[prof_name][src] = False
+            self.prof_kp_last_reset = datetime.now(UTC)
+            modified = True
         if modified:
             self.last_reset_check = datetime.now(UTC)
 
@@ -826,6 +913,13 @@ class Character:
             "vault_world":           self.vault_world,
             "vault_last_check":      self.vault_last_check.isoformat() if self.vault_last_check else None,
             "vault_world_last_reset": self.vault_world_last_reset.isoformat() if self.vault_world_last_reset else None,
+            "professions":           self.professions,
+            "professions_last_check": self.professions_last_check.isoformat() if self.professions_last_check else None,
+            "prof_moxie":            self.prof_moxie,
+            "prof_concentration":    self.prof_concentration,
+            "prof_spark":            self.prof_spark,
+            "prof_kp":               self.prof_kp,
+            "prof_kp_last_reset":    self.prof_kp_last_reset.isoformat() if self.prof_kp_last_reset else None,
             "activities":            self.activities,
             "last_reset_check":      self.last_reset_check.isoformat(),
         }
@@ -852,6 +946,13 @@ class Character:
         char.vault_world          = [v if isinstance(v, dict) else None for v in raw_world]
         char.vault_last_check     = datetime.fromisoformat(d["vault_last_check"]) if d.get("vault_last_check") else None
         char.vault_world_last_reset = datetime.fromisoformat(d["vault_world_last_reset"]) if d.get("vault_world_last_reset") else None
+        char.professions            = d.get("professions", {})
+        char.professions_last_check = datetime.fromisoformat(d["professions_last_check"]) if d.get("professions_last_check") else None
+        char.prof_moxie             = d.get("prof_moxie", {})
+        char.prof_concentration     = d.get("prof_concentration", {})
+        char.prof_spark             = d.get("prof_spark", False)
+        char.prof_kp                = d.get("prof_kp", {})
+        char.prof_kp_last_reset     = datetime.fromisoformat(d["prof_kp_last_reset"]) if d.get("prof_kp_last_reset") else None
         char.activities           = d["activities"]
         char.last_reset_check     = datetime.fromisoformat(
             d.get("last_reset_check", datetime.now(UTC).isoformat()))
@@ -1190,6 +1291,102 @@ def main():
                       "mythic_plus": mp_data, "raids": raid_data,
                       "world": char.vault_world if char else [None] * 8,
                       "cached": False})
+
+        elif command.startswith("GET_PROFESSIONS:"):
+            parts = command.split(":", 3)
+            if len(parts) == 4:
+                _, region, realm, name = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+
+                if char and char.professions_last_check:
+                    cache_age = (datetime.now(UTC) - char.professions_last_check).total_seconds()
+                    if cache_age < 300:
+                        emit({"status": "professions_data", "name": name, "realm": realm,
+                              "professions": char.professions,
+                              "moxie": char.prof_moxie,
+                              "concentration": char.prof_concentration,
+                              "spark": char.prof_spark,
+                              "kp": char.prof_kp, "cached": True})
+                        continue
+
+                _r, _n = _urlquote(realm, safe=''), _urlquote(name, safe='')
+                prof_data = _server_get(f"/professions/{region}/{_r}/{_n}")
+                if prof_data is None:
+                    prof_data = {"primaries": []}
+
+                if char:
+                    char.professions = prof_data
+                    char.professions_last_check = datetime.now(UTC)
+                    save_data(characters)
+
+                emit({"status": "professions_data", "name": name, "realm": realm,
+                      "professions": prof_data,
+                      "moxie": char.prof_moxie if char else {},
+                      "concentration": char.prof_concentration if char else {},
+                      "spark": char.prof_spark if char else False,
+                      "kp": char.prof_kp if char else {},
+                      "cached": False})
+
+        elif command.startswith("SET_PROF_MOXIE:"):
+            parts = command.split(":", 4)
+            if len(parts) == 5:
+                _, name, realm, profession, amount = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char:
+                    char.prof_moxie[profession] = int(amount)
+                    save_data(characters)
+                    emit({"status": "prof_updated", "name": name, "realm": realm,
+                          "moxie": char.prof_moxie,
+                          "concentration": char.prof_concentration,
+                          "spark": char.prof_spark,
+                          "kp": char.prof_kp})
+
+        elif command.startswith("SET_PROF_CONCENTRATION:"):
+            parts = command.split(":", 4)
+            if len(parts) == 5:
+                _, name, realm, profession, current = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char:
+                    char.prof_concentration[profession] = {
+                        "current": int(current),
+                        "updated_at": datetime.now(UTC).isoformat()
+                    }
+                    save_data(characters)
+                    emit({"status": "prof_updated", "name": name, "realm": realm,
+                          "moxie": char.prof_moxie,
+                          "concentration": char.prof_concentration,
+                          "spark": char.prof_spark,
+                          "kp": char.prof_kp})
+
+        elif command.startswith("TOGGLE_PROF_SPARK:"):
+            parts = command.split(":", 2)
+            if len(parts) == 3:
+                _, name, realm = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char:
+                    char.prof_spark = not char.prof_spark
+                    save_data(characters)
+                    emit({"status": "prof_updated", "name": name, "realm": realm,
+                          "moxie": char.prof_moxie,
+                          "concentration": char.prof_concentration,
+                          "spark": char.prof_spark,
+                          "kp": char.prof_kp})
+
+        elif command.startswith("TOGGLE_PROF_KP:"):
+            parts = command.split(":", 4)
+            if len(parts) == 5:
+                _, name, realm, profession, source = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char:
+                    if profession not in char.prof_kp:
+                        char.prof_kp[profession] = {s: False for s in KP_SOURCES}
+                    char.prof_kp[profession][source] = not char.prof_kp[profession].get(source, False)
+                    save_data(characters)
+                    emit({"status": "prof_updated", "name": name, "realm": realm,
+                          "moxie": char.prof_moxie,
+                          "concentration": char.prof_concentration,
+                          "spark": char.prof_spark,
+                          "kp": char.prof_kp})
 
         elif command == "CLEAR_TALENT_CACHE":
             cache_dir = os.path.join(basedir, 'talent_tree_cache')
