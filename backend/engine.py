@@ -2,8 +2,9 @@
 # @Author: eightmouse
 
 # ------------[      MODULES      ]------------ #
-import json, requests, os, sys, shutil
+import json, requests, os, sys, shutil, unicodedata
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote as _urlquote
 
 UTC     = timezone.utc
 if getattr(sys, 'frozen', False):
@@ -78,7 +79,13 @@ if __name__ != "__main__":
         return {"namespace": f"{namespace_prefix}-{region}", "locale": locale}
 
     def _slug(realm):
-        return realm.lower().replace(" ", "-").replace("'", "").replace(".", "")
+        r = unicodedata.normalize("NFC", realm).lower()
+        slug = r.replace(" ", "-").replace("'", "").replace("\u2019", "").replace(".", "")
+        return _urlquote(slug, safe="-")
+
+    def _api_name(name):
+        """Normalize + lowercase + URL-encode a character name for Blizzard API paths."""
+        return _urlquote(unicodedata.normalize("NFC", name).lower(), safe="")
 
     # ────────────────────  Lookup maps  ─────────────────────────
 
@@ -98,6 +105,24 @@ if __name__ != "__main__":
         'evoker':       {'devastation': 1467, 'preservation': 1468, 'augmentation': 1473},
     }
 
+    # ────────────────────  Vault constants  ─────────────────────
+
+    # Season 1 TWW: keystone level → vault reward ilvl
+    VAULT_KEYSTONE_ILVL = {
+        2:  597, 3:  597, 4:  600, 5:  603,
+        6:  606, 7:  610, 8:  610, 9:  613,
+        10: 616, 11: 616, 12: 619, 13: 619,
+        14: 622, 15: 625, 16: 625,
+    }
+    VAULT_KEYSTONE_MAX = 16  # keys above this still give max reward
+
+    VAULT_RAID_DIFFICULTY_ILVL = {
+        'LFR': 597, 'Normal': 610, 'Heroic': 623, 'Mythic': 636,
+    }
+    VAULT_RAID_DIFFICULTY_SHORT = {
+        'LFR': 'L', 'Normal': 'N', 'Heroic': 'H', 'Mythic': 'M',
+    }
+
     def _get_class_slug(class_id):
         return {
             1: "warrior", 2: "paladin", 3: "hunter", 4: "rogue",
@@ -112,12 +137,12 @@ if __name__ != "__main__":
 
     def _fetch_character(region, realm, name, token):
         return _blizzard_get(
-            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{name.lower()}",
+            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{_api_name(name)}",
             _params(region), token)
 
     def _fetch_character_media(region, realm, name, token):
         data = _blizzard_get(
-            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{name.lower()}/character-media",
+            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{_api_name(name)}/character-media",
             _params(region), token)
         if not data:
             return {}
@@ -160,7 +185,7 @@ if __name__ != "__main__":
 
     def _fetch_equipment(region, realm, name, token):
         data = _blizzard_get(
-            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{name.lower()}/equipment",
+            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{_api_name(name)}/equipment",
             _params(region), token)
         if not data:
             return []
@@ -194,6 +219,109 @@ if __name__ != "__main__":
         for it in items_basic:
             it.pop("_item_id", None)
         return items_basic
+
+    # ────────────────────  Vault data helpers  ──────────────────
+
+    def _fetch_mythic_keystone_profile(region, realm, name, token):
+        data = _blizzard_get(
+            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{_api_name(name)}/mythic-keystone-profile",
+            _params(region), token)
+        if not data:
+            return {"best_runs": [], "vault_rewards": {}, "keystone_ilvl_map": VAULT_KEYSTONE_ILVL}
+
+        current = data.get("current_period", {})
+        raw_runs = current.get("best_runs", [])
+        # Sort descending by keystone level
+        raw_runs.sort(key=lambda r: r.get("keystone_level", 0), reverse=True)
+
+        best_runs = []
+        for run in raw_runs[:8]:
+            best_runs.append({
+                "keystone_level":           run.get("keystone_level", 0),
+                "dungeon":                  run.get("dungeon", {}).get("name", "Unknown"),
+                "is_completed_within_time": run.get("is_completed_within_time", False),
+                "duration":                 run.get("duration", 0),
+            })
+
+        # Compute vault rewards for milestone positions (run indices 0, 3, 7)
+        vault_rewards = {}
+        for slot_idx, run_idx in enumerate([0, 3, 7]):
+            slot_key = str(slot_idx + 1)
+            if run_idx < len(best_runs):
+                level = best_runs[run_idx]["keystone_level"]
+                capped = min(level, VAULT_KEYSTONE_MAX)
+                ilvl = VAULT_KEYSTONE_ILVL.get(capped, VAULT_KEYSTONE_ILVL.get(VAULT_KEYSTONE_MAX, 625))
+                vault_rewards[slot_key] = {
+                    "ilvl": ilvl,
+                    "from_level": level,
+                    "unlocked": True,
+                }
+            else:
+                vault_rewards[slot_key] = {"ilvl": 0, "from_level": 0, "unlocked": False}
+
+        return {
+            "best_runs":       best_runs,
+            "vault_rewards":   vault_rewards,
+            "keystone_ilvl_map": VAULT_KEYSTONE_ILVL,
+        }
+
+    def _fetch_raid_encounters(region, realm, name, token):
+        data = _blizzard_get(
+            f"https://{region}.api.blizzard.com/profile/wow/character/{_slug(realm)}/{_api_name(name)}/encounters/raids",
+            _params(region), token)
+        if not data:
+            return {"kills_this_week": [], "total_kills": 0, "difficulty_breakdown": {}}
+
+        # Calculate weekly reset boundary (Wednesday 8 AM UTC)
+        now = datetime.now(UTC)
+        boundary = now.replace(hour=8, minute=0, second=0, microsecond=0)
+        days_since_wed = (now.weekday() - 2) % 7
+        boundary -= timedelta(days=days_since_wed)
+        if now < boundary:
+            boundary -= timedelta(days=7)
+        reset_ts = int(boundary.timestamp() * 1000)  # Blizzard uses milliseconds
+
+        kills_this_week = []
+        seen_bosses = {}  # boss_name → highest difficulty kill
+
+        # Filter to latest expansion — iterate all expansions/instances
+        expansions = data.get("expansions", [])
+        if expansions:
+            latest_exp = expansions[-1]  # Last expansion is latest
+            for instance in latest_exp.get("instances", []):
+                raid_name = instance.get("instance", {}).get("name", "Unknown Raid")
+                for mode in instance.get("modes", []):
+                    difficulty = mode.get("difficulty", {}).get("name", "Normal")
+                    for enc in mode.get("encounters", []):
+                        last_kill = enc.get("last_kill_timestamp", 0)
+                        if last_kill >= reset_ts:
+                            boss_name = enc.get("encounter", {}).get("name", "Unknown Boss")
+                            # Rank difficulties for deduplication
+                            diff_rank = {"LFR": 0, "Normal": 1, "Heroic": 2, "Mythic": 3}.get(difficulty, 1)
+                            if boss_name not in seen_bosses or diff_rank > seen_bosses[boss_name]["rank"]:
+                                seen_bosses[boss_name] = {
+                                    "boss":       boss_name,
+                                    "raid":       raid_name,
+                                    "difficulty": difficulty,
+                                    "rank":       diff_rank,
+                                }
+
+        kills_this_week = sorted(seen_bosses.values(), key=lambda k: k["rank"], reverse=True)
+        # Remove internal rank field
+        for k in kills_this_week:
+            k.pop("rank", None)
+
+        # Difficulty breakdown
+        diff_breakdown = {}
+        for k in kills_this_week:
+            diff = k["difficulty"]
+            diff_breakdown[diff] = diff_breakdown.get(diff, 0) + 1
+
+        return {
+            "kills_this_week":      kills_this_week,
+            "total_kills":          len(kills_this_week),
+            "difficulty_breakdown": diff_breakdown,
+        }
 
     # ────────────────────  Talent tree helpers  ─────────────────
 
@@ -494,6 +622,20 @@ if __name__ != "__main__":
         except (ValueError, ConnectionError) as e:
             raise HTTPException(400, str(e))
 
+    @app.get("/vault/mythic-plus/{region}/{realm}/{name}")
+    async def vault_mythic_plus(region: str, realm: str, name: str):
+        token = get_access_token(region)
+        if not token:
+            raise HTTPException(502, "Failed to get Blizzard API token")
+        return _fetch_mythic_keystone_profile(region, realm, name, token)
+
+    @app.get("/vault/raids/{region}/{realm}/{name}")
+    async def vault_raids(region: str, realm: str, name: str):
+        token = get_access_token(region)
+        if not token:
+            raise HTTPException(502, "Failed to get Blizzard API token")
+        return _fetch_raid_encounters(region, realm, name, token)
+
     @app.post("/auto-add")
     async def auto_add(body: dict):
         region = body.get("region", "eu")
@@ -600,6 +742,11 @@ class Character:
         self.item_level   = item_level
         self.equipment    = []
         self.equipment_last_check = None
+        self.vault_mythic_plus = {}
+        self.vault_raids = {}
+        self.vault_world = [False] * 8
+        self.vault_last_check = None
+        self.vault_world_last_reset = None
         self.activities   = {
             "Raid":         {"status": "available", "reset": "weekly"},
             "Mythic+":      {"status": "available", "reset": "weekly"},
@@ -628,6 +775,15 @@ class Character:
             if self.last_reset_check < boundary:
                 data["status"] = "available"
                 modified = True
+        # Reset vault world toggles on weekly boundary
+        last_world = self.vault_world_last_reset or datetime.min.replace(tzinfo=UTC)
+        if last_world < weekly_b:
+            self.vault_world = [False] * 8
+            self.vault_mythic_plus = {}
+            self.vault_raids = {}
+            self.vault_last_check = None
+            self.vault_world_last_reset = datetime.now(UTC)
+            modified = True
         if modified:
             self.last_reset_check = datetime.now(UTC)
 
@@ -652,6 +808,11 @@ class Character:
             "item_level":            self.item_level,
             "equipment":             self.equipment,
             "equipment_last_check":  self.equipment_last_check.isoformat() if self.equipment_last_check else None,
+            "vault_mythic_plus":     self.vault_mythic_plus,
+            "vault_raids":           self.vault_raids,
+            "vault_world":           self.vault_world,
+            "vault_last_check":      self.vault_last_check.isoformat() if self.vault_last_check else None,
+            "vault_world_last_reset": self.vault_world_last_reset.isoformat() if self.vault_world_last_reset else None,
             "activities":            self.activities,
             "last_reset_check":      self.last_reset_check.isoformat(),
         }
@@ -672,6 +833,11 @@ class Character:
         )
         char.equipment            = d.get("equipment", [])
         char.equipment_last_check = datetime.fromisoformat(d["equipment_last_check"]) if d.get("equipment_last_check") else None
+        char.vault_mythic_plus    = d.get("vault_mythic_plus", {})
+        char.vault_raids          = d.get("vault_raids", {})
+        char.vault_world          = d.get("vault_world", [False] * 8)
+        char.vault_last_check     = datetime.fromisoformat(d["vault_last_check"]) if d.get("vault_last_check") else None
+        char.vault_world_last_reset = datetime.fromisoformat(d["vault_world_last_reset"]) if d.get("vault_world_last_reset") else None
         char.activities           = d["activities"]
         char.last_reset_check     = datetime.fromisoformat(
             d.get("last_reset_check", datetime.now(UTC).isoformat()))
@@ -680,8 +846,11 @@ class Character:
 # ────────────────────  Helpers  ─────────────────────────────
 
 def find_character(characters, name, realm):
-    n, r = name.lower(), realm.lower()
-    return next((c for c in characters if c.name.lower() == n and c.realm.lower() == r), None)
+    n = unicodedata.normalize("NFC", name).lower()
+    r = unicodedata.normalize("NFC", realm).lower()
+    return next((c for c in characters if
+                 unicodedata.normalize("NFC", c.name).lower() == n and
+                 unicodedata.normalize("NFC", c.realm).lower() == r), None)
 
 def _char_from_server(data):
     return Character(
@@ -756,7 +925,7 @@ def main():
             parts = command.split(":", 3)
             if len(parts) == 4:
                 _, region, realm, name = [p.strip() for p in parts]
-                data = _server_get(f"/character/{region}/{realm}/{name}")
+                data = _server_get(f"/character/{region}/{_urlquote(realm, safe='')}/{_urlquote(name, safe='')}")
                 if data:
                     char = _char_from_server(data)
                     if not find_character(characters, char.name, char.realm):
@@ -815,7 +984,7 @@ def main():
                               "items": char.equipment, "cached": True})
                         continue
 
-                items = _server_get(f"/equipment/{region}/{realm}/{name}")
+                items = _server_get(f"/equipment/{region}/{_urlquote(realm, safe='')}/{_urlquote(name, safe='')}")
                 if items is not None:
                     if char and items:
                         char.equipment = items
@@ -833,7 +1002,7 @@ def main():
                 _, region, realm, name = [p.strip() for p in parts]
                 char = find_character(characters, name, realm)
                 emit({"status": "equipment_refreshing", "name": name, "realm": realm})
-                items = _server_get(f"/equipment/{region}/{realm}/{name}")
+                items = _server_get(f"/equipment/{region}/{_urlquote(realm, safe='')}/{_urlquote(name, safe='')}")
                 if items is not None:
                     if char:
                         char.equipment = items if items else []
@@ -910,6 +1079,79 @@ def main():
                     emit({"status": "talent_tree_error",
                           "class_slug": class_slug, "spec_slug": spec_slug,
                           "message": str(e)})
+
+        elif command.startswith("GET_VAULT:"):
+            parts = command.split(":", 3)
+            if len(parts) == 4:
+                _, region, realm, name = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+
+                if char and char.vault_last_check:
+                    cache_age = (datetime.now(UTC) - char.vault_last_check).total_seconds()
+                    if cache_age < 300:
+                        emit({"status": "vault_data", "name": name, "realm": realm,
+                              "mythic_plus": char.vault_mythic_plus,
+                              "raids": char.vault_raids,
+                              "world": char.vault_world, "cached": True})
+                        continue
+
+                _r, _n = _urlquote(realm, safe=''), _urlquote(name, safe='')
+                mp_data = _server_get(f"/vault/mythic-plus/{region}/{_r}/{_n}")
+                raid_data = _server_get(f"/vault/raids/{region}/{_r}/{_n}")
+                if mp_data is None:
+                    mp_data = {"best_runs": [], "vault_rewards": {}, "keystone_ilvl_map": {}}
+                if raid_data is None:
+                    raid_data = {"kills_this_week": [], "total_kills": 0, "difficulty_breakdown": {}}
+
+                if char:
+                    char.vault_mythic_plus = mp_data
+                    char.vault_raids = raid_data
+                    char.vault_last_check = datetime.now(UTC)
+                    save_data(characters)
+
+                emit({"status": "vault_data", "name": name, "realm": realm,
+                      "mythic_plus": mp_data, "raids": raid_data,
+                      "world": char.vault_world if char else [False] * 8,
+                      "cached": False})
+
+        elif command.startswith("TOGGLE_VAULT_WORLD:"):
+            parts = command.split(":", 3)
+            if len(parts) == 4:
+                _, name, realm, slot_str = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char:
+                    slot = int(slot_str)
+                    if 0 <= slot < len(char.vault_world):
+                        char.vault_world[slot] = not char.vault_world[slot]
+                        save_data(characters)
+                        emit({"status": "vault_world_toggled", "name": name,
+                              "realm": realm, "world": char.vault_world})
+
+        elif command.startswith("REFRESH_VAULT:"):
+            parts = command.split(":", 3)
+            if len(parts) == 4:
+                _, region, realm, name = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                emit({"status": "vault_refreshing", "name": name, "realm": realm})
+
+                _r, _n = _urlquote(realm, safe=''), _urlquote(name, safe='')
+                mp_data = _server_get(f"/vault/mythic-plus/{region}/{_r}/{_n}")
+                raid_data = _server_get(f"/vault/raids/{region}/{_r}/{_n}")
+                if mp_data is None:
+                    mp_data = {"best_runs": [], "vault_rewards": {}, "keystone_ilvl_map": {}}
+                if raid_data is None:
+                    raid_data = {"kills_this_week": [], "total_kills": 0, "difficulty_breakdown": {}}
+
+                if char:
+                    char.vault_mythic_plus = mp_data
+                    char.vault_raids = raid_data
+                    char.vault_last_check = datetime.now(UTC)
+                    save_data(characters)
+
+                emit({"status": "vault_data", "name": name, "realm": realm,
+                      "mythic_plus": mp_data, "raids": raid_data,
+                      "world": char.vault_world if char else [False] * 8,
+                      "cached": False})
 
         elif command == "CLEAR_TALENT_CACHE":
             cache_dir = os.path.join(basedir, 'talent_tree_cache')
