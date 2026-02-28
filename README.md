@@ -16,8 +16,15 @@ Utilizing the official Blizzard API and supplemental data from WoWHead, providin
 It's a personal project that I started a while ago to push my skills further while taking breaks between WoW sessions. <br />
 Started building it few weeks prior to pushing it to GitHub, mostly due to the fact that I was not planning on actually developing something 'complete' but here we are. <br />
 
-Innkeeper was born out of a simple need: I was tired of alt-tabbing to WoWHead just to check a build or a timer. I wanted a 'digestible' desktop companion that felt like part of the game UI. Because I'm layz. <br />
-Started WoW not long ago and I found myself closing and opening WoWhead for builds over and over, I wanted something on my desktop that I could access quickly, because I'm lazy. <br />
+Innkeeper was born out of a simple need: I was tired of alt-tabbing to WoWHead just to check a build or a timer. I wanted a 'digestible' desktop companion that felt like part of the game UI.<br />
+Started WoW not long ago and I found myself closing and opening WoWhead for builds over and over, I wanted something on my desktop that I could access quickly, because I'm lazy.<br />
+
+## Supported Regions
+Innkeeper utilizes the Blizzard Battle.net API to fetch character data from the following regions:
+* **North America (NA)**
+* **Europe (EU)**
+* **Korea (KR)**
+* **Taiwan (TW)**
 
 ## ✨ Key Features
 Innkeeper brings your character data to your desktop without the overhead of a web browser.<br />
@@ -38,23 +45,26 @@ Innkeeper brings your character data to your desktop without the overhead of a w
 2. Download the version for your OS (`.exe` for Windows, `.AppImage` for Linux, `.dmg` for MacOS).
 
 ## FaQ
+***Q: Why does the app take a long time to load character data on the first launch?*** <br />
+***A:*** *Innkeeper utilizes a backend hosted on a Render free instance. Due to the service's resource management, the server may enter a sleep state after a period of inactivity. The initial request of a session may require up to 60 seconds for the instance to "spin up." Subsequent interactions will be processed with standard latency.<br />*
+
 ***Q: Why Electron?*** <br />
-*A: I know that it's quite hated for it's memory usage, super valid and agreable critique, HOWEVER: <br />
-It leverages modern web standards (HTML5/CSS3) for the user interface while maintaining a unified codebase for cross-platform distribution.<br />
-I thought about other options but I'm not confident and skilled enough to use other frameworks.<br /> 
-Tauri could've achieved same results with less memory usage but as I said, that would've been out of my skill reach for now!* <br />
+***A:*** *I know that it's quite hated for it's memory usage, super valid and agreable critique, HOWEVER: <br />
+It leverages modern web standards (HTML5/CSS3) for the user interface while maintaining a unified codebase for cross-platform distribution. I thought about other options but I'm not confident and skilled enough to use other frameworks. Tauri could've achieved same results with less memory usage but as I said, that would've been out of my skill reach for now!* <br />
 
 ***Q: Why Portable and no installer?*** <br />
-*A: Because installers can be bloat. I don't plan on having THAT many features to make an installer worth.* <br />
+***A:*** *Because installers can be bloat. I don't plan on having THAT many features to make an installer worth.* <br />
   *- For Windows: You get a standalone .exe. No registry changes, no "Program Files" clutter, no leftover junk.* <br />
   *- For Linux: You get an AppImage. It’s distro-agnostic and runs anywhere.* <br />
   *- For MacOS: Same reasoning applies!* <br />
   
 ***Q: Will you add X?*** <br />
-*A: As I mentioned, the goal for this app is not to replace the resources already available but more of a 'quick but less' alternative. So, suggestions are welcomed but I can't guarantee I will add specific things unless they're more of a QoL than anything.*
+***A:*** *As I mentioned, the goal for this app is not to replace the resources already available but more of a 'quick but less' alternative. So, suggestions are welcomed but I can't guarantee I will add specific things unless they're more of a QoL than anything.*
 
 ***Q: Did you use AI to help you develop the app?*** <br />
-*A: Yes. When used correctly it's an amazing tool that provides help. I see it no differently than using StackOverflow or Google, with the difference that at least I'm not get bullied for asking/expressing myself poorly. If this bothers you I apologize, this app might not be for you.*
+***A:*** *Yes. When used correctly it's an amazing tool that provides help. I see it no differently than using StackOverflow or Google, with the difference that at least I'm not get bullied for asking/expressing myself poorly. If this bothers you I apologize, this app might not be for you.*
 
 ***Q: I'm on Linux/MacOS can I still use this app?*** <br />
-*A: Like Ronnie Coleman once said, 'YEAH BUDDY!'.*
+***A:*** *Like Ronnie Coleman once said, 'YEAH BUDDY!'.*
+
+
