@@ -801,8 +801,7 @@ body::before {
   flex-direction: column;
 }
 
-.vault-content,
-.professions-content {
+.vault-content {
   flex: 1;
   padding: 18px 22px;
   overflow: hidden;
@@ -810,6 +809,20 @@ body::before {
   align-items: center;
   justify-content: center;
 }
+
+.professions-content {
+  flex: 1;
+  padding: 18px 22px;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(58, 138, 80, 0.3) transparent;
+}
+
+.professions-content::-webkit-scrollbar { width: 4px; }
+.professions-content::-webkit-scrollbar-thumb { background: rgba(58, 138, 80, 0.3); border-radius: 2px; }
 
 .vault-placeholder {
   text-align: center;
@@ -2080,4 +2093,349 @@ body::before {
 [data-theme="light"] .vault-menu-tier-btn:hover {
   background: rgba(42, 122, 64, 0.18);
   color: var(--accent);
+}
+
+/* ── Professions Tab ─────────────────────────────────── */
+
+.prof-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 900px;
+  width: 100%;
+}
+
+.prof-spark-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(8, 16, 10, 0.7);
+  border: 1px solid rgba(60, 140, 80, 0.28);
+  border-radius: 8px;
+  padding: 12px 18px;
+}
+
+.prof-spark-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prof-spark-icon {
+  flex-shrink: 0;
+}
+
+.prof-spark-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+.prof-spark-btn {
+  padding: 6px 16px;
+  border-radius: 5px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border: 1px solid rgba(58, 138, 80, 0.3);
+  transition: all 0.15s;
+}
+
+.prof-spark-btn.available {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.prof-spark-btn.available:hover {
+  background: #4aaa60;
+}
+
+.prof-spark-btn.collected {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(58, 138, 80, 0.2);
+  color: var(--text-muted);
+}
+
+.prof-spark-btn.collected:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+/* Profession columns */
+.prof-columns {
+  display: flex;
+  gap: 12px;
+}
+
+.prof-card {
+  flex: 1;
+  background: rgba(8, 16, 10, 0.7);
+  border: 1px solid rgba(60, 140, 80, 0.28);
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+
+/* Profession header */
+.prof-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.prof-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid rgba(58, 138, 80, 0.3);
+}
+
+.prof-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.prof-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+.prof-skill-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.prof-skill-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(10, 20, 12, 0.7);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.prof-skill-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.prof-skill-text {
+  font-size: 10px;
+  color: var(--text-realm);
+  white-space: nowrap;
+}
+
+/* Sections within a card */
+.prof-section {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(58, 138, 80, 0.1);
+}
+
+.prof-section-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+/* Moxie */
+.prof-moxie-row {
+  display: flex;
+  align-items: center;
+}
+
+.prof-moxie-input {
+  width: 80px;
+  background: rgba(8, 18, 10, 0.8);
+  border: 1px solid rgba(58, 138, 80, 0.25);
+  border-radius: 5px;
+  padding: 5px 8px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.prof-moxie-input:focus {
+  border-color: rgba(58, 138, 80, 0.55);
+  box-shadow: 0 0 0 2px rgba(58, 138, 80, 0.12);
+}
+
+/* Concentration ring */
+.prof-conc-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.prof-conc-ring-wrap {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+}
+
+.prof-conc-ring {
+  display: block;
+}
+
+.prof-conc-fill {
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.prof-conc-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.prof-conc-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prof-conc-input {
+  width: 100%;
+  max-width: 120px;
+  background: rgba(8, 18, 10, 0.8);
+  border: 1px solid rgba(58, 138, 80, 0.25);
+  border-radius: 5px;
+  padding: 5px 8px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.prof-conc-input:focus {
+  border-color: rgba(58, 138, 80, 0.55);
+  box-shadow: 0 0 0 2px rgba(58, 138, 80, 0.12);
+}
+
+.prof-conc-countdown {
+  font-size: 11px;
+  color: var(--text-realm);
+  letter-spacing: 0.02em;
+}
+
+/* KP Checklist */
+.prof-kp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prof-kp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.prof-kp-row:hover {
+  background: rgba(58, 138, 80, 0.08);
+}
+
+.prof-kp-check {
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(58, 138, 80, 0.3);
+  border-radius: 3px;
+  background: rgba(10, 20, 12, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--green);
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.prof-kp-row.checked .prof-kp-check {
+  background: rgba(58, 138, 80, 0.25);
+  border-color: var(--accent);
+}
+
+.prof-kp-label {
+  font-size: 12px;
+  color: var(--text-primary);
+  transition: opacity 0.15s;
+}
+
+.prof-kp-row.checked .prof-kp-label {
+  text-decoration: line-through;
+  opacity: 0.45;
+  color: var(--text-muted);
+}
+
+/* ── Professions Light Theme ─────────────────────────── */
+
+[data-theme="light"] .prof-spark-bar {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(60, 140, 80, 0.25);
+}
+
+[data-theme="light"] .prof-card {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(60, 140, 80, 0.25);
+}
+
+[data-theme="light"] .prof-skill-bar {
+  background: rgba(235, 245, 235, 0.9);
+}
+
+[data-theme="light"] .prof-moxie-input,
+[data-theme="light"] .prof-conc-input {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(58, 138, 80, 0.35);
+  color: #1a3a1a;
+}
+
+[data-theme="light"] .prof-kp-check {
+  background: rgba(235, 245, 235, 0.9);
+  border-color: rgba(60, 140, 80, 0.25);
+}
+
+[data-theme="light"] .prof-kp-row.checked .prof-kp-check {
+  background: rgba(42, 122, 64, 0.15);
+  border-color: var(--accent);
+}
+
+[data-theme="light"] .prof-kp-row:hover {
+  background: rgba(42, 122, 64, 0.08);
+}
+
+[data-theme="light"] .prof-spark-btn.collected {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(42, 122, 64, 0.2);
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .prof-spark-btn.collected:hover {
+  background: rgba(42, 122, 64, 0.08);
 }

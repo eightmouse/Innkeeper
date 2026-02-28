@@ -98,7 +98,7 @@
         <span class="info-label">GitHub</span>
         <a class="info-link" id="github-link" href="https://github.com/eightmouse">github.com/eightmouse</a>
       </div>
-      <div class="info-row"><span class="info-label">Version</span><span class="info-value">1.1.0</span></div>
+      <div class="info-row"><span class="info-label">Version</span><span class="info-value">1.5.0</span></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="info-close">Close</button>
@@ -240,8 +240,11 @@
       <!-- Professions Tab -->
       <div class="detail-tab-panel" id="panel-professions">
         <div class="tab-content-full">
-          <div class="professions-content">
-            <div class="vault-placeholder">Profession tracking coming soon...</div>
+          <div class="professions-content" id="professions-content">
+            <div class="vault-loading" id="prof-loading">
+              <div class="loading-spinner"></div>
+              <div class="vault-loading-text">Loading profession data...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -332,6 +335,14 @@ const WORLD_TIER_ILVL = {
 };
 
 let _activeWorldMenu = null; // tracks open mini-menu
+
+// ── Profession constants ──────────────────────────
+const CONC_MAX = 1000;
+const CONC_REGEN_RATE = 1000 / (4 * 86400); // per second
+const KP_SOURCES = ['Weekly Quest', 'Treatise', 'Moxie Order', 'Field Notes', 'Weekly Treasures', 'Notebook'];
+let _profFetchInProgress = false;
+let _concIntervalId = null;
+let _currentProfChar = null;
 
 // Armory slot layout — left col top-to-bottom, right col top-to-bottom
 const EQUIP_LEFT  = ['HEAD','NECK','SHOULDER','BACK','CHEST','SHIRT','TABARD','WRIST'];
@@ -548,10 +559,11 @@ function openDetail(idx) {
   // Switch to Equipment tab by default
   switchTab('equipment', char);
 
-  // Show modal, then load equipment + pre-fetch vault in background
+  // Show modal, then load equipment + pre-fetch vault & professions in background
   document.getElementById('detail-overlay').classList.add('open');
   loadEquipment(char);
   sendToPython(`GET_VAULT:${char.region}:${char.realm}:${char.name}`);
+  sendToPython(`GET_PROFESSIONS:${char.region}:${char.realm}:${char.name}`);
 }
 
 function switchTab(tabName, char) {
@@ -566,11 +578,19 @@ function switchTab(tabName, char) {
   });
   document.getElementById(`panel-${tabName}`).classList.add('active');
 
+  // Clear concentration timer when leaving professions tab
+  if (tabName !== 'professions' && _concIntervalId) {
+    clearInterval(_concIntervalId);
+    _concIntervalId = null;
+  }
+
   // Load tab-specific content
   if (tabName === 'talents' && char) {
     loadTalents(char);
   } else if (tabName === 'vault' && char) {
     loadVault(char);
+  } else if (tabName === 'professions' && char) {
+    loadProfessions(char);
   }
 }
 
@@ -1408,6 +1428,231 @@ function renderVaultCard({ id, title, icon, totalSlots, milestones, filledCount,
     </div>`;
 }
 
+// ── Profession Functions ────────────────────────────────────
+
+function loadProfessions(char) {
+  _currentProfChar = char;
+  const container = document.getElementById('professions-content');
+
+  // If cached data exists, render immediately + background refresh
+  const hasCached = char.professions && char.professions.primaries && char.professions.primaries.length > 0;
+  if (hasCached) {
+    renderProfessions(char.professions, char);
+    showFetchNotify('prof', `Refreshing profession data for ${escapeHtml(char.name)}…`);
+    sendToPython(`GET_PROFESSIONS:${char.region}:${char.realm}:${char.name}`);
+  } else {
+    container.innerHTML = `<div class="vault-loading" id="prof-loading">
+      <div class="loading-spinner"></div>
+      <div class="vault-loading-text">Fetching profession data…</div>
+      <div class="vault-loading-hint">Pulling professions from Blizzard</div>
+    </div>`;
+    _profFetchInProgress = true;
+    showFetchNotify('prof', `Fetching profession data for ${escapeHtml(char.name)}…`);
+    sendToPython(`GET_PROFESSIONS:${char.region}:${char.realm}:${char.name}`);
+  }
+}
+
+function calcConcentration(concData) {
+  if (!concData || !concData.updated_at) return { effective: 0, timeToFull: 0 };
+  const elapsed = (Date.now() - new Date(concData.updated_at).getTime()) / 1000;
+  const effective = Math.min(concData.current + elapsed * CONC_REGEN_RATE, CONC_MAX);
+  const timeToFull = effective >= CONC_MAX ? 0 : (CONC_MAX - effective) / CONC_REGEN_RATE;
+  return { effective: Math.floor(effective), timeToFull: Math.ceil(timeToFull) };
+}
+
+function formatTimeDuration(seconds) {
+  if (seconds <= 0) return 'Full';
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function renderProfessions(profData, char) {
+  const container = document.getElementById('professions-content');
+  if (!container) return;
+
+  const primaries = (profData && profData.primaries) || [];
+  if (primaries.length === 0) {
+    container.innerHTML = '<div class="vault-placeholder">No professions found for this character.</div>';
+    return;
+  }
+
+  const moxie = char.prof_moxie || {};
+  const conc = char.prof_concentration || {};
+  const spark = char.prof_spark || false;
+  const kp = char.prof_kp || {};
+
+  let html = '<div class="prof-wrapper">';
+
+  // Spark of Radiance bar
+  html += `
+    <div class="prof-spark-bar">
+      <div class="prof-spark-info">
+        <svg class="prof-spark-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 1l2.5 6h6l-5 4 2 6.5L10 14l-5.5 3.5 2-6.5-5-4h6z" fill="${spark ? 'var(--text-muted)' : 'var(--green)'}" stroke="${spark ? 'var(--text-muted)' : 'var(--green)'}" stroke-width="0.5"/>
+        </svg>
+        <span class="prof-spark-label">Spark of Radiance</span>
+      </div>
+      <button class="prof-spark-btn ${spark ? 'collected' : 'available'}" id="prof-spark-toggle">
+        ${spark ? 'Collected' : 'Available'}
+      </button>
+    </div>`;
+
+  // Profession columns
+  html += '<div class="prof-columns">';
+
+  for (const prof of primaries) {
+    const profName = prof.name;
+    const skillPct = prof.max_skill > 0 ? (prof.skill / prof.max_skill * 100) : 0;
+    const profMoxie = moxie[profName] || 0;
+    const profConc = conc[profName] || {};
+    const { effective: concEff, timeToFull: concTTF } = calcConcentration(profConc);
+    const concPct = CONC_MAX > 0 ? (concEff / CONC_MAX * 100) : 0;
+    const profKp = kp[profName] || {};
+
+    // SVG concentration ring
+    const ringRadius = 24;
+    const ringCirc = 2 * Math.PI * ringRadius;
+    const ringOffset = ringCirc - (concPct / 100) * ringCirc;
+
+    html += `
+    <div class="prof-card" data-prof="${escapeHtml(profName)}">
+      <div class="prof-header">
+        <img src="${prof.icon_url}" class="prof-icon" alt="${escapeHtml(profName)}" />
+        <div class="prof-header-info">
+          <div class="prof-name">${escapeHtml(profName)}</div>
+          <div class="prof-skill-wrap">
+            <div class="prof-skill-bar">
+              <div class="prof-skill-fill" style="width:${skillPct}%"></div>
+            </div>
+            <span class="prof-skill-text">${prof.skill}/${prof.max_skill}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="prof-section">
+        <div class="prof-section-label">Artisan's Moxie</div>
+        <div class="prof-moxie-row">
+          <input type="number" class="prof-moxie-input" value="${profMoxie}" min="0" max="9999"
+                 data-prof="${escapeHtml(profName)}" />
+        </div>
+      </div>
+
+      <div class="prof-section">
+        <div class="prof-section-label">Concentration</div>
+        <div class="prof-conc-row">
+          <div class="prof-conc-ring-wrap">
+            <svg class="prof-conc-ring" width="60" height="60" viewBox="0 0 60 60">
+              <circle cx="30" cy="30" r="${ringRadius}" fill="none" stroke="rgba(58,138,80,0.15)" stroke-width="4"/>
+              <circle cx="30" cy="30" r="${ringRadius}" fill="none" stroke="var(--green)" stroke-width="4"
+                      stroke-dasharray="${ringCirc}" stroke-dashoffset="${ringOffset}"
+                      stroke-linecap="round" transform="rotate(-90 30 30)" class="prof-conc-fill"/>
+            </svg>
+            <div class="prof-conc-center">${concEff}</div>
+          </div>
+          <div class="prof-conc-info">
+            <input type="number" class="prof-conc-input" value="${profConc.current || 0}" min="0" max="1000"
+                   data-prof="${escapeHtml(profName)}" placeholder="Set current" />
+            <div class="prof-conc-countdown" data-prof="${escapeHtml(profName)}">Full in: ${formatTimeDuration(concTTF)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="prof-section">
+        <div class="prof-section-label">Weekly Knowledge Points</div>
+        <div class="prof-kp-list">
+          ${KP_SOURCES.map(src => {
+            const checked = profKp[src] || false;
+            return `<div class="prof-kp-row ${checked ? 'checked' : ''}" data-prof="${escapeHtml(profName)}" data-source="${escapeHtml(src)}">
+              <div class="prof-kp-check">${checked ? '✓' : ''}</div>
+              <span class="prof-kp-label">${escapeHtml(src)}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  html += '</div></div>';
+  container.innerHTML = html;
+
+  // Attach event listeners
+
+  // Spark toggle
+  const sparkBtn = document.getElementById('prof-spark-toggle');
+  if (sparkBtn) {
+    sparkBtn.addEventListener('click', () => {
+      if (!_currentProfChar) return;
+      sendToPython(`TOGGLE_PROF_SPARK:${_currentProfChar.name}:${_currentProfChar.realm}`);
+    });
+  }
+
+  // Moxie inputs
+  container.querySelectorAll('.prof-moxie-input').forEach(input => {
+    input.addEventListener('change', () => {
+      if (!_currentProfChar) return;
+      const pname = input.dataset.prof;
+      const val = Math.max(0, parseInt(input.value) || 0);
+      input.value = val;
+      sendToPython(`SET_PROF_MOXIE:${_currentProfChar.name}:${_currentProfChar.realm}:${pname}:${val}`);
+    });
+  });
+
+  // Concentration inputs
+  container.querySelectorAll('.prof-conc-input').forEach(input => {
+    input.addEventListener('change', () => {
+      if (!_currentProfChar) return;
+      const pname = input.dataset.prof;
+      const val = Math.max(0, Math.min(1000, parseInt(input.value) || 0));
+      input.value = val;
+      sendToPython(`SET_PROF_CONCENTRATION:${_currentProfChar.name}:${_currentProfChar.realm}:${pname}:${val}`);
+    });
+  });
+
+  // KP checkboxes
+  container.querySelectorAll('.prof-kp-row').forEach(row => {
+    row.addEventListener('click', () => {
+      if (!_currentProfChar) return;
+      const pname = row.dataset.prof;
+      const source = row.dataset.source;
+      sendToPython(`TOGGLE_PROF_KP:${_currentProfChar.name}:${_currentProfChar.realm}:${pname}:${source}`);
+    });
+  });
+
+  // Start concentration countdown timer
+  if (_concIntervalId) clearInterval(_concIntervalId);
+  _concIntervalId = setInterval(() => updateConcentrationTimers(char), 60000);
+}
+
+function updateConcentrationTimers(char) {
+  if (!char) return;
+  const conc = char.prof_concentration || {};
+  document.querySelectorAll('.prof-conc-countdown').forEach(el => {
+    const profName = el.dataset.prof;
+    const profConc = conc[profName] || {};
+    const { effective, timeToFull } = calcConcentration(profConc);
+    el.textContent = `Full in: ${formatTimeDuration(timeToFull)}`;
+
+    // Update ring and center text
+    const card = el.closest('.prof-card');
+    if (card) {
+      const centerEl = card.querySelector('.prof-conc-center');
+      if (centerEl) centerEl.textContent = effective;
+      const fillEl = card.querySelector('.prof-conc-fill');
+      if (fillEl) {
+        const ringRadius = 24;
+        const ringCirc = 2 * Math.PI * ringRadius;
+        const concPct = CONC_MAX > 0 ? (effective / CONC_MAX * 100) : 0;
+        const ringOffset = ringCirc - (concPct / 100) * ringCirc;
+        fillEl.setAttribute('stroke-dashoffset', ringOffset);
+      }
+    }
+  });
+}
+
 // ── Slot Builder Functions ──────────────────────────────────
 
 function buildDungeonSlots(mp) {
@@ -1660,6 +1905,11 @@ function showTierSelector(menu, slotIndex, wtype) {
 function closeDetail() {
   document.getElementById('detail-overlay').classList.remove('open');
   detailIndex = null;
+  if (_concIntervalId) {
+    clearInterval(_concIntervalId);
+    _concIntervalId = null;
+  }
+  _currentProfChar = null;
 }
 
 function updateResetTimers() {
@@ -2137,6 +2387,41 @@ if (ipcRenderer) {
           container.innerHTML = '<div class="vault-placeholder">Could not load vault data. Try again later.</div>';
         }
         showToast(data.message || 'Could not fetch vault data', true);
+      } else if (data.status === 'professions_data') {
+        _profFetchInProgress = false;
+        hideFetchNotify('prof');
+        // Update character cache
+        if (detailIndex !== null && characters[detailIndex]) {
+          const c = characters[detailIndex];
+          if (c.name === data.name && c.realm === data.realm) {
+            c.professions = data.professions;
+            c.prof_moxie = data.moxie;
+            c.prof_concentration = data.concentration;
+            c.prof_spark = data.spark;
+            c.prof_kp = data.kp;
+          }
+        }
+        // Re-render if professions tab is active
+        if (_currentProfChar && _currentProfChar.name === data.name && _currentProfChar.realm === data.realm) {
+          const c = characters[detailIndex];
+          if (c) renderProfessions(data.professions, c);
+        }
+      } else if (data.status === 'prof_updated') {
+        // Update character cache
+        if (detailIndex !== null && characters[detailIndex]) {
+          const c = characters[detailIndex];
+          if (c.name === data.name && c.realm === data.realm) {
+            c.prof_moxie = data.moxie;
+            c.prof_concentration = data.concentration;
+            c.prof_spark = data.spark;
+            c.prof_kp = data.kp;
+          }
+        }
+        // Re-render if professions tab is active
+        if (_currentProfChar && _currentProfChar.name === data.name && _currentProfChar.realm === data.realm) {
+          const c = characters[detailIndex];
+          if (c) renderProfessions(c.professions || {}, c);
+        }
       } else if (data.status === 'spec_refresh_error') {
         const btn = document.getElementById('refresh-spec-btn');
         btn.classList.remove('refreshing');
