@@ -50,13 +50,16 @@ if __name__ != "__main__":
     _token_cache: dict[str, dict] = {}
     TOKEN_TTL = 24 * 3600 - 300
 
+    # TW OAuth redirects to a dead apac host; use KR's endpoint instead (same APAC token)
+    _OAUTH_HOST = {"tw": "kr"}
+
     def get_access_token(region: str = "eu") -> str | None:
         cached = _token_cache.get(region)
         if cached and cached["expires"] > time.time():
             return cached["token"]
-        # All regions use {region}.battle.net for OAuth
+        oauth_host = _OAUTH_HOST.get(region, region)
         r = requests.post(
-            f"https://{region}.battle.net/oauth/token",
+            f"https://{oauth_host}.battle.net/oauth/token",
             data={"grant_type": "client_credentials"},
             auth=(BLIZZARD_CLIENT_ID, BLIZZARD_CLIENT_SECRET),
             timeout=10,
@@ -65,7 +68,7 @@ if __name__ != "__main__":
             token = r.json()["access_token"]
             _token_cache[region] = {"token": token, "expires": time.time() + TOKEN_TTL}
             return token
-        print(f"[engine] OAuth failed for region={region} (host={_OAUTH_HOST.get(region, region)}): {r.status_code} {r.text[:200]}", flush=True)
+        print(f"[engine] OAuth failed for region={region} (host={oauth_host}): {r.status_code} {r.text[:200]}", flush=True)
         return None
 
     # ────────────────────  Blizzard HTTP helper  ────────────────
