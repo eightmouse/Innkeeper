@@ -43,6 +43,11 @@
   border-bottom: 1px solid rgba(60, 140, 80, 0.3);
 }
 
+[data-theme="light"] .update-dot {
+  background: var(--accent);
+  box-shadow: 0 0 4px rgba(42, 122, 64, 0.5);
+}
+
 [data-theme="light"] #empty-state {
   color: #3a6a48;
 }
@@ -241,6 +246,7 @@ body::before {
 }
 
 .menu-item {
+  position: relative;
   font-size: 12px;
   color: var(--text-muted);
   padding: 0 12px;
@@ -252,6 +258,22 @@ body::before {
   transition: background 0.15s, color 0.15s;
 }
 .menu-item:hover { background: rgba(58, 138, 80, 0.12); color: var(--text-primary); }
+
+.update-dot {
+  display: none;
+  width: 6px;
+  height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  box-shadow: 0 0 4px rgba(78, 203, 113, 0.6);
+}
+
+.update-dot.visible {
+  display: block;
+}
 
 #window-controls {
   display: flex;
@@ -2132,6 +2154,12 @@ body::before {
   letter-spacing: 0.03em;
 }
 
+.prof-spark-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
 .prof-spark-btn {
   padding: 6px 16px;
   border-radius: 5px;
@@ -2270,6 +2298,16 @@ body::before {
   transition: border-color 0.15s;
 }
 
+.prof-moxie-input::-webkit-inner-spin-button,
+.prof-moxie-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.prof-moxie-input {
+  -moz-appearance: textfield;
+}
+
 .prof-moxie-input:focus {
   border-color: rgba(58, 138, 80, 0.55);
   box-shadow: 0 0 0 2px rgba(58, 138, 80, 0.12);
@@ -2304,7 +2342,29 @@ body::before {
   transform: translate(-50%, -50%);
   font-size: 13px;
   font-weight: 700;
+  color: var(--text-muted);
+}
+
+.prof-conc-center.regen {
+  font-size: 15px;
   color: var(--green);
+  animation: concPulse 2s ease-in-out infinite;
+}
+
+.prof-conc-center.full {
+  font-size: 16px;
+  color: #f5c542;
+  text-shadow: 0 0 6px rgba(245, 197, 66, 0.5);
+  animation: none;
+}
+
+.prof-conc-fill.full {
+  stroke: #f5c542;
+}
+
+@keyframes concPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 .prof-conc-info {
@@ -2328,6 +2388,16 @@ body::before {
   transition: border-color 0.15s;
 }
 
+.prof-conc-input::-webkit-inner-spin-button,
+.prof-conc-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.prof-conc-input {
+  -moz-appearance: textfield;
+}
+
 .prof-conc-input:focus {
   border-color: rgba(58, 138, 80, 0.55);
   box-shadow: 0 0 0 2px rgba(58, 138, 80, 0.12);
@@ -2337,6 +2407,12 @@ body::before {
   font-size: 11px;
   color: var(--text-realm);
   letter-spacing: 0.02em;
+}
+
+.prof-conc-synced {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
 }
 
 /* KP Checklist */
@@ -2428,6 +2504,15 @@ body::before {
 
 [data-theme="light"] .prof-kp-row:hover {
   background: rgba(42, 122, 64, 0.08);
+}
+
+[data-theme="light"] .prof-conc-center.full {
+  color: #c9a020;
+  text-shadow: 0 0 4px rgba(201, 160, 32, 0.35);
+}
+
+[data-theme="light"] .prof-conc-fill.full {
+  stroke: #c9a020;
 }
 
 [data-theme="light"] .prof-spark-btn.collected {

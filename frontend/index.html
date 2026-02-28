@@ -14,7 +14,7 @@
       <img id="titlebar-logo" src="../assets/logo.png" alt="Innkeeper" />
       <span id="titlebar-title">INNKEEPER</span>
       <div id="menubar">
-        <div class="menu-item" id="menu-settings">Settings</div>
+        <div class="menu-item" id="menu-settings">Settings<span class="update-dot" id="update-dot"></span></div>
         <div class="menu-item" id="menu-info">Info</div>
       </div>
     </div>
@@ -1470,6 +1470,15 @@ function formatTimeDuration(seconds) {
   return `${m}m`;
 }
 
+function formatTimeAgo(isoString) {
+  if (!isoString) return '';
+  const elapsed = (Date.now() - new Date(isoString).getTime()) / 1000;
+  if (elapsed < 60) return 'just now';
+  if (elapsed < 3600) return `${Math.floor(elapsed / 60)}m ago`;
+  if (elapsed < 86400) return `${Math.floor(elapsed / 3600)}h ${Math.floor((elapsed % 3600) / 60)}m ago`;
+  return `${Math.floor(elapsed / 86400)}d ${Math.floor((elapsed % 86400) / 3600)}h ago`;
+}
+
 function renderProfessions(profData, char) {
   const container = document.getElementById('professions-content');
   if (!container) return;
@@ -1483,11 +1492,15 @@ function renderProfessions(profData, char) {
   const moxie = char.prof_moxie || {};
   const conc = char.prof_concentration || {};
   const spark = char.prof_spark || false;
+  const sparkCollectedAt = char.prof_spark_collected_at || null;
   const kp = char.prof_kp || {};
 
   let html = '<div class="prof-wrapper">';
 
   // Spark of Radiance bar
+  const sparkHint = spark
+    ? 'Collected: ' + formatTimeAgo(sparkCollectedAt)
+    : 'Available from weekly profession quest';
   html += `
     <div class="prof-spark-bar">
       <div class="prof-spark-info">
@@ -1495,6 +1508,7 @@ function renderProfessions(profData, char) {
           <path d="M10 1l2.5 6h6l-5 4 2 6.5L10 14l-5.5 3.5 2-6.5-5-4h6z" fill="${spark ? 'var(--text-muted)' : 'var(--green)'}" stroke="${spark ? 'var(--text-muted)' : 'var(--green)'}" stroke-width="0.5"/>
         </svg>
         <span class="prof-spark-label">Spark of Radiance</span>
+        <span class="prof-spark-hint">${sparkHint}</span>
       </div>
       <button class="prof-spark-btn ${spark ? 'collected' : 'available'}" id="prof-spark-toggle">
         ${spark ? 'Collected' : 'Available'}
@@ -1511,6 +1525,7 @@ function renderProfessions(profData, char) {
     const profConc = conc[profName] || {};
     const { effective: concEff, timeToFull: concTTF } = calcConcentration(profConc);
     const concPct = CONC_MAX > 0 ? (concEff / CONC_MAX * 100) : 0;
+    const concState = concEff >= CONC_MAX ? 'full' : concEff > 0 ? 'regen' : '';
     const profKp = kp[profName] || {};
 
     // SVG concentration ring
@@ -1549,14 +1564,15 @@ function renderProfessions(profData, char) {
               <circle cx="30" cy="30" r="${ringRadius}" fill="none" stroke="rgba(58,138,80,0.15)" stroke-width="4"/>
               <circle cx="30" cy="30" r="${ringRadius}" fill="none" stroke="var(--green)" stroke-width="4"
                       stroke-dasharray="${ringCirc}" stroke-dashoffset="${ringOffset}"
-                      stroke-linecap="round" transform="rotate(-90 30 30)" class="prof-conc-fill"/>
+                      stroke-linecap="round" transform="rotate(-90 30 30)" class="prof-conc-fill${concState ? ' ' + concState : ''}"/>
             </svg>
-            <div class="prof-conc-center">${concEff}</div>
+            <div class="prof-conc-center${concState ? ' ' + concState : ''}">${concEff}</div>
           </div>
           <div class="prof-conc-info">
-            <input type="number" class="prof-conc-input" value="${profConc.current || 0}" min="0" max="1000"
-                   data-prof="${escapeHtml(profName)}" placeholder="Set current" />
+            <input type="number" class="prof-conc-input" value="${concEff}" min="0" max="1000"
+                   data-prof="${escapeHtml(profName)}" placeholder="Enter current" />
             <div class="prof-conc-countdown" data-prof="${escapeHtml(profName)}">Full in: ${formatTimeDuration(concTTF)}</div>
+            <div class="prof-conc-synced" data-prof="${escapeHtml(profName)}">${profConc.updated_at ? 'Synced: ' + formatTimeAgo(profConc.updated_at) : 'Not yet synced'}</div>
           </div>
         </div>
       </div>
@@ -1636,19 +1652,39 @@ function updateConcentrationTimers(char) {
     const { effective, timeToFull } = calcConcentration(profConc);
     el.textContent = `Full in: ${formatTimeDuration(timeToFull)}`;
 
-    // Update ring and center text
     const card = el.closest('.prof-card');
-    if (card) {
-      const centerEl = card.querySelector('.prof-conc-center');
-      if (centerEl) centerEl.textContent = effective;
-      const fillEl = card.querySelector('.prof-conc-fill');
-      if (fillEl) {
-        const ringRadius = 24;
-        const ringCirc = 2 * Math.PI * ringRadius;
-        const concPct = CONC_MAX > 0 ? (effective / CONC_MAX * 100) : 0;
-        const ringOffset = ringCirc - (concPct / 100) * ringCirc;
-        fillEl.setAttribute('stroke-dashoffset', ringOffset);
-      }
+    if (!card) return;
+
+    const concState = effective >= CONC_MAX ? 'full' : effective > 0 ? 'regen' : '';
+
+    // Update ring and center text
+    const centerEl = card.querySelector('.prof-conc-center');
+    if (centerEl) {
+      centerEl.textContent = effective;
+      centerEl.classList.remove('regen', 'full');
+      if (concState) centerEl.classList.add(concState);
+    }
+    const fillEl = card.querySelector('.prof-conc-fill');
+    if (fillEl) {
+      const ringRadius = 24;
+      const ringCirc = 2 * Math.PI * ringRadius;
+      const concPct = CONC_MAX > 0 ? (effective / CONC_MAX * 100) : 0;
+      const ringOffset = ringCirc - (concPct / 100) * ringCirc;
+      fillEl.setAttribute('stroke-dashoffset', ringOffset);
+      fillEl.classList.remove('regen', 'full');
+      if (concState) fillEl.classList.add(concState);
+    }
+
+    // Update synced timestamp
+    const syncedEl = card.querySelector('.prof-conc-synced');
+    if (syncedEl) {
+      syncedEl.textContent = profConc.updated_at ? 'Synced: ' + formatTimeAgo(profConc.updated_at) : 'Not yet synced';
+    }
+
+    // Update input to show effective value (only if not focused)
+    const inputEl = card.querySelector('.prof-conc-input');
+    if (inputEl && document.activeElement !== inputEl) {
+      inputEl.value = effective;
     }
   });
 }
@@ -2333,16 +2369,19 @@ if (ipcRenderer) {
         }
       } else if (data.status === 'update_check') {
         const btn = document.getElementById('update-btn');
+        const dot = document.getElementById('update-dot');
         if (data.updateAvailable) {
           btn.textContent = `Update to v${data.latestVersion}`;
           btn.disabled = false;
           btn.classList.add('update-available');
           btn.classList.remove('update-uptodate');
+          if (dot) dot.classList.add('visible');
           showToast(`Innkeeper v${data.latestVersion} is available!`);
         } else {
           btn.textContent = 'Up to date';
           btn.classList.add('update-uptodate');
           btn.classList.remove('update-available');
+          if (dot) dot.classList.remove('visible');
         }
       } else if (data.status === 'vault_data') {
         _vaultFetchInProgress = false;
@@ -2398,6 +2437,7 @@ if (ipcRenderer) {
             c.prof_moxie = data.moxie;
             c.prof_concentration = data.concentration;
             c.prof_spark = data.spark;
+            c.prof_spark_collected_at = data.spark_collected_at;
             c.prof_kp = data.kp;
           }
         }
@@ -2414,6 +2454,7 @@ if (ipcRenderer) {
             c.prof_moxie = data.moxie;
             c.prof_concentration = data.concentration;
             c.prof_spark = data.spark;
+            c.prof_spark_collected_at = data.spark_collected_at;
             c.prof_kp = data.kp;
           }
         }
