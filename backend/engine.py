@@ -112,17 +112,18 @@ if __name__ != "__main__":
 
     # ────────────────────  Vault constants  ─────────────────────
 
-    # Season 1 TWW: keystone level → vault reward ilvl
+    # Midnight Season 1: keystone level → Great Vault reward ilvl
     VAULT_KEYSTONE_ILVL = {
-        2:  597, 3:  597, 4:  600, 5:  603,
-        6:  606, 7:  610, 8:  610, 9:  613,
-        10: 616, 11: 616, 12: 619, 13: 619,
-        14: 622, 15: 625, 16: 625,
+        2:  259, 3:  259,
+        4:  263, 5:  263,
+        6:  266,
+        7:  269, 8:  269, 9:  269,
+        10: 272,
     }
-    VAULT_KEYSTONE_MAX = 16  # keys above this still give max reward
+    VAULT_KEYSTONE_MAX = 10  # keys above this still give max reward (Myth 1)
 
     VAULT_RAID_DIFFICULTY_ILVL = {
-        'LFR': 597, 'Normal': 610, 'Heroic': 623, 'Mythic': 636,
+        'LFR': 243, 'Normal': 256, 'Heroic': 269, 'Mythic': 282,
     }
     VAULT_RAID_DIFFICULTY_SHORT = {
         'LFR': 'L', 'Normal': 'N', 'Heroic': 'H', 'Mythic': 'M',
@@ -894,6 +895,10 @@ def main():
     characters = load_data()
     for char in characters:
         char.check_resets()
+        # Clear stale vault cache so fresh data uses current ilvl tables
+        char.vault_mythic_plus = {}
+        char.vault_raids = {}
+        char.vault_last_check = None
     save_data(characters)
 
     import time
