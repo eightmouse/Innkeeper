@@ -548,9 +548,10 @@ function openDetail(idx) {
   // Switch to Equipment tab by default
   switchTab('equipment', char);
 
-  // Show modal, then load equipment
+  // Show modal, then load equipment + pre-fetch vault in background
   document.getElementById('detail-overlay').classList.add('open');
   loadEquipment(char);
+  sendToPython(`GET_VAULT:${char.region}:${char.realm}:${char.name}`);
 }
 
 function switchTab(tabName, char) {
