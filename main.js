@@ -156,25 +156,33 @@ function startPython() {
     // Ensure data dir exists
     fs.mkdirSync(dataDir, { recursive: true });
 
+    const utf8Env = { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' };
     pyProcess = spawn(enginePath, ['--datadir', dataDir], {
       cwd: dataDir,
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: utf8Env,
     });
     console.log('[Main] Spawned packaged engine:', enginePath, '--datadir', dataDir);
   } else {
     // Dev: run python engine.py as before
     const script = path.join(__dirname, 'backend', 'engine.py');
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const utf8Env = { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' };
     pyProcess = spawn(pythonCmd, [script, '--datadir', __dirname], {
       cwd: __dirname,
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: utf8Env,
     });
   }
+
+  pyProcess.stdin.setDefaultEncoding('utf8');
+  pyProcess.stdout.setEncoding('utf8');
+  pyProcess.stderr.setEncoding('utf8');
 
   let buffer = '';
   let ready = false;
   pyProcess.stdout.on('data', (chunk) => {
-    buffer += chunk.toString();
+    buffer += chunk;
     const lines = buffer.split('\n');
     buffer = lines.pop();
     lines.forEach(line => {
@@ -193,7 +201,7 @@ function startPython() {
     });
   });
 
-  pyProcess.stderr.on('data', (d) => console.error('[Python]', d.toString().trim()));
+  pyProcess.stderr.on('data', (d) => console.error('[Python]', d.trim()));
   pyProcess.on('close', (code) => console.log('[Python] Exited with code', code));
 }
 
