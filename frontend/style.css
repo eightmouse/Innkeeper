@@ -804,7 +804,11 @@ body::before {
 .vault-content,
 .professions-content {
   flex: 1;
-  padding: 24px;
+  padding: 18px 22px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .vault-placeholder {
@@ -1672,4 +1676,266 @@ body::before {
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+/* ── Vault Tab ────────────────────────────────────── */
+
+.vault-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 80px 24px;
+}
+
+.vault-loading-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+.vault-loading-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.vault-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 900px;
+  width: 100%;
+}
+
+.vault-card {
+  background: rgba(8, 16, 10, 0.7);
+  border: 1px solid rgba(60, 140, 80, 0.28);
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+
+.vault-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.vault-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.vault-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.vault-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+.vault-card-subtitle {
+  font-size: 11px;
+  color: var(--text-realm);
+  margin-top: 2px;
+}
+
+.vault-card-progress {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+/* Slot row */
+.vault-slots {
+  display: flex;
+  gap: 5px;
+  align-items: flex-end;
+  margin-bottom: 3px;
+}
+
+.vault-slot {
+  flex: 1;
+  height: 36px;
+  background: rgba(10, 20, 12, 0.7);
+  border: 1px solid rgba(60, 140, 80, 0.15);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.vault-slot-filled {
+  background: rgba(58, 138, 80, 0.18);
+  border-color: rgba(58, 138, 80, 0.4);
+}
+
+.vault-slot-milestone {
+  border-width: 2px;
+}
+
+.vault-slot-milestone.vault-slot-filled {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(58, 138, 80, 0.25);
+}
+
+.vault-slot-determining {
+  background: rgba(58, 138, 80, 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(58, 138, 80, 0.3), inset 0 0 8px rgba(58, 138, 80, 0.08);
+}
+
+.vault-slot-determining .vault-slot-label {
+  color: var(--green);
+}
+
+.vault-slot-ghost {
+  border-style: dashed;
+  border-color: rgba(60, 140, 80, 0.15);
+}
+
+.vault-slot-ghost-icon {
+  font-size: 13px;
+  color: rgba(60, 140, 80, 0.3);
+  font-weight: 600;
+}
+
+.vault-slot-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+.vault-milestone-marker {
+  width: 5px;
+  height: 5px;
+  background: var(--green);
+  border-radius: 50%;
+  margin: 3px auto 0;
+  opacity: 0.8;
+}
+
+/* World toggles */
+.vault-world-toggle {
+  cursor: pointer;
+}
+
+.vault-world-toggle:hover {
+  background: rgba(58, 138, 80, 0.18);
+  border-color: rgba(58, 138, 80, 0.35);
+}
+
+/* Rewards row */
+.vault-rewards {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.vault-reward {
+  flex: 1;
+  text-align: center;
+  background: rgba(10, 20, 12, 0.55);
+  border: 1px solid rgba(60, 140, 80, 0.12);
+  border-radius: 6px;
+  padding: 8px 6px;
+}
+
+.vault-reward-active {
+  background: rgba(58, 138, 80, 0.14);
+  border-color: rgba(58, 138, 80, 0.35);
+}
+
+.vault-reward-locked {
+  opacity: 0.45;
+}
+
+.vault-reward-choice {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-realm);
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.vault-reward-ilvl {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.vault-reward-detail {
+  font-size: 10px;
+  color: var(--text-realm);
+  margin-top: 2px;
+}
+
+.vault-reward-next {
+  font-size: 9px;
+  color: var(--green);
+  margin-top: 3px;
+  opacity: 0.8;
+  letter-spacing: 0.02em;
+}
+
+/* ── Vault Light Theme ─────────────────────────────── */
+
+[data-theme="light"] .vault-card {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(60, 140, 80, 0.25);
+}
+
+[data-theme="light"] .vault-slot {
+  background: rgba(235, 245, 235, 0.9);
+  border-color: rgba(60, 140, 80, 0.2);
+}
+
+[data-theme="light"] .vault-slot-filled {
+  background: rgba(42, 122, 64, 0.14);
+  border-color: rgba(42, 122, 64, 0.4);
+}
+
+[data-theme="light"] .vault-slot-milestone.vault-slot-filled {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(42, 122, 64, 0.25);
+}
+
+[data-theme="light"] .vault-slot-determining {
+  background: rgba(42, 122, 64, 0.18);
+  box-shadow: 0 0 10px rgba(42, 122, 64, 0.25), inset 0 0 8px rgba(42, 122, 64, 0.06);
+}
+
+[data-theme="light"] .vault-reward-next {
+  color: var(--accent);
+}
+
+[data-theme="light"] .vault-slot-ghost {
+  border-color: rgba(60, 140, 80, 0.25);
+}
+
+[data-theme="light"] .vault-reward {
+  background: rgba(235, 245, 235, 0.75);
+  border-color: rgba(60, 140, 80, 0.18);
+}
+
+[data-theme="light"] .vault-reward-active {
+  background: rgba(42, 122, 64, 0.12);
+  border-color: rgba(42, 122, 64, 0.3);
+}
+
+[data-theme="light"] .vault-world-toggle:hover {
+  background: rgba(42, 122, 64, 0.18);
 }
