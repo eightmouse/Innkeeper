@@ -317,6 +317,22 @@ const VAULT_WORLD_SLOTS    = 8;
 let _vaultFetchInProgress  = false;
 let _currentVaultChar      = null;
 
+// World activity types with WoW API icons
+const WORLD_ACTIVITY_TYPES = {
+  prey:        { label: 'Prey',        icon: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_bone_skull_01.jpg' },
+  delve:       { label: 'Delve',       icon: 'https://render.worldofwarcraft.com/us/icons/56/inv_torch_lit.jpg' },
+  world_event: { label: 'World Event', icon: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_map02.jpg' },
+};
+
+// Midnight S1: world activity tier → vault reward ilvl
+const WORLD_TIER_ILVL = {
+  1: 239, 2: 239, 3: 242, 4: 246,
+  5: 249, 6: 252, 7: 255, 8: 259,
+  9: 262, 10: 265, 11: 268,
+};
+
+let _activeWorldMenu = null; // tracks open mini-menu
+
 // Armory slot layout — left col top-to-bottom, right col top-to-bottom
 const EQUIP_LEFT  = ['HEAD','NECK','SHOULDER','BACK','CHEST','SHIRT','TABARD','WRIST'];
 const EQUIP_RIGHT = ['HANDS','WAIST','LEGS','FEET','RING_1','RING_2','TRINKET_1','TRINKET_2'];
@@ -1216,6 +1232,7 @@ function capitalize(str) {
 
 
 function loadVault(char) {
+  closeWorldMenu();
   _currentVaultChar = char;
   const container = document.getElementById('vault-content');
 
@@ -1288,7 +1305,7 @@ function renderVault(mythicPlus, raids, world) {
   // ── World Card ──
   const worldSlots = buildWorldSlots(wd);
   const worldFilled = worldSlots.filter(s => s.filled).length;
-  const worldRewards = buildWorldRewards(worldFilled);
+  const worldRewards = buildWorldRewards(wd);
   html += renderVaultCard({
     id: 'world',
     title: 'World',
@@ -1305,12 +1322,19 @@ function renderVault(mythicPlus, raids, world) {
   html += '</div>';
   container.innerHTML = html;
 
-  // Attach click listeners for world toggles
+  // Attach click listeners for world slots (mini-menu or clear)
   container.querySelectorAll('.vault-world-toggle').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
       const slot = parseInt(el.dataset.slot);
-      if (_currentVaultChar && !isNaN(slot)) {
-        sendToPython(`TOGGLE_VAULT_WORLD:${_currentVaultChar.name}:${_currentVaultChar.realm}:${slot}`);
+      if (!_currentVaultChar || isNaN(slot)) return;
+      const entry = wd && wd[slot];
+      if (entry && entry.type) {
+        // Filled slot — clear it
+        sendToPython(`CLEAR_VAULT_WORLD:${_currentVaultChar.name}:${_currentVaultChar.realm}:${slot}`);
+      } else {
+        // Empty slot — show mini-menu
+        showWorldMenu(slot, el);
       }
     });
   });
@@ -1337,7 +1361,9 @@ function renderVaultCard({ id, title, icon, totalSlots, milestones, filledCount,
     const tooltipAttr = slot.tooltip ? ` title="${escapeHtml(slot.tooltip)}"` : '';
 
     slotsHtml += `<div class="${cls}"${dataAttr}${tooltipAttr}>`;
-    if (slot.filled && slot.label) {
+    if (slot.filled && slot.iconUrl) {
+      slotsHtml += `<img src="${slot.iconUrl}" class="vault-slot-icon" alt="" /><span class="vault-slot-label">${escapeHtml(slot.label)}</span>`;
+    } else if (slot.filled && slot.label) {
       slotsHtml += `<span class="vault-slot-label">${escapeHtml(slot.label)}</span>`;
     } else if (isGhost) {
       slotsHtml += `<span class="vault-slot-ghost-icon">?</span>`;
@@ -1353,8 +1379,9 @@ function renderVaultCard({ id, title, icon, totalSlots, milestones, filledCount,
   for (let i = 0; i < 3; i++) {
     const reward = rewards[i] || { unlocked: false, ilvl: 0, detail: '' };
     const rCls = reward.unlocked ? 'vault-reward vault-reward-active' : 'vault-reward vault-reward-locked';
+    const nextPrefix = (typeof reward.nextLevel === 'string' && reward.nextLevel.startsWith('T')) ? '' : '+';
     const nextHtml = (reward.nextLevel && reward.nextIlvl)
-      ? `<div class="vault-reward-next">+${reward.nextLevel} \u2192 ilvl ${reward.nextIlvl}</div>`
+      ? `<div class="vault-reward-next">${nextPrefix}${reward.nextLevel} \u2192 ilvl ${reward.nextIlvl}</div>`
       : '';
     rewardsHtml += `<div class="${rCls}">
       <div class="vault-reward-choice">Choice ${i + 1}</div>
@@ -1500,23 +1527,132 @@ function buildRaidSubtitle(raids) {
 function buildWorldSlots(world) {
   const slots = [];
   for (let i = 0; i < VAULT_WORLD_SLOTS; i++) {
-    const filled = !!(world && world[i]);
-    slots.push({
-      filled,
-      label: filled ? '\u2713' : '',
-      tooltip: filled ? 'Activity completed' : 'Click to toggle',
-    });
+    const entry = world && world[i]; // null or {type, tier}
+    if (entry && entry.type && entry.tier) {
+      const info = WORLD_ACTIVITY_TYPES[entry.type];
+      slots.push({
+        filled: true,
+        label: `${entry.tier}`,
+        iconUrl: info ? info.icon : '',
+        tooltip: `${info ? info.label : entry.type} T${entry.tier} — ilvl ${WORLD_TIER_ILVL[entry.tier] || '?'}`,
+      });
+    } else {
+      slots.push({ filled: false, label: '', tooltip: 'Click to add activity' });
+    }
   }
   return slots;
 }
 
-function buildWorldRewards(filledCount) {
+function buildWorldRewards(world) {
+  // Gather all filled tiers, sort descending (same logic as M+ 1st/4th/8th)
+  const tiers = [];
+  for (let i = 0; i < VAULT_WORLD_SLOTS; i++) {
+    const entry = world && world[i];
+    if (entry && entry.tier) tiers.push(entry.tier);
+  }
+  tiers.sort((a, b) => b - a);
+
+  const filledCount = tiers.length;
+  const determiningIndices = [0, 3, 7]; // 1st, 4th, 8th highest
+
   return [0, 1, 2].map(i => {
     const needed = VAULT_WORLD_MILESTONES[i];
-    if (filledCount >= needed) {
-      return { unlocked: true, ilvl: 0, detail: 'Reward unlocked' };
+    const idx = determiningIndices[i];
+    if (filledCount >= needed && idx < tiers.length) {
+      const tier = tiers[idx];
+      const ilvl = WORLD_TIER_ILVL[tier] || 0;
+      // Next upgrade hint: what tier would improve this choice?
+      let nextTier = null, nextIlvl = null;
+      if (tier < 11) {
+        nextTier = tier + 1;
+        nextIlvl = WORLD_TIER_ILVL[nextTier];
+        if (nextIlvl === ilvl) { nextTier = null; nextIlvl = null; }
+      }
+      return {
+        unlocked: true,
+        ilvl,
+        detail: `T${tier} activity`,
+        nextLevel: nextTier ? `T${nextTier}` : null,
+        nextIlvl: nextIlvl || null,
+      };
     }
     return { unlocked: false, ilvl: 0, detail: `need ${needed - filledCount} more` };
+  });
+}
+
+function closeWorldMenu() {
+  if (_activeWorldMenu) {
+    _activeWorldMenu.remove();
+    _activeWorldMenu = null;
+  }
+}
+
+function showWorldMenu(slotIndex, slotEl) {
+  closeWorldMenu();
+
+  const menu = document.createElement('div');
+  menu.className = 'vault-world-menu';
+
+  // Step 1: Activity type selection
+  let html = '<div class="vault-menu-header">Activity Type</div><div class="vault-menu-icons">';
+  for (const [key, info] of Object.entries(WORLD_ACTIVITY_TYPES)) {
+    html += `<button class="vault-menu-icon-btn" data-type="${key}" title="${escapeHtml(info.label)}">
+      <img src="${info.icon}" alt="${escapeHtml(info.label)}" />
+    </button>`;
+  }
+  html += '</div>';
+  menu.innerHTML = html;
+
+  // Position relative to the slot
+  slotEl.style.position = 'relative';
+  slotEl.appendChild(menu);
+
+  // Icon click → show tier selector
+  menu.querySelectorAll('.vault-menu-icon-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wtype = btn.dataset.type;
+      showTierSelector(menu, slotIndex, wtype);
+    });
+  });
+
+  _activeWorldMenu = menu;
+
+  // Close on outside click (delayed to avoid immediate close)
+  setTimeout(() => {
+    document.addEventListener('click', _worldMenuOutsideClick);
+  }, 0);
+}
+
+function _worldMenuOutsideClick(e) {
+  if (_activeWorldMenu && !_activeWorldMenu.contains(e.target)) {
+    closeWorldMenu();
+    document.removeEventListener('click', _worldMenuOutsideClick);
+  }
+}
+
+function showTierSelector(menu, slotIndex, wtype) {
+  const info = WORLD_ACTIVITY_TYPES[wtype];
+  let html = `<div class="vault-menu-header"><img src="${info.icon}" class="vault-menu-header-icon" alt="" /> Select Tier</div>`;
+  html += '<div class="vault-menu-tiers">';
+  for (let t = 1; t <= 11; t++) {
+    const ilvl = WORLD_TIER_ILVL[t] || 0;
+    html += `<button class="vault-menu-tier-btn" data-tier="${t}" title="ilvl ${ilvl}">${t}</button>`;
+  }
+  html += '</div>';
+  menu.innerHTML = html;
+
+  // Tier click → send IPC
+  menu.querySelectorAll('.vault-menu-tier-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const tier = btn.dataset.tier;
+      if (_currentVaultChar) {
+        sendToPython(`SET_VAULT_WORLD:${_currentVaultChar.name}:${_currentVaultChar.realm}:${slotIndex}:${wtype}:${tier}`);
+      }
+      closeWorldMenu();
+      document.removeEventListener('click', _worldMenuOutsideClick);
+    });
   });
 }
 
