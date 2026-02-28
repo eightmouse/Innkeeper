@@ -50,12 +50,16 @@ if __name__ != "__main__":
     _token_cache: dict[str, dict] = {}
     TOKEN_TTL = 24 * 3600 - 300
 
+    # KR/TW use the APAC OAuth endpoint; API data endpoints use the actual region code
+    _OAUTH_HOST = {"kr": "apac", "tw": "apac"}
+
     def get_access_token(region: str = "eu") -> str | None:
         cached = _token_cache.get(region)
         if cached and cached["expires"] > time.time():
             return cached["token"]
+        oauth_region = _OAUTH_HOST.get(region, region)
         r = requests.post(
-            f"https://{region}.battle.net/oauth/token",
+            f"https://{oauth_region}.battle.net/oauth/token",
             data={"grant_type": "client_credentials"},
             auth=(BLIZZARD_CLIENT_ID, BLIZZARD_CLIENT_SECRET),
             timeout=10,
@@ -871,6 +875,12 @@ def _char_from_server(data):
 # ────────────────────  Main loop  ───────────────────────────
 
 def main():
+    # Force UTF-8 for IPC with Electron (Windows defaults to cp1252)
+    if sys.platform == "win32":
+        sys.stdin  = open(sys.stdin.fileno(),  mode='r', encoding='utf-8', errors='replace', closefd=False)
+        sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', errors='replace', closefd=False)
+        sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf-8', errors='replace', closefd=False)
+
     global basedir, DATA_FILE
     if '--datadir' in sys.argv:
         idx = sys.argv.index('--datadir')
