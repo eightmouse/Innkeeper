@@ -129,6 +129,13 @@ if __name__ != "__main__":
         'LFR': 'L', 'Normal': 'N', 'Heroic': 'H', 'Mythic': 'M',
     }
 
+    # Midnight Season 1: world activity tier → Great Vault reward ilvl
+    VAULT_WORLD_TIER_ILVL = {
+        1: 239, 2: 239, 3: 242, 4: 246,
+        5: 249, 6: 252, 7: 255, 8: 259,
+        9: 262, 10: 265, 11: 268,
+    }
+
     def _get_class_slug(class_id):
         return {
             1: "warrior", 2: "paladin", 3: "hunter", 4: "rogue",
@@ -750,7 +757,7 @@ class Character:
         self.equipment_last_check = None
         self.vault_mythic_plus = {}
         self.vault_raids = {}
-        self.vault_world = [False] * 8
+        self.vault_world = [None] * 8
         self.vault_last_check = None
         self.vault_world_last_reset = None
         self.activities   = {
@@ -784,7 +791,7 @@ class Character:
         # Reset vault world toggles on weekly boundary
         last_world = self.vault_world_last_reset or datetime.min.replace(tzinfo=UTC)
         if last_world < weekly_b:
-            self.vault_world = [False] * 8
+            self.vault_world = [None] * 8
             self.vault_mythic_plus = {}
             self.vault_raids = {}
             self.vault_last_check = None
@@ -841,7 +848,8 @@ class Character:
         char.equipment_last_check = datetime.fromisoformat(d["equipment_last_check"]) if d.get("equipment_last_check") else None
         char.vault_mythic_plus    = d.get("vault_mythic_plus", {})
         char.vault_raids          = d.get("vault_raids", {})
-        char.vault_world          = d.get("vault_world", [False] * 8)
+        raw_world = d.get("vault_world", [None] * 8)
+        char.vault_world          = [v if isinstance(v, dict) else None for v in raw_world]
         char.vault_last_check     = datetime.fromisoformat(d["vault_last_check"]) if d.get("vault_last_check") else None
         char.vault_world_last_reset = datetime.fromisoformat(d["vault_world_last_reset"]) if d.get("vault_world_last_reset") else None
         char.activities           = d["activities"]
@@ -1127,10 +1135,24 @@ def main():
 
                 emit({"status": "vault_data", "name": name, "realm": realm,
                       "mythic_plus": mp_data, "raids": raid_data,
-                      "world": char.vault_world if char else [False] * 8,
+                      "world": char.vault_world if char else [None] * 8,
                       "cached": False})
 
-        elif command.startswith("TOGGLE_VAULT_WORLD:"):
+        elif command.startswith("SET_VAULT_WORLD:"):
+            parts = command.split(":", 5)
+            if len(parts) == 6:
+                _, name, realm, slot_str, wtype, tier_str = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char:
+                    slot = int(slot_str)
+                    tier = int(tier_str)
+                    if 0 <= slot < len(char.vault_world) and 1 <= tier <= 11:
+                        char.vault_world[slot] = {"type": wtype, "tier": tier}
+                        save_data(characters)
+                        emit({"status": "vault_world_toggled", "name": name,
+                              "realm": realm, "world": char.vault_world})
+
+        elif command.startswith("CLEAR_VAULT_WORLD:"):
             parts = command.split(":", 3)
             if len(parts) == 4:
                 _, name, realm, slot_str = [p.strip() for p in parts]
@@ -1138,7 +1160,7 @@ def main():
                 if char:
                     slot = int(slot_str)
                     if 0 <= slot < len(char.vault_world):
-                        char.vault_world[slot] = not char.vault_world[slot]
+                        char.vault_world[slot] = None
                         save_data(characters)
                         emit({"status": "vault_world_toggled", "name": name,
                               "realm": realm, "world": char.vault_world})
@@ -1166,7 +1188,7 @@ def main():
 
                 emit({"status": "vault_data", "name": name, "realm": realm,
                       "mythic_plus": mp_data, "raids": raid_data,
-                      "world": char.vault_world if char else [False] * 8,
+                      "world": char.vault_world if char else [None] * 8,
                       "cached": False})
 
         elif command == "CLEAR_TALENT_CACHE":
