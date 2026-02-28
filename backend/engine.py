@@ -68,6 +68,7 @@ if __name__ != "__main__":
             token = r.json()["access_token"]
             _token_cache[region] = {"token": token, "expires": time.time() + TOKEN_TTL}
             return token
+        print(f"[engine] OAuth failed for region={region} (host={_OAUTH_HOST.get(region, region)}): {r.status_code} {r.text[:200]}", flush=True)
         return None
 
     # ────────────────────  Blizzard HTTP helper  ────────────────
