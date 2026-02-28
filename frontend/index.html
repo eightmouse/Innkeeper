@@ -1219,9 +1219,13 @@ function loadVault(char) {
   _currentVaultChar = char;
   const container = document.getElementById('vault-content');
 
-  // If cached data exists, render immediately + background refresh
-  if (char.vault_mythic_plus && (char.vault_mythic_plus.best_runs || char.vault_raids)) {
+  // If cached data exists with actual content, render immediately + background refresh
+  const hasCachedRuns = char.vault_mythic_plus && Array.isArray(char.vault_mythic_plus.best_runs) && char.vault_mythic_plus.best_runs.length > 0;
+  const hasCachedKills = char.vault_raids && Array.isArray(char.vault_raids.kills_this_week) && char.vault_raids.kills_this_week.length > 0;
+  const hasCachedWorld = char.vault_world && char.vault_world.some(Boolean);
+  if (hasCachedRuns || hasCachedKills || hasCachedWorld) {
     renderVault(char.vault_mythic_plus, char.vault_raids || {}, char.vault_world || []);
+    showFetchNotify('vault', `Refreshing vault data for ${escapeHtml(char.name)}…`);
     sendToPython(`GET_VAULT:${char.region}:${char.realm}:${char.name}`);
   } else {
     // No cache — show loading spinner + toast + bottom-right notification
