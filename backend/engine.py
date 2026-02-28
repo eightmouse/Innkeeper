@@ -50,16 +50,13 @@ if __name__ != "__main__":
     _token_cache: dict[str, dict] = {}
     TOKEN_TTL = 24 * 3600 - 300
 
-    # KR/TW use the APAC OAuth endpoint; API data endpoints use the actual region code
-    _OAUTH_HOST = {"kr": "apac", "tw": "apac"}
-
     def get_access_token(region: str = "eu") -> str | None:
         cached = _token_cache.get(region)
         if cached and cached["expires"] > time.time():
             return cached["token"]
-        oauth_region = _OAUTH_HOST.get(region, region)
+        # All regions use {region}.battle.net for OAuth
         r = requests.post(
-            f"https://{oauth_region}.battle.net/oauth/token",
+            f"https://{region}.battle.net/oauth/token",
             data={"grant_type": "client_credentials"},
             auth=(BLIZZARD_CLIENT_ID, BLIZZARD_CLIENT_SECRET),
             timeout=10,
