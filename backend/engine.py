@@ -1101,6 +1101,8 @@ class Character:
         self.prof_kp              = {}
         self.prof_kp_last_reset   = None
         self.housing_tracked      = {}
+        self.housing_wishlist     = []
+        self.housing_completed    = []
         self.activities   = {
             "Raid":         {"status": "available", "reset": "weekly"},
             "Mythic+":      {"status": "available", "reset": "weekly"},
@@ -1186,6 +1188,8 @@ class Character:
             "prof_kp":               self.prof_kp,
             "prof_kp_last_reset":    self.prof_kp_last_reset.isoformat() if self.prof_kp_last_reset else None,
             "housing_tracked":       self.housing_tracked,
+            "housing_wishlist":      self.housing_wishlist,
+            "housing_completed":     self.housing_completed,
             "activities":            self.activities,
             "last_reset_check":      self.last_reset_check.isoformat(),
         }
@@ -1221,6 +1225,8 @@ class Character:
         char.prof_kp                = d.get("prof_kp", {})
         char.prof_kp_last_reset     = datetime.fromisoformat(d["prof_kp_last_reset"]) if d.get("prof_kp_last_reset") else None
         char.housing_tracked        = d.get("housing_tracked", {})
+        char.housing_wishlist       = d.get("housing_wishlist", [])
+        char.housing_completed      = d.get("housing_completed", [])
         char.activities           = d["activities"]
         char.last_reset_check     = datetime.fromisoformat(
             d.get("last_reset_check", datetime.now(UTC).isoformat()))
@@ -1678,7 +1684,9 @@ def main():
                         char.housing_tracked[item_id] = {mat: 0 for mat in material_keys_csv.split(",")}
                     save_data(characters)
                     emit({"status": "housing_updated", "name": name, "realm": realm,
-                          "housing_tracked": char.housing_tracked})
+                          "housing_tracked": char.housing_tracked,
+                          "housing_wishlist": char.housing_wishlist,
+                          "housing_completed": char.housing_completed})
 
         elif command.startswith("SET_HOUSING_MATERIAL:"):
             parts = command.split(":", 5)
@@ -1689,7 +1697,57 @@ def main():
                     char.housing_tracked[item_id][material] = int(amount)
                     save_data(characters)
                     emit({"status": "housing_updated", "name": name, "realm": realm,
-                          "housing_tracked": char.housing_tracked})
+                          "housing_tracked": char.housing_tracked,
+                          "housing_wishlist": char.housing_wishlist,
+                          "housing_completed": char.housing_completed})
+
+        elif command.startswith("TRACK_HOUSING_WISHLIST:"):
+            parts = command.split(":", 3)
+            if len(parts) == 4:
+                _, name, realm, item_id = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char:
+                    if item_id in char.housing_wishlist:
+                        char.housing_wishlist.remove(item_id)
+                    else:
+                        char.housing_wishlist.append(item_id)
+                    save_data(characters)
+                    emit({"status": "housing_updated", "name": name, "realm": realm,
+                          "housing_tracked": char.housing_tracked,
+                          "housing_wishlist": char.housing_wishlist,
+                          "housing_completed": char.housing_completed})
+
+        elif command.startswith("COMPLETE_HOUSING_ITEM:"):
+            parts = command.split(":", 3)
+            if len(parts) == 4:
+                _, name, realm, item_id = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char:
+                    if item_id not in char.housing_completed:
+                        char.housing_completed.append(item_id)
+                    if item_id in char.housing_tracked:
+                        del char.housing_tracked[item_id]
+                    if item_id in char.housing_wishlist:
+                        char.housing_wishlist.remove(item_id)
+                    save_data(characters)
+                    emit({"status": "housing_updated", "name": name, "realm": realm,
+                          "housing_tracked": char.housing_tracked,
+                          "housing_wishlist": char.housing_wishlist,
+                          "housing_completed": char.housing_completed})
+
+        elif command.startswith("UNCOMPLETE_HOUSING_ITEM:"):
+            parts = command.split(":", 3)
+            if len(parts) == 4:
+                _, name, realm, item_id = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char:
+                    if item_id in char.housing_completed:
+                        char.housing_completed.remove(item_id)
+                    save_data(characters)
+                    emit({"status": "housing_updated", "name": name, "realm": realm,
+                          "housing_tracked": char.housing_tracked,
+                          "housing_wishlist": char.housing_wishlist,
+                          "housing_completed": char.housing_completed})
 
         elif command.startswith("FETCH_HOUSING_CATALOG:"):
             region = command.split(":", 1)[1].strip()
@@ -1698,13 +1756,18 @@ def main():
             bundled_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                         '..', 'assets', 'housing_decor_enriched.json')
 
-            # 1. Try enriched disk cache (fresher than bundled)
+            # 1. Try enriched disk cache (must have icons to be valid)
             loaded = None
             if os.path.exists(cache_file):
                 try:
                     with open(cache_file, 'r', encoding='utf-8') as f:
-                        loaded = json.load(f)
-                    print(f"[engine] Housing: loaded from cache ({len(loaded.get('items',[]))} items)", file=sys.stderr)
+                        cached = json.load(f)
+                    has_icons = any(it.get('icon_url') for it in (cached.get('items') or [])[:50])
+                    if has_icons:
+                        loaded = cached
+                        print(f"[engine] Housing: loaded from cache ({len(cached.get('items',[]))} items)", file=sys.stderr)
+                    else:
+                        print(f"[engine] Housing: cache has no icons, skipping", file=sys.stderr)
                 except Exception as e:
                     print(f"[engine] Housing cache read error: {e}", file=sys.stderr)
 
