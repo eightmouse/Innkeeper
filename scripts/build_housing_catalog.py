@@ -12,7 +12,7 @@ SERVER  = "https://innkeper.onrender.com"
 AUTH    = "r7XkP9mQ2zW6vT4nY8sH3dFa1cJuE5LbG0tC"
 HEADERS = {"X-Auth-Key": AUTH}
 REGION  = "eu"
-BATCH   = 100
+BATCH   = 25
 OUT     = os.path.join(os.path.dirname(__file__), '..', 'assets', 'housing_decor_enriched.json')
 
 def main():
@@ -53,7 +53,7 @@ def main():
         print(f"  Enriching batch {batch_num}/{total_batches} ({len(batch)} items)...", end=" ", flush=True)
         try:
             r = requests.post(f"{SERVER}/decor/enrich/{REGION}",
-                              json={"decor_ids": batch}, headers=HEADERS, timeout=30)
+                              json={"decor_ids": batch}, headers=HEADERS, timeout=60)
             if r.status_code == 200:
                 data = r.json()
                 for it in data.get("items", []):
