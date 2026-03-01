@@ -1,6 +1,7 @@
 ![Build Status](https://github.com/eightmouse/Innkeper/actions/workflows/build.yml/badge.svg)
 [![GitHub release](https://img.shields.io/github/v/release/eightmouse/Innkeper)](https://github.com/eightmouse/Innkeper/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Support me on Ko-fi](https://img.shields.io/badge/Support%20Me-Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/eightmouse)
 
 # Innkeeper
 
@@ -26,13 +27,23 @@ Innkeeper utilizes the Blizzard Battle.net API to fetch character data from the 
 * **Korea (KR)**
 * **Taiwan (TW)**
 
-## ✨ Key Features
+## Key Features
 Innkeeper brings your character data to your desktop without the overhead of a web browser.<br />
 * **Progression Tracking:** Keep tabs on your Raid progress, Mythic+ ratings, and World Quest completion at a glance.
 * **Gear:** View your current character equipment and profession status without logging in.
 * **Talents:** Access talent builds, perfect for second-monitor reference while setting up for a run.
 * **Light & Portable:** Zero installation required. One executable, zero bloat, runs everywhere.
 * **Cross-Platform Portability:** Distributed as a standalone executable for Windows, Linux and MacOS to ensure a zero-footprint installation.
+
+### Vault & Activities
+* **Dynamic Prediction:** Aggregates Mythic+ and Raid data to forecast weekly rewards.
+* **Manual World Ledger:** Track non-API activities like Prey tiers to complete your Vault forecast.
+* **Stat Squish Optimized:** All values adjusted for the current expansion power scale.
+
+### Profession Management
+* **Concentration Forecast:** Predicts when your resources will cap (4-day full recharge).
+* **Weekly Checklist:** Auto-resetting trackers for Treatises, Quests, and Mob Drops.
+* **Moxie Tracking:** Monitor your profession-locked currency at a glance.
 
 ## Screenshots
 <img width="400" height="640" alt="1" src="https://github.com/user-attachments/assets/51c84e45-74de-4a02-8894-e40259e16efb" />
