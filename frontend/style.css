@@ -830,7 +830,20 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
+
+.vault-content::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('../assets/vault.jpg') center / cover no-repeat;
+  opacity: 0.28;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.vault-content > * { position: relative; z-index: 1; }
 
 .professions-content {
   flex: 1;
@@ -841,7 +854,20 @@ body::before {
   justify-content: center;
   scrollbar-width: thin;
   scrollbar-color: rgba(58, 138, 80, 0.3) transparent;
+  position: relative;
 }
+
+.professions-content::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('../assets/professions.jpg') center / cover no-repeat;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.professions-content > * { position: relative; z-index: 1; }
 
 .professions-content::-webkit-scrollbar { width: 4px; }
 .professions-content::-webkit-scrollbar-thumb { background: rgba(58, 138, 80, 0.3); border-radius: 2px; }
@@ -2535,7 +2561,20 @@ body::before {
   flex: 1;
   height: 100%;
   overflow: hidden;
+  position: relative;
 }
+
+.housing-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('../assets/housing.jpg') center / cover no-repeat;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.housing-container > * { position: relative; z-index: 1; }
 
 .housing-sidebar {
   width: 180px;

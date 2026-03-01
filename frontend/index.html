@@ -939,8 +939,16 @@ function loadTalents(char) {
   const view = document.getElementById('talent-tree-view');
   if (!char.class_slug || !char.spec_slug) {
     view.innerHTML = '<div class="talent-empty"><p>Talent data unavailable for this character.</p></div>';
+    view.style.background = '';
     return;
   }
+
+  // Set spec-specific background (same as equipment tab)
+  const talentBg = `https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-${char.class_slug}-${char.spec_slug}.jpg`;
+  view.style.background = `
+    linear-gradient(to bottom, rgba(6,10,8,0.72) 0%, rgba(6,10,8,0.45) 40%, rgba(6,10,8,0.45) 60%, rgba(6,10,8,0.72) 100%),
+    url('${talentBg}') center/cover no-repeat
+  `;
 
   _currentTalentChar = char;
   _currentBuildType = 'raid';
@@ -2555,6 +2563,18 @@ if (api) {
         _equipFetchInProgress = false;
         hideFetchNotify('equipment');
         renderEquipment(data.items);
+        // Recalculate average ilvl from equipped items
+        if (data.items && data.items.length && detailIndex !== null && characters[detailIndex]) {
+          const validItems = data.items.filter(i => i.ilvl && !['SHIRT','TABARD'].includes(i.slot));
+          if (validItems.length) {
+            const avg = Math.round(validItems.reduce((s, i) => s + i.ilvl, 0) / validItems.length);
+            characters[detailIndex].item_level = avg;
+            const char = characters[detailIndex];
+            const ilvlText = avg ? ` · ilvl ${avg}` : '';
+            document.getElementById('detail-name').textContent = `${char.name}${ilvlText}`;
+            renderGrid();
+          }
+        }
       } else if (data.status === 'equipment_error') {
         // Only show error if no equipment is currently displayed (i.e. not a background refresh)
         if (_equipFetchInProgress) {
