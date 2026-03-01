@@ -1649,7 +1649,7 @@ def main():
 
             if not use_cache:
                 try:
-                    catalog = _server_get(f"/decor/index/{region}", timeout=180)
+                    catalog = _server_get(f"/decor/index/{region}", timeout=60)
                     if catalog and catalog.get("items"):
                         os.makedirs(cache_dir, exist_ok=True)
                         with open(cache_file, 'w', encoding='utf-8') as f:
