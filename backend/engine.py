@@ -523,7 +523,7 @@ if __name__ != "__main__":
         }
 
     def _build_decor_catalog(region, token):
-        """Fetch the full decor catalog, normalize items, batch-fetch details if needed."""
+        """Fetch the full decor catalog, enrich with icons from Blizzard item media API."""
         raw = _fetch_decor_index(region, token)
         if not raw:
             return None
@@ -537,16 +537,84 @@ if __name__ != "__main__":
                 break
 
         if items_list is None:
-            # Maybe the root is the list itself
             if isinstance(raw, list):
                 items_list = raw
             else:
                 print(f"[engine] Could not find items list in decor index. Keys: {list(raw.keys())}", file=sys.stderr, flush=True)
                 return None
 
-        # Normalize all items (index only provides id + name; categories/icons
-        # are not available from the Blizzard decor API at this time)
         normalized = [_normalize_decor_item(it) for it in items_list if isinstance(it, dict)]
+
+        # --- Enrich with icons ---
+        # Step 1: Batch-fetch decor details to get linked WoW item IDs
+        def _get_item_id(decor_id):
+            try:
+                detail = _fetch_decor_detail(region, decor_id, token)
+                if detail and isinstance(detail.get("items"), dict):
+                    return (decor_id, detail["items"].get("id"))
+            except Exception:
+                pass
+            return (decor_id, None)
+
+        decor_ids = [it["id"] for it in normalized if it.get("id")]
+        item_id_map = {}  # decor_id -> wow_item_id
+        print(f"[engine] Fetching decor details for {len(decor_ids)} items to get WoW item IDs...", file=sys.stderr, flush=True)
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            for decor_id, item_id in pool.map(_get_item_id, decor_ids):
+                if item_id:
+                    item_id_map[decor_id] = item_id
+        print(f"[engine] Got {len(item_id_map)}/{len(decor_ids)} WoW item IDs", file=sys.stderr, flush=True)
+
+        # Step 2: Batch-fetch item detail (description/category) + media (icon) combined
+        def _get_item_info(item_id):
+            info = {"icon_url": None, "description": "", "item_category": ""}
+            try:
+                detail = _blizzard_get(
+                    f"https://{region}.api.blizzard.com/data/wow/item/{item_id}",
+                    _params(region, namespace_prefix="static"), token, timeout=10)
+                if detail:
+                    desc = detail.get("description", "")
+                    info["description"] = desc if isinstance(desc, str) else str(desc) if desc else ""
+                    sub = detail.get("item_subclass")
+                    if isinstance(sub, dict) and sub.get("name"):
+                        info["item_category"] = sub["name"]
+            except Exception:
+                pass
+            try:
+                media = _blizzard_get(
+                    f"https://{region}.api.blizzard.com/data/wow/media/item/{item_id}",
+                    _params(region, namespace_prefix="static"), token, timeout=10)
+                if media:
+                    for asset in media.get("assets", []):
+                        if isinstance(asset, dict) and asset.get("key") == "icon":
+                            info["icon_url"] = asset.get("value")
+                            break
+            except Exception:
+                pass
+            return (item_id, info)
+
+        unique_item_ids = list(set(item_id_map.values()))
+        info_map = {}  # wow_item_id -> {icon_url, description, item_category}
+        print(f"[engine] Fetching item detail + media for {len(unique_item_ids)} WoW items...", file=sys.stderr, flush=True)
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            for item_id, info in pool.map(_get_item_info, unique_item_ids):
+                info_map[item_id] = info
+        icons_found = sum(1 for v in info_map.values() if v["icon_url"])
+        descs_found = sum(1 for v in info_map.values() if v["description"])
+        cats_found = sum(1 for v in info_map.values() if v["item_category"])
+        print(f"[engine] Enrichment: {icons_found} icons, {descs_found} descriptions, {cats_found} categories out of {len(unique_item_ids)}", file=sys.stderr, flush=True)
+
+        # Merge enrichment data into normalized items
+        for item in normalized:
+            wow_id = item_id_map.get(item["id"])
+            if wow_id and wow_id in info_map:
+                info = info_map[wow_id]
+                if info["icon_url"]:
+                    item["icon_url"] = info["icon_url"]
+                if info["description"]:
+                    item["source"] = info["description"]
+                if info["item_category"] and item.get("category") == "Uncategorized":
+                    item["category"] = info["item_category"]
 
         # Extract unique categories
         categories = ["All"]
@@ -1653,25 +1721,28 @@ def main():
             cache_dir  = os.path.join(basedir, 'housing_decor_cache')
             cache_file = os.path.join(cache_dir, 'decor_catalog.json')
 
-            # Check disk cache (7-day TTL)
+            # Check disk cache (7-day TTL, must have icons)
             use_cache = False
             if os.path.exists(cache_file):
                 try:
                     with open(cache_file, 'r', encoding='utf-8') as f:
                         cached = json.load(f)
                     fetched_at = cached.get('fetched_at', '')
-                    if fetched_at:
+                    has_icons = any(it.get('icon_url') for it in (cached.get('items') or [])[:50])
+                    if fetched_at and has_icons:
                         age = (datetime.now(UTC) - datetime.fromisoformat(fetched_at)).total_seconds()
                         if age < 7 * 86400:
-                            print(f"[engine] Housing catalog cache hit (age={age/3600:.1f}h)", file=sys.stderr)
+                            print(f"[engine] Housing catalog cache hit (age={age/3600:.1f}h, icons=yes)", file=sys.stderr)
                             emit({"status": "housing_api_catalog", "catalog": cached})
                             use_cache = True
+                    elif fetched_at and not has_icons:
+                        print(f"[engine] Housing catalog cache stale (no icons), re-fetching", file=sys.stderr)
                 except Exception as e:
                     print(f"[engine] Housing cache read error: {e}", file=sys.stderr)
 
             if not use_cache:
                 try:
-                    catalog = _server_get(f"/decor/index/{region}", timeout=60)
+                    catalog = _server_get(f"/decor/index/{region}", timeout=300)
                     if catalog and catalog.get("items"):
                         os.makedirs(cache_dir, exist_ok=True)
                         with open(cache_file, 'w', encoding='utf-8') as f:
