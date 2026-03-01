@@ -23,7 +23,7 @@
       "name": "Ornate Oak Throne",
       "category": "Seating",
       "profession": "Leatherworking",
-      "icon": "inv_chair_2",
+      "icon": "inv_misc_stonetablet_01",
       "materials": { "Dornic Fir Lumber": 10, "Stonebound Hide": 6, "Midnight Lacquer": 2 }
     },
     {
@@ -47,7 +47,7 @@
       "name": "Ironwood Dining Table",
       "category": "Tables",
       "profession": "Leatherworking",
-      "icon": "inv_misc_food_vendor_kokundochili",
+      "icon": "inv_misc_food_100",
       "materials": { "Ironclaw Timber": 12, "Stormforged Iron": 4, "Midnight Lacquer": 3 }
     },
     {
@@ -55,7 +55,7 @@
       "name": "Runescribed Desk",
       "category": "Tables",
       "profession": "Inscription",
-      "icon": "inv_inscription_inkwell01",
+      "icon": "inv_inscription_tradeskill01",
       "materials": { "Dornic Fir Lumber": 8, "Verdant Pigment": 6, "Gilded Runestone": 2 }
     },
     {
@@ -87,7 +87,7 @@
       "name": "Charged Amber Lamp",
       "category": "Lighting",
       "profession": "Engineering",
-      "icon": "inv_gizmo_khaboreancrystal",
+      "icon": "inv_gizmo_electrifiedether",
       "materials": { "Charged Amber": 6, "Bismuth Ingot": 3, "Stormforged Iron": 2 }
     },
     {
@@ -95,7 +95,7 @@
       "name": "Duskweave Area Rug",
       "category": "Rugs",
       "profession": "Tailoring",
-      "icon": "inv_misc_carpet_01",
+      "icon": "inv_fabric_linen_02",
       "materials": { "Weavercloth Bolt": 12, "Silverleaf Thread": 6, "Verdant Pigment": 3 }
     },
     {
@@ -151,7 +151,7 @@
       "name": "Nerubian Trophy Case",
       "category": "Trophies",
       "profession": "Blacksmithing",
-      "icon": "inv_misc_ahnqirajtoken_01",
+      "icon": "inv_misc_ahnqirajtrinket_01",
       "materials": { "Stormforged Iron": 8, "Gloom Chitin": 4, "Hallowfall Crystal": 2 }
     },
     {
