@@ -838,7 +838,8 @@ body::before {
   position: absolute;
   inset: 0;
   background: url('../assets/vault.jpg') center / cover no-repeat;
-  opacity: 0.25;
+  opacity: 0.20;
+  filter: blur(2px);
   pointer-events: none;
   z-index: 0;
 }
@@ -850,7 +851,7 @@ body::before {
   padding: 18px 22px;
   overflow-y: auto;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   scrollbar-width: thin;
   scrollbar-color: rgba(58, 138, 80, 0.3) transparent;
@@ -862,7 +863,8 @@ body::before {
   position: absolute;
   inset: 0;
   background: url('../assets/professions.jpg') center / cover no-repeat;
-  opacity: 0.25;
+  opacity: 0.20;
+  filter: blur(2px);
   pointer-events: none;
   z-index: 0;
 }
@@ -2436,7 +2438,7 @@ body::before {
 }
 
 .prof-conc-synced {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-muted);
   letter-spacing: 0.03em;
 }
@@ -2570,6 +2572,7 @@ body::before {
   inset: 0;
   background: url('../assets/housing.jpg') center / cover no-repeat;
   opacity: 0.20;
+  filter: blur(2px);
   pointer-events: none;
   z-index: 0;
 }

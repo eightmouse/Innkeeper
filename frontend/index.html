@@ -261,7 +261,7 @@
             <div class="housing-grid" id="housing-grid"></div>
           </div>
           <div class="housing-shoplist" id="housing-shoplist">
-            <div class="housing-shoplist-title">Shopping List</div>
+            <div class="housing-shoplist-title">Items List</div>
             <div class="housing-shoplist-items" id="housing-shoplist-items"></div>
           </div>
         </div>
@@ -2348,8 +2348,8 @@ function renderHousingGrid(char) {
       }
     }).join('') : '';
 
-    // Source line for non-craftable items
-    const sourceLine = (!isCraftable && item.source)
+    // Description line (from Blizzard item API)
+    const sourceLine = item.source
       ? `<div class="housing-item-source">${escapeHtml(item.source)}</div>` : '';
 
     // Icon: prefer API icon_url, fall back to static CDN pattern
@@ -2429,7 +2429,7 @@ function renderHousingShoplist(char) {
 
   const matNames = Object.keys(agg);
   if (!matNames.length) {
-    container.innerHTML = '<div class="housing-shop-empty">Track items to build your shopping list</div>';
+    container.innerHTML = '<div class="housing-shop-empty">Track items to build your items list</div>';
     return;
   }
 
