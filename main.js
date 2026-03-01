@@ -299,6 +299,13 @@ ipcMain.on('open-external',   (_, url) => {
   try { if (/^https?:\/\//i.test(url)) shell.openExternal(url); }
   catch (e) { console.error('[Main] open-external error:', e.message); }
 });
+ipcMain.on('set-resolution', (_, w, h) => {
+  if (win && Number.isFinite(w) && Number.isFinite(h)) {
+    win.unmaximize();
+    win.setSize(w, h);
+    win.center();
+  }
+});
 
 // ── Update check ────────────────────────────────────────────────────
 function checkForUpdates() {
