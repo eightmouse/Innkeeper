@@ -838,7 +838,7 @@ body::before {
   position: absolute;
   inset: 0;
   background: url('../assets/vault.jpg') center / cover no-repeat;
-  opacity: 0.28;
+  opacity: 0.25;
   pointer-events: none;
   z-index: 0;
 }
@@ -2569,7 +2569,7 @@ body::before {
   position: absolute;
   inset: 0;
   background: url('../assets/housing.jpg') center / cover no-repeat;
-  opacity: 0.25;
+  opacity: 0.20;
   pointer-events: none;
   z-index: 0;
 }
