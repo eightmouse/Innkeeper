@@ -6,19 +6,19 @@
 # Innkeeper
 
 ## Disclaimer
-This app does NOT replace Armory or WoWHead in any way, shape or form. <br />
+This app does NOT replace Armory or WoWHead in any way, shape or form.<br />
 I strongly suggest using those since they have everything, quite thankful for them especially WoWHead, amazing resource!
 
 ## Description 
-Innkeper it's a minimal World of Warcraft app to keep track of character informations. <br />
-Built using Python backend for data processing and an Electron frontend for the user interface. <br />
-Utilizing the official Blizzard API and supplemental data from WoWHead, providing a low-latency alternative to traditional web-based armory tools. <br />
+Innkeper it's a minimal World of Warcraft app to keep track of character informations.<br />
+Built using Python backend for data processing and an Electron frontend for the user interface.<br />
+Utilizing the official Blizzard API and supplemental data from WoWHead, providing a low-latency alternative to traditional web-based armory tools.<br />
 
-It's a personal project that I started a while ago to push my skills further while taking breaks between WoW sessions. <br />
-Started building it few weeks prior to pushing it to GitHub, mostly due to the fact that I was not planning on actually developing something 'complete' but here we are. <br />
+It's a personal project that I started a while ago to push my skills further while taking breaks between WoW sessions.<br />
+Started building it few weeks prior to pushing it to GitHub, mostly due to the fact that I was not planning on actually developing something 'complete' but here we are.<br />
 
 Innkeeper was born out of a simple need: I was tired of alt-tabbing to WoWHead just to check a build or a timer. I wanted a 'digestible' desktop companion that felt like part of the game UI.<br />
-Started WoW not long ago and I found myself closing and opening WoWhead for builds over and over, I wanted something on my desktop that I could access quickly, because I'm lazy.<br />
+Started WoW not long ago , I wanted something on my desktop that I could access quickly, because I'm lazy hehe~ <br />
 
 ## Supported Regions
 Innkeeper utilizes the Blizzard Battle.net API to fetch character data from the following regions:
@@ -28,7 +28,7 @@ Innkeeper utilizes the Blizzard Battle.net API to fetch character data from the 
 * **Taiwan (TW)**
 
 ## Key Features
-Innkeeper brings your character data to your desktop without the overhead of a web browser.<br />
+Innkeeper brings your character data to your desktop.<br />
 * **Progression Tracking:** Keep tabs on your Raid progress, Mythic+ ratings, and World Quest completion at a glance.
 * **Gear:** View your current character equipment and profession status without logging in.
 * **Talents:** Access talent builds, perfect for second-monitor reference while setting up for a run.
