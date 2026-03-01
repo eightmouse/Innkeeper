@@ -278,12 +278,7 @@
 <script>
 'use strict';
 
-let ipcRenderer;
-try { ({ ipcRenderer } = require('electron')); }
-catch (e) { console.warn('No Electron IPC'); }
-
-const _fs   = typeof require !== 'undefined' ? require('fs')   : null;
-const _path = typeof require !== 'undefined' ? require('path') : null;
+const api = window.electronAPI || null;
 
 function escapeHtml(str) {
   if (str == null) return '';
@@ -296,7 +291,7 @@ function escapeHtml(str) {
 }
 
 function sendToPython(cmd) {
-  if (ipcRenderer) ipcRenderer.send('to-python', cmd);
+  if (api) api.sendToPython(cmd);
   else console.log('[→ Python mock]', cmd);
 }
 
@@ -2494,7 +2489,7 @@ document.getElementById('settings-modal').addEventListener('click', e => {
 
 document.getElementById('github-link').addEventListener('click', e => {
   e.preventDefault();
-  if (ipcRenderer) ipcRenderer.send('open-external', e.currentTarget.href);
+  if (api) api.openExternal(e.currentTarget.href);
   else window.open(e.currentTarget.href, '_blank');
 });
 
@@ -2515,7 +2510,7 @@ document.querySelectorAll('.theme-btn').forEach(btn => {
 
 // Update button
 document.getElementById('update-btn').addEventListener('click', () => {
-  if (ipcRenderer) ipcRenderer.send('open-external', 'https://github.com/eightmouse/Innkeper/releases/latest');
+  if (api) api.openExternal('https://github.com/eightmouse/Innkeper/releases/latest');
   else window.open('https://github.com/eightmouse/Innkeper/releases/latest', '_blank');
 });
 
@@ -2527,12 +2522,12 @@ try {
 
 // ── Electron IPC ──────────────────────────────────
 
-if (ipcRenderer) {
-  document.getElementById('btn-close').addEventListener('click', () => ipcRenderer.send('window-close'));
-  document.getElementById('btn-min').addEventListener('click',   () => ipcRenderer.send('window-minimize'));
-  document.getElementById('btn-max').addEventListener('click',   () => ipcRenderer.send('window-maximize'));
+if (api) {
+  document.getElementById('btn-close').addEventListener('click', () => api.windowClose());
+  document.getElementById('btn-min').addEventListener('click',   () => api.windowMinimize());
+  document.getElementById('btn-max').addEventListener('click',   () => api.windowMaximize());
 
-  ipcRenderer.on('from-python', (event, raw) => {
+  api.onFromPython((raw) => {
     try {
       const data = JSON.parse(raw);
 
