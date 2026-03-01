@@ -98,7 +98,7 @@
         <span class="info-label">GitHub</span>
         <a class="info-link" id="github-link" href="https://github.com/eightmouse">github.com/eightmouse</a>
       </div>
-      <div class="info-row"><span class="info-label">Version</span><span class="info-value">1.5.0</span></div>
+      <div class="info-row"><span class="info-label">Version</span><span class="info-value">2.0.0</span></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="info-close">Close</button>
@@ -117,6 +117,16 @@
           <button class="theme-btn active" data-theme="dark">Dark</button>
           <button class="theme-btn" data-theme="light">Light</button>
         </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Resolution</div>
+        <select class="resolution-select" id="resolution-select">
+          <option value="1280x720">1280 × 720</option>
+          <option value="1366x768">1366 × 768</option>
+          <option value="1600x900">1600 × 900</option>
+          <option value="1920x1080" selected>1920 × 1080</option>
+          <option value="2560x1440">2560 × 1440</option>
+        </select>
       </div>
       <div class="setting-row">
         <div class="setting-label">App Update</div>
@@ -256,12 +266,14 @@
           <div class="housing-sidebar">
             <input type="text" class="housing-search" id="housing-search" placeholder="Search decorations..." />
             <div class="housing-categories" id="housing-categories"></div>
+            <div class="housing-completed-section" id="housing-completed-section"></div>
           </div>
           <div class="housing-grid-area">
             <div class="housing-grid" id="housing-grid"></div>
           </div>
           <div class="housing-shoplist" id="housing-shoplist">
             <div class="housing-shoplist-title">Items List</div>
+
             <div class="housing-shoplist-items" id="housing-shoplist-items"></div>
           </div>
         </div>
@@ -2268,11 +2280,13 @@ function loadHousing(char) {
       '<div class="housing-empty">Housing catalog not loaded. Restart the app to load decoration data.</div>';
     document.getElementById('housing-categories').innerHTML = '';
     document.getElementById('housing-shoplist-items').innerHTML = '';
+    document.getElementById('housing-completed-section').innerHTML = '';
     return;
   }
   renderHousingCategories();
   renderHousingGrid(char);
   renderHousingShoplist(char);
+  renderHousingCompleted(char);
 
   // Wire up search
   const searchEl = document.getElementById('housing-search');
@@ -2303,6 +2317,8 @@ function renderHousingGrid(char) {
   const items = _housingMergedItems.length ? _housingMergedItems : (HOUSING_CATALOG.items || []);
   const search = _housingSearch.toLowerCase();
   const tracked = char.housing_tracked || {};
+  const wishlist = char.housing_wishlist || [];
+  const completed = char.housing_completed || [];
 
   const filtered = items.filter(item => {
     if (_housingFilter === 'Craftable') return item.craftable !== false;
@@ -2317,8 +2333,11 @@ function renderHousingGrid(char) {
   }
 
   grid.innerHTML = filtered.map(item => {
+    const itemIdStr = String(item.id);
     const isCraftable = item.craftable !== false;
     const isTracked = isCraftable && !!tracked[item.id];
+    const isWished = wishlist.includes(itemIdStr);
+    const isCompleted = completed.includes(itemIdStr);
     const mats = (isCraftable && item.materials) ? item.materials : {};
     const matKeys = Object.keys(mats);
 
@@ -2357,9 +2376,35 @@ function renderHousingGrid(char) {
       ? item.icon_url
       : (item.icon ? `https://render.worldofwarcraft.com/us/icons/56/${item.icon}.jpg` : '');
 
-    const profLabel = isCraftable ? escapeHtml(item.profession || '') : '';
+    const profLabel = isCraftable ? escapeHtml(item.profession || '') : (item.category ? escapeHtml(item.category) : '');
 
-    return `<div class="housing-item-card ${isTracked ? 'tracked' : ''} ${isTracked && allReady ? 'ready' : ''}" data-item-id="${escapeHtml(String(item.id))}">
+    // Card classes
+    const cardClasses = ['housing-item-card'];
+    if (isTracked) cardClasses.push('tracked');
+    if (isTracked && allReady) cardClasses.push('ready');
+    if (isCompleted) cardClasses.push('completed');
+    if (isWished) cardClasses.push('wished');
+
+    // Action buttons
+    let actionBtns = '';
+    if (isCompleted) {
+      actionBtns = `<button class="housing-undo-btn housing-small-btn" data-item-id="${escapeHtml(itemIdStr)}">Undo</button>`;
+    } else {
+      // Collect button for all items
+      actionBtns += `<button class="housing-collect-btn" data-item-id="${escapeHtml(itemIdStr)}" title="Mark as collected">&#10003;</button>`;
+      // Track button for craftable items
+      if (isCraftable) {
+        actionBtns += `<button class="housing-track-btn ${isTracked ? 'tracked' : ''}"
+          data-item-id="${escapeHtml(itemIdStr)}"
+          data-mats="${escapeHtml(matKeys.join(','))}">${isTracked ? 'Untrack' : 'Track'}</button>`;
+      } else {
+        // Wish button for non-craftable items
+        actionBtns += `<button class="housing-wish-btn ${isWished ? 'wished' : ''}"
+          data-item-id="${escapeHtml(itemIdStr)}">${isWished ? 'Unwish' : 'Wish'}</button>`;
+      }
+    }
+
+    return `<div class="${cardClasses.join(' ')}" data-item-id="${escapeHtml(itemIdStr)}">
       <div class="housing-item-header">
         ${iconUrl ? `<img class="housing-item-icon" src="${iconUrl}" alt="" onerror="this.style.display='none'" />` : '<div class="housing-item-icon housing-icon-placeholder"></div>'}
         <div class="housing-item-title">
@@ -2369,16 +2414,32 @@ function renderHousingGrid(char) {
       </div>
       ${sourceLine}
       <div class="housing-mat-list">${matRows}</div>
-      ${isCraftable ? `<button class="housing-track-btn ${isTracked ? 'tracked' : ''}"
-        data-item-id="${escapeHtml(String(item.id))}"
-        data-mats="${escapeHtml(matKeys.join(','))}">${isTracked ? 'Untrack' : 'Track'}</button>` : ''}
+      <div class="housing-card-actions">${actionBtns}</div>
     </div>`;
   }).join('');
 
-  // Attach event listeners via delegation
+  // Attach event listeners
   grid.querySelectorAll('.housing-track-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       sendToPython(`TRACK_HOUSING_ITEM:${char.name}:${char.realm}:${btn.dataset.itemId}:${btn.dataset.mats}`);
+    });
+  });
+
+  grid.querySelectorAll('.housing-wish-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sendToPython(`TRACK_HOUSING_WISHLIST:${char.name}:${char.realm}:${btn.dataset.itemId}`);
+    });
+  });
+
+  grid.querySelectorAll('.housing-collect-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sendToPython(`COMPLETE_HOUSING_ITEM:${char.name}:${char.realm}:${btn.dataset.itemId}`);
+    });
+  });
+
+  grid.querySelectorAll('.housing-undo-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sendToPython(`UNCOMPLETE_HOUSING_ITEM:${char.name}:${char.realm}:${btn.dataset.itemId}`);
     });
   });
 
@@ -2411,55 +2472,116 @@ function renderHousingGrid(char) {
 function renderHousingShoplist(char) {
   const container = document.getElementById('housing-shoplist-items');
   const tracked = char.housing_tracked || {};
+  const wishlist = char.housing_wishlist || [];
+  const completed = char.housing_completed || [];
   const catalog = _housingMergedItems.length ? _housingMergedItems : (HOUSING_CATALOG.items || []);
   const itemMap = {};
-  catalog.forEach(it => { itemMap[it.id] = it; });
+  catalog.forEach(it => { itemMap[it.id] = it; itemMap[String(it.id)] = it; });
 
-  // Aggregate materials across all tracked items
-  const agg = {}; // material → { needed, owned }
-  for (const [itemId, matOwned] of Object.entries(tracked)) {
-    const item = itemMap[itemId];
-    if (!item) continue;
-    for (const [mat, need] of Object.entries(item.materials || {})) {
-      if (!agg[mat]) agg[mat] = { needed: 0, owned: 0 };
-      agg[mat].needed += need;
-      agg[mat].owned += (matOwned[mat] || 0);
-    }
+  let html = '';
+
+  // ── Section 1: Crafting ──
+  const trackedIds = Object.keys(tracked);
+  html += '<div class="housing-section-header">Crafting</div>';
+  if (trackedIds.length) {
+    html += trackedIds.map(itemId => {
+      const item = itemMap[itemId];
+      if (!item) return '';
+      const matOwned = tracked[itemId] || {};
+      const mats = item.materials || {};
+      const matKeys = Object.keys(mats);
+      const iconUrl = item.icon_url
+        ? item.icon_url
+        : (item.icon ? `https://render.worldofwarcraft.com/us/icons/56/${item.icon}.jpg` : '');
+
+      const matRows = matKeys.map(mat => {
+        const need = mats[mat];
+        const owned = matOwned[mat] || 0;
+        const pct = need > 0 ? Math.min(owned / need * 100, 100) : 0;
+        return `<div class="housing-shop-row">
+          <span class="housing-shop-name">${escapeHtml(mat)}</span>
+          <span class="housing-shop-count">${owned} / ${need}</span>
+          <div class="housing-shop-bar"><div class="housing-shop-fill" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('');
+
+      return `<div class="housing-tracked-item">
+        <div class="housing-tracked-item-name">
+          ${iconUrl ? `<img class="housing-tracked-item-icon" src="${iconUrl}" alt="" onerror="this.style.display='none'" />` : ''}
+          ${escapeHtml(item.name)}
+        </div>
+        ${matRows}
+      </div>`;
+    }).join('');
+  } else {
+    html += '<div class="housing-shop-empty">Track craftable items to see materials</div>';
   }
 
-  const matNames = Object.keys(agg);
-  if (!matNames.length) {
-    container.innerHTML = '<div class="housing-shop-empty">Track items to build your items list</div>';
-    return;
+  // ── Section 2: Others ──
+  html += '<hr class="housing-section-sep" />';
+  html += '<div class="housing-section-header">Others</div>';
+  if (wishlist.length) {
+    html += wishlist.map(itemId => {
+      const item = itemMap[itemId];
+      if (!item) return '';
+      const iconUrl = item.icon_url
+        ? item.icon_url
+        : (item.icon ? `https://render.worldofwarcraft.com/us/icons/56/${item.icon}.jpg` : '');
+      const sourceText = item.source || '';
+      const categoryText = item.category || '';
+      return `<div class="housing-wish-row">
+        ${iconUrl ? `<img class="housing-wish-icon" src="${iconUrl}" alt="" onerror="this.style.display='none'" />` : ''}
+        <span class="housing-wish-name">${escapeHtml(item.name)}</span>
+        <button class="housing-small-btn housing-unwish-btn" data-item-id="${escapeHtml(String(itemId))}" title="Remove">&times;</button>
+        ${sourceText || categoryText ? `<div class="housing-wish-source" style="width:100%;padding-left:26px;">${escapeHtml(sourceText || categoryText)}</div>` : ''}
+      </div>`;
+    }).join('');
+  } else {
+    html += '<div class="housing-shop-empty">Wish non-craftable items to track them here</div>';
   }
 
-  container.innerHTML = matNames.map(mat => {
-    const { needed, owned } = agg[mat];
-    const pct = needed > 0 ? Math.min(owned / needed * 100, 100) : 0;
-    const done = owned >= needed;
-    const sourceInfo = HOUSING_CATALOG.materials && HOUSING_CATALOG.materials[mat]
-      ? HOUSING_CATALOG.materials[mat].source : '';
-    return `<div class="housing-shop-row ${done ? 'done' : ''}">
-      <span class="housing-shop-name" data-source="${escapeHtml(sourceInfo)}">${escapeHtml(mat)}</span>
-      <span class="housing-shop-count">${owned} / ${needed}</span>
-      <div class="housing-shop-bar"><div class="housing-shop-fill" style="width:${pct}%"></div></div>
-    </div>`;
-  }).join('');
+  container.innerHTML = html;
 
-  // Sourcing tooltips for shoplist
-  container.querySelectorAll('.housing-shop-name[data-source]').forEach(el => {
-    el.addEventListener('mouseenter', e => {
-      const source = el.dataset.source;
-      if (!source) return;
-      const tip = document.getElementById('housing-tooltip');
-      tip.textContent = source;
-      tip.style.display = 'block';
-      const rect = el.getBoundingClientRect();
-      tip.style.left = rect.left + 'px';
-      tip.style.top = (rect.bottom + 6) + 'px';
+  // Event listeners
+  container.querySelectorAll('.housing-unwish-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sendToPython(`TRACK_HOUSING_WISHLIST:${char.name}:${char.realm}:${btn.dataset.itemId}`);
     });
-    el.addEventListener('mouseleave', () => {
-      document.getElementById('housing-tooltip').style.display = 'none';
+  });
+}
+
+function renderHousingCompleted(char) {
+  const container = document.getElementById('housing-completed-section');
+  const completed = char.housing_completed || [];
+  const catalog = _housingMergedItems.length ? _housingMergedItems : (HOUSING_CATALOG.items || []);
+  const itemMap = {};
+  catalog.forEach(it => { itemMap[it.id] = it; itemMap[String(it.id)] = it; });
+
+  const totalItems = catalog.length;
+  let html = '<hr class="housing-section-sep" />';
+  html += `<div class="housing-section-header">Completed <span class="housing-completed-count">${completed.length} / ${totalItems}</span></div>`;
+  if (completed.length) {
+    html += completed.map(itemId => {
+      const item = itemMap[itemId];
+      if (!item) return '';
+      const iconUrl = item.icon_url
+        ? item.icon_url
+        : (item.icon ? `https://render.worldofwarcraft.com/us/icons/56/${item.icon}.jpg` : '');
+      return `<div class="housing-completed-row">
+        ${iconUrl ? `<img class="housing-completed-icon" src="${iconUrl}" alt="" onerror="this.style.display='none'" />` : ''}
+        <span class="housing-wish-name">${escapeHtml(item.name)}</span>
+        <button class="housing-small-btn housing-uncomplete-btn" data-item-id="${escapeHtml(String(itemId))}" title="Undo">Undo</button>
+      </div>`;
+    }).join('');
+  } else {
+    html += '<div class="housing-shop-empty">No completed items yet</div>';
+  }
+
+  container.innerHTML = html;
+
+  container.querySelectorAll('.housing-uncomplete-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sendToPython(`UNCOMPLETE_HOUSING_ITEM:${char.name}:${char.realm}:${btn.dataset.itemId}`);
     });
   });
 }
@@ -2516,6 +2638,19 @@ document.querySelectorAll('.theme-btn').forEach(btn => {
   btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
 });
 
+// Resolution toggle
+const applyResolution = (w, h) => {
+  document.querySelectorAll('.resolution-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.w) === w && parseInt(btn.dataset.h) === h);
+  });
+  try { localStorage.setItem('innkeeper-resolution', `${w}x${h}`); } catch (e) {}
+  if (api) api.setResolution(w, h);
+};
+
+document.querySelectorAll('.resolution-btn').forEach(btn => {
+  btn.addEventListener('click', () => applyResolution(parseInt(btn.dataset.w), parseInt(btn.dataset.h)));
+});
+
 // Update button
 document.getElementById('update-btn').addEventListener('click', () => {
   if (api) api.openExternal('https://github.com/eightmouse/Innkeper/releases/latest');
@@ -2526,6 +2661,20 @@ document.getElementById('update-btn').addEventListener('click', () => {
 try {
   const saved = localStorage.getItem('innkeeper-theme');
   if (saved) applyTheme(saved);
+} catch (e) {}
+
+// Load saved resolution (highlight button, apply on startup)
+try {
+  const savedRes = localStorage.getItem('innkeeper-resolution');
+  if (savedRes) {
+    const [w, h] = savedRes.split('x').map(Number);
+    if (w && h) {
+      document.querySelectorAll('.resolution-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.w) === w && parseInt(btn.dataset.h) === h);
+      });
+      if (api) api.setResolution(w, h);
+    }
+  }
 } catch (e) {}
 
 // ── Electron IPC ──────────────────────────────────
@@ -2810,6 +2959,7 @@ if (api) {
             renderHousingCategories();
             renderHousingGrid(c);
             renderHousingShoplist(c);
+            renderHousingCompleted(c);
           }
         }
       } else if (data.status === 'housing_api_catalog_error') {
@@ -2820,6 +2970,8 @@ if (api) {
           const c = characters[detailIndex];
           if (c.name === data.name && c.realm === data.realm) {
             c.housing_tracked = data.housing_tracked;
+            c.housing_wishlist = data.housing_wishlist || [];
+            c.housing_completed = data.housing_completed || [];
           }
         }
         // Re-render if housing tab is active
@@ -2828,6 +2980,7 @@ if (api) {
           if (c) {
             renderHousingGrid(c);
             renderHousingShoplist(c);
+            renderHousingCompleted(c);
           }
         }
       }

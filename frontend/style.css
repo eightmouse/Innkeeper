@@ -703,6 +703,48 @@ body::before {
   color: #fff;
 }
 
+/* ── Resolution select ─────────────────────── */
+.resolution-select {
+  width: 132px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(58, 138, 80, 0.2);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a7a60'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+  box-sizing: border-box;
+}
+.resolution-select:hover {
+  border-color: rgba(58, 138, 80, 0.4);
+}
+.resolution-select:focus {
+  border-color: var(--accent);
+}
+.resolution-select option {
+  background: #0a140c;
+  color: var(--text-primary);
+}
+[data-theme="light"] .resolution-select {
+  background-color: rgba(255,255,255,0.7);
+  border-color: rgba(58, 138, 80, 0.35);
+  color: #1a3a1a;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%233a6a48'/%3E%3C/svg%3E");
+}
+[data-theme="light"] .resolution-select option {
+  background: #f0f5f0;
+  color: #1a3a1a;
+}
+
 /* ── Update button ──────────────────────────── */
 .theme-buttons,
 .update-btn {
@@ -2820,14 +2862,13 @@ body::before {
   font-family: var(--font-body);
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
   letter-spacing: 0.05em;
   cursor: pointer;
   border: 1px solid rgba(58, 138, 80, 0.3);
   background: var(--accent);
   color: #fff;
   transition: background 0.15s, border-color 0.15s;
-  align-self: flex-start;
-  margin-top: 4px;
 }
 
 .housing-track-btn:hover {
@@ -2943,6 +2984,167 @@ body::before {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
+/* Section headers in right panel */
+.housing-section-header {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 14px 0 8px;
+}
+.housing-section-header:first-child { margin-top: 0; }
+
+/* Separator between sections */
+.housing-section-sep {
+  border: none;
+  border-top: 1px solid rgba(58, 138, 80, 0.15);
+  margin: 12px 0;
+}
+
+/* Tracked crafting item in right panel */
+.housing-tracked-item { margin-bottom: 10px; }
+.housing-tracked-item-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.housing-tracked-item-icon { width: 20px; height: 20px; border-radius: 4px; }
+
+/* Wishlist item row */
+.housing-wish-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 4px 0;
+  flex-wrap: wrap;
+}
+.housing-wish-icon { width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0; }
+.housing-wish-name {
+  flex: 1;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.housing-wish-source {
+  font-size: 10px;
+  color: var(--text-realm);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* Completed section in left sidebar */
+.housing-completed-section {
+  margin-top: auto;
+}
+
+/* Completed item row */
+.housing-completed-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 3px 0;
+  opacity: 0.6;
+}
+.housing-completed-row:hover { opacity: 0.85; }
+.housing-completed-icon { width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0; }
+
+/* Small action buttons (remove, undo) */
+.housing-small-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px 4px;
+  opacity: 0.6;
+  font-family: var(--font-body);
+}
+.housing-small-btn:hover { opacity: 1; color: var(--text-primary); }
+
+/* Collect button on grid cards */
+.housing-collect-btn {
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid rgba(78, 203, 113, 0.3);
+  background: rgba(78, 203, 113, 0.15);
+  color: var(--green);
+  transition: background 0.15s, border-color 0.15s;
+}
+.housing-collect-btn:hover {
+  background: rgba(78, 203, 113, 0.3);
+  border-color: var(--green);
+}
+
+/* Wish button on grid cards */
+.housing-wish-btn {
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border: 1px solid rgba(58, 138, 80, 0.3);
+  background: var(--accent);
+  color: #fff;
+  transition: background 0.15s, border-color 0.15s;
+}
+.housing-wish-btn:hover { background: #4aaa60; }
+.housing-wish-btn.wished {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(58, 138, 80, 0.2);
+  color: var(--text-muted);
+}
+.housing-wish-btn.wished:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+/* Undo button on grid cards */
+.housing-undo-btn {
+  font-family: var(--font-body);
+}
+
+/* Card actions row */
+.housing-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* Completed state on grid card */
+.housing-item-card.completed {
+  opacity: 0.5;
+  border-color: rgba(78, 203, 113, 0.3);
+}
+
+/* Wished state on grid card */
+.housing-item-card.wished {
+  border-color: rgba(58, 138, 80, 0.4);
+}
+
+/* Completed count */
+.housing-completed-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
 /* ── Housing Light Theme ────────────────────────── */
 
 [data-theme="light"] .housing-sidebar {
@@ -3014,6 +3216,34 @@ body::before {
 
 [data-theme="light"] .housing-track-btn.tracked:hover {
   background: rgba(42, 122, 64, 0.08);
+}
+
+[data-theme="light"] .housing-wish-btn.wished {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(42, 122, 64, 0.2);
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .housing-wish-btn.wished:hover {
+  background: rgba(42, 122, 64, 0.08);
+}
+
+[data-theme="light"] .housing-collect-btn {
+  background: rgba(42, 154, 69, 0.12);
+  border-color: rgba(42, 154, 69, 0.3);
+  color: var(--green);
+}
+
+[data-theme="light"] .housing-collect-btn:hover {
+  background: rgba(42, 154, 69, 0.22);
+}
+
+[data-theme="light"] .housing-item-card.completed {
+  border-color: rgba(42, 154, 69, 0.3);
+}
+
+[data-theme="light"] .housing-section-sep {
+  border-top-color: rgba(58, 138, 80, 0.2);
 }
 
 .housing-item-source {
