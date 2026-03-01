@@ -6,19 +6,19 @@
 # Innkeeper
 
 ## Disclaimer
-This app does NOT replace Armory or WoWHead in any way, shape or form. <br />
+This app does NOT replace Armory or WoWHead in any way, shape or form.<br />
 I strongly suggest using those since they have everything, quite thankful for them especially WoWHead, amazing resource!
 
 ## Description 
-Innkeper it's a minimal World of Warcraft app to keep track of character informations. <br />
-Built using Python backend for data processing and an Electron frontend for the user interface. <br />
-Utilizing the official Blizzard API and supplemental data from WoWHead, providing a low-latency alternative to traditional web-based armory tools. <br />
+Innkeper it's a minimal World of Warcraft app to keep track of character informations.<br />
+Built using Python backend for data processing and an Electron frontend for the user interface.<br />
+Utilizing the official Blizzard API and supplemental data from WoWHead, providing a low-latency alternative to traditional web-based armory tools.<br />
 
-It's a personal project that I started a while ago to push my skills further while taking breaks between WoW sessions. <br />
-Started building it few weeks prior to pushing it to GitHub, mostly due to the fact that I was not planning on actually developing something 'complete' but here we are. <br />
+It's a personal project that I started a while ago to push my skills further while taking breaks between WoW sessions.<br />
+Started building it few weeks prior to pushing it to GitHub, mostly due to the fact that I was not planning on actually developing something 'complete' but here we are.<br />
 
 Innkeeper was born out of a simple need: I was tired of alt-tabbing to WoWHead just to check a build or a timer. I wanted a 'digestible' desktop companion that felt like part of the game UI.<br />
-Started WoW not long ago and I found myself closing and opening WoWhead for builds over and over, I wanted something on my desktop that I could access quickly, because I'm lazy.<br />
+Started WoW not long ago , I wanted something on my desktop that I could access quickly, because I'm lazy hehe~ <br />
 
 ## Supported Regions
 Innkeeper utilizes the Blizzard Battle.net API to fetch character data from the following regions:
@@ -28,7 +28,7 @@ Innkeeper utilizes the Blizzard Battle.net API to fetch character data from the 
 * **Taiwan (TW)**
 
 ## Key Features
-Innkeeper brings your character data to your desktop without the overhead of a web browser.<br />
+Innkeeper brings your character data to your desktop.<br />
 * **Progression Tracking:** Keep tabs on your Raid progress, Mythic+ ratings, and World Quest completion at a glance.
 * **Gear:** View your current character equipment and profession status without logging in.
 * **Talents:** Access talent builds, perfect for second-monitor reference while setting up for a run.
@@ -45,11 +45,15 @@ Innkeeper brings your character data to your desktop without the overhead of a w
 * **Weekly Checklist:** Auto-resetting trackers for Treatises, Quests, and Mob Drops.
 * **Moxie Tracking:** Monitor your profession-locked currency at a glance.
 
-## Screenshots
-<img width="400" height="640" alt="1" src="https://github.com/user-attachments/assets/51c84e45-74de-4a02-8894-e40259e16efb" />
-<img width="400" height="640" alt="2" src="https://github.com/user-attachments/assets/8552477b-6ea7-42dd-b200-8798aa67817f" />
-<img width="400" height="640" alt="3" src="https://github.com/user-attachments/assets/ea38203a-d11e-4e90-bb56-fcc6bcada0f9" />
-<img width="400" height="640" alt="4" src="https://github.com/user-attachments/assets/7953f3a0-97ab-4c39-af8b-3d2cc2492197" />
+## Interface
+<img width="400" height="640" alt="1" src="https://github.com/user-attachments/assets/d277fdbc-8ff2-42ea-a255-2bc8c32e20f0" />
+<img width="400" height="640" alt="2" src="https://github.com/user-attachments/assets/72510ab0-5f76-4468-8215-77eddcea8520" />
+<img width="400" height="640" alt="3" src="https://github.com/user-attachments/assets/79e0ac4c-6be8-4a31-a0d2-2065ef988dc4" />
+<img width="400" height="640" alt="4" src="https://github.com/user-attachments/assets/b1a2aff9-fb1a-4eaa-807b-b1f40f8eab36" />
+<img width="400" height="640" alt="5" src="https://github.com/user-attachments/assets/02d9cb21-2312-4f8f-baac-c22f060835d9" />
+<img width="400" height="640" alt="6" src="https://github.com/user-attachments/assets/ab310f50-c1b4-4ac4-964a-99610fc90b8d" />
+<img width="400" height="640" alt="7" src="https://github.com/user-attachments/assets/0c3d432e-6c2e-426e-bc50-044bc26cd779" />
+<img width="400" height="640" alt="8" src="https://github.com/user-attachments/assets/cef9f2ed-c1f1-4a60-8e54-b12a6d9be1ab" />
 
 ## Getting Started
 1. Go to the [Releases](https://github.com/eightmouse/Innkeper/releases) page.
