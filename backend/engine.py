@@ -530,7 +530,7 @@ if __name__ != "__main__":
 
         # Probe for the items list under various possible keys
         items_list = None
-        for key in ("decors", "decorations", "items", "results"):
+        for key in ("decor_items", "decors", "decorations", "items", "results"):
             if key in raw and isinstance(raw[key], list):
                 items_list = raw[key]
                 print(f"[engine] Decor items found under key '{key}': {len(items_list)} items", file=sys.stderr, flush=True)
@@ -938,6 +938,22 @@ if __name__ != "__main__":
             r = requests.get(url, params=params,
                              headers={"Authorization": f"Bearer {token}"}, timeout=30)
             return {"status_code": r.status_code, "body_preview": r.text[:2000],
+                    "url": url, "params": params}
+        except Exception as e:
+            return {"error": str(e), "url": url, "params": params}
+
+    @app.get("/decor/debug/{region}/{decor_id}")
+    async def decor_debug_detail(region: str, decor_id: int):
+        """Temporary debug endpoint — returns raw Blizzard response for a single decor item."""
+        token = get_access_token(region)
+        if not token:
+            raise HTTPException(502, "Failed to get Blizzard API token")
+        url = f"https://{region}.api.blizzard.com/data/wow/decor/{decor_id}"
+        params = _params(region, namespace_prefix="static")
+        try:
+            r = requests.get(url, params=params,
+                             headers={"Authorization": f"Bearer {token}"}, timeout=30)
+            return {"status_code": r.status_code, "body": r.json() if r.status_code == 200 else r.text[:1000],
                     "url": url, "params": params}
         except Exception as e:
             return {"error": str(e), "url": url, "params": params}
