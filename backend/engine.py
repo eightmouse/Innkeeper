@@ -545,76 +545,63 @@ if __name__ != "__main__":
 
         normalized = [_normalize_decor_item(it) for it in items_list if isinstance(it, dict)]
 
-        # --- Enrich with icons ---
-        # Step 1: Batch-fetch decor details to get linked WoW item IDs
-        def _get_item_id(decor_id):
+        # --- Enrich: decor detail → item detail + media (single pass per item) ---
+        def _enrich_decor(decor_id):
+            """Fetch decor detail → WoW item detail + media in one worker."""
+            result = {"icon_url": None, "description": "", "category": ""}
             try:
+                # 1) Decor detail → get linked WoW item ID
                 detail = _fetch_decor_detail(region, decor_id, token)
-                if detail and isinstance(detail.get("items"), dict):
-                    return (decor_id, detail["items"].get("id"))
-            except Exception:
-                pass
-            return (decor_id, None)
+                if not detail or not isinstance(detail.get("items"), dict):
+                    return (decor_id, result)
+                item_id = detail["items"].get("id")
+                if not item_id:
+                    return (decor_id, result)
 
-        decor_ids = [it["id"] for it in normalized if it.get("id")]
-        item_id_map = {}  # decor_id -> wow_item_id
-        print(f"[engine] Fetching decor details for {len(decor_ids)} items to get WoW item IDs...", file=sys.stderr, flush=True)
-        with ThreadPoolExecutor(max_workers=20) as pool:
-            for decor_id, item_id in pool.map(_get_item_id, decor_ids):
-                if item_id:
-                    item_id_map[decor_id] = item_id
-        print(f"[engine] Got {len(item_id_map)}/{len(decor_ids)} WoW item IDs", file=sys.stderr, flush=True)
-
-        # Step 2: Batch-fetch item detail (description/category) + media (icon) combined
-        def _get_item_info(item_id):
-            info = {"icon_url": None, "description": "", "item_category": ""}
-            try:
-                detail = _blizzard_get(
+                # 2) Item detail → description + category
+                item_data = _blizzard_get(
                     f"https://{region}.api.blizzard.com/data/wow/item/{item_id}",
                     _params(region, namespace_prefix="static"), token, timeout=10)
-                if detail:
-                    desc = detail.get("description", "")
-                    info["description"] = desc if isinstance(desc, str) else str(desc) if desc else ""
-                    sub = detail.get("item_subclass")
+                if item_data:
+                    desc = item_data.get("description", "")
+                    result["description"] = desc if isinstance(desc, str) else str(desc) if desc else ""
+                    sub = item_data.get("item_subclass")
                     if isinstance(sub, dict) and sub.get("name"):
-                        info["item_category"] = sub["name"]
-            except Exception:
-                pass
-            try:
+                        result["category"] = sub["name"]
+
+                # 3) Item media → icon URL
                 media = _blizzard_get(
                     f"https://{region}.api.blizzard.com/data/wow/media/item/{item_id}",
                     _params(region, namespace_prefix="static"), token, timeout=10)
                 if media:
                     for asset in media.get("assets", []):
                         if isinstance(asset, dict) and asset.get("key") == "icon":
-                            info["icon_url"] = asset.get("value")
+                            result["icon_url"] = asset.get("value")
                             break
             except Exception:
                 pass
-            return (item_id, info)
+            return (decor_id, result)
 
-        unique_item_ids = list(set(item_id_map.values()))
-        info_map = {}  # wow_item_id -> {icon_url, description, item_category}
-        print(f"[engine] Fetching item detail + media for {len(unique_item_ids)} WoW items...", file=sys.stderr, flush=True)
-        with ThreadPoolExecutor(max_workers=20) as pool:
-            for item_id, info in pool.map(_get_item_info, unique_item_ids):
-                info_map[item_id] = info
-        icons_found = sum(1 for v in info_map.values() if v["icon_url"])
-        descs_found = sum(1 for v in info_map.values() if v["description"])
-        cats_found = sum(1 for v in info_map.values() if v["item_category"])
-        print(f"[engine] Enrichment: {icons_found} icons, {descs_found} descriptions, {cats_found} categories out of {len(unique_item_ids)}", file=sys.stderr, flush=True)
+        decor_ids = [it["id"] for it in normalized if it.get("id")]
+        enrichment = {}
+        print(f"[engine] Enriching {len(decor_ids)} decor items (detail + item + media)...", file=sys.stderr, flush=True)
+        with ThreadPoolExecutor(max_workers=30) as pool:
+            for decor_id, info in pool.map(_enrich_decor, decor_ids):
+                enrichment[decor_id] = info
+        icons = sum(1 for v in enrichment.values() if v["icon_url"])
+        descs = sum(1 for v in enrichment.values() if v["description"])
+        cats  = sum(1 for v in enrichment.values() if v["category"])
+        print(f"[engine] Enrichment done: {icons} icons, {descs} descriptions, {cats} categories out of {len(decor_ids)}", file=sys.stderr, flush=True)
 
-        # Merge enrichment data into normalized items
+        # Merge enrichment into normalized items
         for item in normalized:
-            wow_id = item_id_map.get(item["id"])
-            if wow_id and wow_id in info_map:
-                info = info_map[wow_id]
-                if info["icon_url"]:
-                    item["icon_url"] = info["icon_url"]
-                if info["description"]:
-                    item["source"] = info["description"]
-                if info["item_category"] and item.get("category") == "Uncategorized":
-                    item["category"] = info["item_category"]
+            info = enrichment.get(item["id"], {})
+            if info.get("icon_url"):
+                item["icon_url"] = info["icon_url"]
+            if info.get("description"):
+                item["source"] = info["description"]
+            if info.get("category") and item.get("category") == "Uncategorized":
+                item["category"] = info["category"]
 
         # Extract unique categories
         categories = ["All"]
@@ -913,14 +900,14 @@ if __name__ != "__main__":
         return {"status": "ok"}
 
     @app.get("/realms/{region}")
-    async def realms(region: str):
+    def realms(region: str):
         token = get_access_token(region)
         if not token:
             raise HTTPException(502, "Failed to get Blizzard API token")
         return {"region": region, "realms": _fetch_realms(region, token)}
 
     @app.get("/character/{region}/{realm}/{name}")
-    async def character(region: str, realm: str, name: str):
+    def character(region: str, realm: str, name: str):
         token = get_access_token(region)
         if not token:
             raise HTTPException(502, "Failed to get Blizzard API token")
@@ -930,42 +917,42 @@ if __name__ != "__main__":
         return _build_character_dict(data, region, realm, name, token)
 
     @app.get("/equipment/{region}/{realm}/{name}")
-    async def equipment(region: str, realm: str, name: str):
+    def equipment(region: str, realm: str, name: str):
         token = get_access_token(region)
         if not token:
             raise HTTPException(502, "Failed to get Blizzard API token")
         return _fetch_equipment(region, realm, name, token)
 
     @app.get("/talent-tree/{region}/{class_slug}/{spec_slug}")
-    async def talent_tree(region: str, class_slug: str, spec_slug: str):
+    def talent_tree(region: str, class_slug: str, spec_slug: str):
         try:
             return _fetch_talent_tree_from_blizzard(region, class_slug, spec_slug)
         except (ValueError, ConnectionError) as e:
             raise HTTPException(400, str(e))
 
     @app.get("/vault/mythic-plus/{region}/{realm}/{name}")
-    async def vault_mythic_plus(region: str, realm: str, name: str):
+    def vault_mythic_plus(region: str, realm: str, name: str):
         token = get_access_token(region)
         if not token:
             raise HTTPException(502, "Failed to get Blizzard API token")
         return _fetch_mythic_keystone_profile(region, realm, name, token)
 
     @app.get("/vault/raids/{region}/{realm}/{name}")
-    async def vault_raids(region: str, realm: str, name: str):
+    def vault_raids(region: str, realm: str, name: str):
         token = get_access_token(region)
         if not token:
             raise HTTPException(502, "Failed to get Blizzard API token")
         return _fetch_raid_encounters(region, realm, name, token)
 
     @app.get("/professions/{region}/{realm}/{name}")
-    async def professions(region: str, realm: str, name: str):
+    def professions(region: str, realm: str, name: str):
         token = get_access_token(region)
         if not token:
             raise HTTPException(502, "Failed to get Blizzard API token")
         return _fetch_professions(region, realm, name, token)
 
     @app.get("/decor/index/{region}")
-    async def decor_index(region: str):
+    def decor_index(region: str):
         token = get_access_token(region)
         if not token:
             raise HTTPException(502, "Failed to get Blizzard API token")
@@ -975,7 +962,7 @@ if __name__ != "__main__":
         return catalog
 
     @app.get("/decor/debug/{region}")
-    async def decor_debug(region: str):
+    def decor_debug(region: str):
         """Temporary debug endpoint — returns raw Blizzard response for decor index."""
         token = get_access_token(region)
         if not token:
@@ -991,7 +978,7 @@ if __name__ != "__main__":
             return {"error": str(e), "url": url, "params": params}
 
     @app.get("/decor/debug/{region}/{decor_id}")
-    async def decor_debug_detail(region: str, decor_id: int):
+    def decor_debug_detail(region: str, decor_id: int):
         """Temporary debug endpoint — returns raw Blizzard response for a single decor item."""
         token = get_access_token(region)
         if not token:
@@ -1007,7 +994,7 @@ if __name__ != "__main__":
             return {"error": str(e), "url": url, "params": params}
 
     @app.post("/auto-add")
-    async def auto_add(body: dict):
+    def auto_add(body: dict):
         region = body.get("region", "eu")
         name   = body.get("name", "")
         if not name:
