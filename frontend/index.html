@@ -378,21 +378,21 @@ const SLOT_LABEL  = {
   MAIN_HAND:'Main Hand', OFF_HAND:'Off Hand', TWOHANDED:'Two-Hand',
 };
 
-// Per-class atmospheric card backgrounds — [gradient, symbol emoji]
+// Per-class atmospheric card backgrounds — [gradient, symbol]
 const CLASS_BG = {
-  1:  ['radial-gradient(ellipse at 50% 110%, #6b3a10 0%, #2a1006 50%, #0a0402 100%)', '⚔️'],
-  2:  ['radial-gradient(ellipse at 50% 110%, #7a5c10 0%, #3a2406 50%, #100a02 100%)', '🛡️'],
-  3:  ['radial-gradient(ellipse at 50% 110%, #183a10 0%, #091e06 50%, #030802 100%)', '🏹'],
-  4:  ['radial-gradient(ellipse at 50% 110%, #2a2210 0%, #140e04 50%, #060402 100%)', '🗡️'],
-  5:  ['radial-gradient(ellipse at 50% 110%, #323232 0%, #1a1a1a 50%, #080808 100%)', '✨'],
-  6:  ['radial-gradient(ellipse at 30% 110%, #780e0e 0%, #1c0818 50%, #040210 100%)', '💀'],
-  7:  ['radial-gradient(ellipse at 50% 110%, #0e2a4a 0%, #061422 50%, #02060e 100%)', '⚡'],
-  8:  ['radial-gradient(ellipse at 50% 110%, #1a0e4a 0%, #0c0828 50%, #03020e 100%)', '🔮'],
-  9:  ['radial-gradient(ellipse at 50% 110%, #1c0e3a 0%, #0c0820 50%, #03020a 100%)', '🔥'],
-  10: ['radial-gradient(ellipse at 50% 110%, #0a3018 0%, #051808 50%, #020804 100%)', '🌿'],
-  11: ['radial-gradient(ellipse at 50% 110%, #2a3a08 0%, #141e04 50%, #060802 100%)', '🍂'],
-  12: ['radial-gradient(ellipse at 50% 110%, #200a3a 0%, #100420 50%, #04010e 100%)', '👁️'],
-  13: ['radial-gradient(ellipse at 50% 110%, #083a2a 0%, #041e16 50%, #02080a 100%)', '🐉'],
+  1:  ['radial-gradient(ellipse at 50% 110%, #6b3a10 0%, #2a1006 50%, #0a0402 100%)', ''],
+  2:  ['radial-gradient(ellipse at 50% 110%, #7a5c10 0%, #3a2406 50%, #100a02 100%)', ''],
+  3:  ['radial-gradient(ellipse at 50% 110%, #183a10 0%, #091e06 50%, #030802 100%)', ''],
+  4:  ['radial-gradient(ellipse at 50% 110%, #2a2210 0%, #140e04 50%, #060402 100%)', ''],
+  5:  ['radial-gradient(ellipse at 50% 110%, #323232 0%, #1a1a1a 50%, #080808 100%)', ''],
+  6:  ['radial-gradient(ellipse at 30% 110%, #780e0e 0%, #1c0818 50%, #040210 100%)', ''],
+  7:  ['radial-gradient(ellipse at 50% 110%, #0e2a4a 0%, #061422 50%, #02060e 100%)', ''],
+  8:  ['radial-gradient(ellipse at 50% 110%, #1a0e4a 0%, #0c0828 50%, #03020e 100%)', ''],
+  9:  ['radial-gradient(ellipse at 50% 110%, #1c0e3a 0%, #0c0820 50%, #03020a 100%)', ''],
+  10: ['radial-gradient(ellipse at 50% 110%, #0a3018 0%, #051808 50%, #020804 100%)', ''],
+  11: ['radial-gradient(ellipse at 50% 110%, #2a3a08 0%, #141e04 50%, #060802 100%)', ''],
+  12: ['radial-gradient(ellipse at 50% 110%, #200a3a 0%, #100420 50%, #04010e 100%)', ''],
+  13: ['radial-gradient(ellipse at 50% 110%, #083a2a 0%, #041e16 50%, #02080a 100%)', ''],
 };
 
 function showToast(msg, isError = false) {
@@ -439,7 +439,7 @@ function renderGrid() {
     const card     = document.createElement('div');
     card.className = 'char-card';
 
-    const [gradient, symbol] = CLASS_BG[char.class_id] || ['radial-gradient(ellipse at 50% 110%, #0c1a10 0%, #060e08 100%)', '🧙'];
+    const [gradient, symbol] = CLASS_BG[char.class_id] || ['radial-gradient(ellipse at 50% 110%, #0c1a10 0%, #060e08 100%)', ''];
 
     // Layer 1: WoWHead talent background - cover entire card
     // Layer 2: Character render at 210%, centered at Y: 25%
