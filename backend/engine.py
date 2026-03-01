@@ -447,12 +447,22 @@ if __name__ != "__main__":
 
     def _fetch_decor_index(region, token):
         """Fetch the housing decor index from Blizzard's static API."""
-        data = _blizzard_get(
-            f"https://{region}.api.blizzard.com/data/wow/decor/index",
-            _params(region, namespace_prefix="static"), token, timeout=30)
-        if data:
-            print(f"[engine] Decor index keys: {list(data.keys())}", file=sys.stderr, flush=True)
-        return data
+        url = f"https://{region}.api.blizzard.com/data/wow/decor/index"
+        params = _params(region, namespace_prefix="static")
+        print(f"[engine] Fetching decor index: {url} params={params}", file=sys.stderr, flush=True)
+        try:
+            r = requests.get(url, params=params,
+                             headers={"Authorization": f"Bearer {token}"}, timeout=30)
+            print(f"[engine] Decor index response: {r.status_code} (len={len(r.content)})", file=sys.stderr, flush=True)
+            if r.status_code == 200:
+                data = r.json()
+                print(f"[engine] Decor index keys: {list(data.keys())}", file=sys.stderr, flush=True)
+                return data
+            else:
+                print(f"[engine] Decor index error body: {r.text[:500]}", file=sys.stderr, flush=True)
+        except Exception as e:
+            print(f"[engine] Decor index fetch exception: {e}", file=sys.stderr, flush=True)
+        return None
 
     def _fetch_decor_detail(region, decor_id, token):
         """Fetch detail for a single decor item (used if index lacks category/source)."""
@@ -915,6 +925,22 @@ if __name__ != "__main__":
         if not catalog:
             raise HTTPException(502, "Could not fetch decor catalog from Blizzard API")
         return catalog
+
+    @app.get("/decor/debug/{region}")
+    async def decor_debug(region: str):
+        """Temporary debug endpoint — returns raw Blizzard response for decor index."""
+        token = get_access_token(region)
+        if not token:
+            raise HTTPException(502, "Failed to get Blizzard API token")
+        url = f"https://{region}.api.blizzard.com/data/wow/decor/index"
+        params = _params(region, namespace_prefix="static")
+        try:
+            r = requests.get(url, params=params,
+                             headers={"Authorization": f"Bearer {token}"}, timeout=30)
+            return {"status_code": r.status_code, "body_preview": r.text[:2000],
+                    "url": url, "params": params}
+        except Exception as e:
+            return {"error": str(e), "url": url, "params": params}
 
     @app.post("/auto-add")
     async def auto_add(body: dict):
