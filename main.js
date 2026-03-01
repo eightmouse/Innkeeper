@@ -156,7 +156,8 @@ function createWindow() {
       if (fs.existsSync(apiCacheFile)) {
         const raw = JSON.parse(fs.readFileSync(apiCacheFile, 'utf-8'));
         const fetchedAt = raw.fetched_at;
-        if (fetchedAt) {
+        const hasIcons = (raw.items || []).slice(0, 50).some(i => i.icon_url);
+        if (fetchedAt && hasIcons) {
           const ageMs = Date.now() - new Date(fetchedAt).getTime();
           if (ageMs < 7 * 24 * 3600 * 1000) {
             win?.webContents.send('from-python', JSON.stringify({
@@ -165,6 +166,8 @@ function createWindow() {
             housingCacheStale = false;
             console.log(`[Main] Pre-loaded cached API housing catalog: ${(raw.items || []).length} items (age=${(ageMs / 3600000).toFixed(1)}h)`);
           }
+        } else if (fetchedAt && !hasIcons) {
+          console.log('[Main] Housing cache has no icons, will re-fetch');
         }
       }
     } catch (e) {
