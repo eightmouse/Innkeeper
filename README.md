@@ -1,5 +1,5 @@
-![Build Status](https://github.com/eightmouse/Innkeper/actions/workflows/build.yml/badge.svg)
-[![GitHub release](https://img.shields.io/github/v/release/eightmouse/Innkeper)](https://github.com/eightmouse/Innkeper/releases)
+![Build Status](https://github.com/eightmouse/Innkeeper/actions/workflows/build.yml/badge.svg)
+[![GitHub release](https://img.shields.io/github/v/release/eightmouse/Innkeeper)](https://github.com/eightmouse/Innkeeper/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Support me on Ko-fi](https://img.shields.io/badge/Support%20Me-Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/eightmouse)
 
