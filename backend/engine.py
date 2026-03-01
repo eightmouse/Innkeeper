@@ -55,7 +55,7 @@ if __name__ != "__main__":
     _rate_buckets: dict[str, collections.deque] = {}   # ip → deque of timestamps
     _RATE_GENERAL    = (30, 60)   # 30 requests per 60 seconds
     _RATE_HEAVY      = (5, 60)    # 5 requests per 60 seconds  (auto-add, decor)
-    _HEAVY_PREFIXES  = ("/auto-add", "/decor/")
+    _HEAVY_PREFIXES  = ("/auto-add", "/decor/index", "/decor/debug")
     _rate_state = {"last_clean": 0.0}
 
     def _rate_key(ip: str, path: str) -> str:
@@ -523,7 +523,7 @@ if __name__ != "__main__":
         }
 
     def _build_decor_catalog(region, token):
-        """Fetch the full decor catalog, enrich with icons from Blizzard item media API."""
+        """Fetch the decor index catalog (names + IDs only, fast)."""
         raw = _fetch_decor_index(region, token)
         if not raw:
             return None
@@ -545,65 +545,6 @@ if __name__ != "__main__":
 
         normalized = [_normalize_decor_item(it) for it in items_list if isinstance(it, dict)]
 
-        # --- Enrich: decor detail → item detail + media (single pass per item) ---
-        def _enrich_decor(decor_id):
-            """Fetch decor detail → WoW item detail + media in one worker."""
-            result = {"icon_url": None, "description": "", "category": ""}
-            try:
-                # 1) Decor detail → get linked WoW item ID
-                detail = _fetch_decor_detail(region, decor_id, token)
-                if not detail or not isinstance(detail.get("items"), dict):
-                    return (decor_id, result)
-                item_id = detail["items"].get("id")
-                if not item_id:
-                    return (decor_id, result)
-
-                # 2) Item detail → description + category
-                item_data = _blizzard_get(
-                    f"https://{region}.api.blizzard.com/data/wow/item/{item_id}",
-                    _params(region, namespace_prefix="static"), token, timeout=10)
-                if item_data:
-                    desc = item_data.get("description", "")
-                    result["description"] = desc if isinstance(desc, str) else str(desc) if desc else ""
-                    sub = item_data.get("item_subclass")
-                    if isinstance(sub, dict) and sub.get("name"):
-                        result["category"] = sub["name"]
-
-                # 3) Item media → icon URL
-                media = _blizzard_get(
-                    f"https://{region}.api.blizzard.com/data/wow/media/item/{item_id}",
-                    _params(region, namespace_prefix="static"), token, timeout=10)
-                if media:
-                    for asset in media.get("assets", []):
-                        if isinstance(asset, dict) and asset.get("key") == "icon":
-                            result["icon_url"] = asset.get("value")
-                            break
-            except Exception:
-                pass
-            return (decor_id, result)
-
-        decor_ids = [it["id"] for it in normalized if it.get("id")]
-        enrichment = {}
-        print(f"[engine] Enriching {len(decor_ids)} decor items (detail + item + media)...", file=sys.stderr, flush=True)
-        with ThreadPoolExecutor(max_workers=30) as pool:
-            for decor_id, info in pool.map(_enrich_decor, decor_ids):
-                enrichment[decor_id] = info
-        icons = sum(1 for v in enrichment.values() if v["icon_url"])
-        descs = sum(1 for v in enrichment.values() if v["description"])
-        cats  = sum(1 for v in enrichment.values() if v["category"])
-        print(f"[engine] Enrichment done: {icons} icons, {descs} descriptions, {cats} categories out of {len(decor_ids)}", file=sys.stderr, flush=True)
-
-        # Merge enrichment into normalized items
-        for item in normalized:
-            info = enrichment.get(item["id"], {})
-            if info.get("icon_url"):
-                item["icon_url"] = info["icon_url"]
-            if info.get("description"):
-                item["source"] = info["description"]
-            if info.get("category") and item.get("category") == "Uncategorized":
-                item["category"] = info["category"]
-
-        # Extract unique categories
         categories = ["All"]
         seen_cats = set()
         for it in normalized:
@@ -961,6 +902,50 @@ if __name__ != "__main__":
             raise HTTPException(502, "Could not fetch decor catalog from Blizzard API")
         return catalog
 
+    @app.post("/decor/enrich/{region}")
+    def decor_enrich(region: str, body: dict):
+        """Enrich a batch of decor IDs with icons, descriptions, categories."""
+        decor_ids = body.get("decor_ids", [])
+        if not decor_ids or len(decor_ids) > 100:
+            raise HTTPException(400, "Provide 1-100 decor_ids")
+        token = get_access_token(region)
+        if not token:
+            raise HTTPException(502, "Failed to get Blizzard API token")
+
+        def _enrich_one(decor_id):
+            result = {"decor_id": decor_id, "icon_url": None, "description": "", "category": ""}
+            try:
+                detail = _fetch_decor_detail(region, decor_id, token)
+                if not detail or not isinstance(detail.get("items"), dict):
+                    return result
+                item_id = detail["items"].get("id")
+                if not item_id:
+                    return result
+                item_data = _blizzard_get(
+                    f"https://{region}.api.blizzard.com/data/wow/item/{item_id}",
+                    _params(region, namespace_prefix="static"), token, timeout=10)
+                if item_data:
+                    desc = item_data.get("description", "")
+                    result["description"] = desc if isinstance(desc, str) else str(desc) if desc else ""
+                    sub = item_data.get("item_subclass")
+                    if isinstance(sub, dict) and sub.get("name"):
+                        result["category"] = sub["name"]
+                media = _blizzard_get(
+                    f"https://{region}.api.blizzard.com/data/wow/media/item/{item_id}",
+                    _params(region, namespace_prefix="static"), token, timeout=10)
+                if media:
+                    for asset in media.get("assets", []):
+                        if isinstance(asset, dict) and asset.get("key") == "icon":
+                            result["icon_url"] = asset.get("value")
+                            break
+            except Exception:
+                pass
+            return result
+
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            results = list(pool.map(_enrich_one, decor_ids))
+        return {"items": results}
+
     @app.get("/decor/debug/{region}")
     def decor_debug(region: str):
         """Temporary debug endpoint — returns raw Blizzard response for decor index."""
@@ -1058,9 +1043,12 @@ def _server_post(path, body, timeout=30):
 
 # ────────────────────  Data persistence  ────────────────────
 
+_emit_lock = threading.Lock()
+
 def emit(data):
-    print(json.dumps(data, ensure_ascii=False))
-    sys.stdout.flush()
+    with _emit_lock:
+        print(json.dumps(data, ensure_ascii=False))
+        sys.stdout.flush()
 
 def save_data(characters):
     try:
@@ -1707,41 +1695,127 @@ def main():
             region = command.split(":", 1)[1].strip()
             cache_dir  = os.path.join(basedir, 'housing_decor_cache')
             cache_file = os.path.join(cache_dir, 'decor_catalog.json')
+            bundled_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        '..', 'assets', 'housing_decor_enriched.json')
 
-            # Check disk cache (7-day TTL, must have icons)
-            use_cache = False
+            # 1. Try enriched disk cache (7-day TTL, must have icons)
+            loaded = None
             if os.path.exists(cache_file):
                 try:
                     with open(cache_file, 'r', encoding='utf-8') as f:
                         cached = json.load(f)
-                    fetched_at = cached.get('fetched_at', '')
                     has_icons = any(it.get('icon_url') for it in (cached.get('items') or [])[:50])
+                    fetched_at = cached.get('fetched_at', '')
                     if fetched_at and has_icons:
                         age = (datetime.now(UTC) - datetime.fromisoformat(fetched_at)).total_seconds()
                         if age < 7 * 86400:
-                            print(f"[engine] Housing catalog cache hit (age={age/3600:.1f}h, icons=yes)", file=sys.stderr)
-                            emit({"status": "housing_api_catalog", "catalog": cached})
-                            use_cache = True
-                    elif fetched_at and not has_icons:
-                        print(f"[engine] Housing catalog cache stale (no icons), re-fetching", file=sys.stderr)
+                            loaded = cached
+                            print(f"[engine] Housing: cache hit ({len(cached.get('items',[]))} items, age={age/3600:.1f}h)", file=sys.stderr)
                 except Exception as e:
                     print(f"[engine] Housing cache read error: {e}", file=sys.stderr)
 
-            if not use_cache:
+            # 2. Try bundled enriched catalog
+            if not loaded and os.path.exists(bundled_file):
                 try:
-                    catalog = _server_get(f"/decor/index/{region}", timeout=300)
-                    if catalog and catalog.get("items"):
-                        os.makedirs(cache_dir, exist_ok=True)
-                        with open(cache_file, 'w', encoding='utf-8') as f:
-                            json.dump(catalog, f, ensure_ascii=False)
-                        print(f"[engine] Housing catalog fetched & cached: {len(catalog['items'])} items", file=sys.stderr)
-                        emit({"status": "housing_api_catalog", "catalog": catalog})
-                    else:
-                        emit({"status": "housing_api_catalog_error",
-                              "message": "Server returned no decor data"})
+                    with open(bundled_file, 'r', encoding='utf-8') as f:
+                        loaded = json.load(f)
+                    print(f"[engine] Housing: loaded bundled catalog ({len(loaded.get('items',[]))} items)", file=sys.stderr)
                 except Exception as e:
-                    print(f"[engine] Housing catalog fetch error: {e}", file=sys.stderr)
-                    emit({"status": "housing_api_catalog_error", "message": str(e)})
+                    print(f"[engine] Housing bundled read error: {e}", file=sys.stderr)
+
+            # 3. Emit whatever we have immediately
+            if loaded:
+                emit({"status": "housing_api_catalog", "catalog": loaded})
+
+            # 4. Background thread: check for updates and enrich new items
+            def _housing_enrich_bg():
+                try:
+                    index = _server_get(f"/decor/index/{region}", timeout=30)
+                    if not index or not index.get("items"):
+                        if not loaded:
+                            emit({"status": "housing_api_catalog_error", "message": "Server returned no decor data"})
+                        return
+
+                    server_count = len(index["items"])
+                    local_count = len((loaded or {}).get("items", []))
+                    local_has_icons = loaded and any(it.get('icon_url') for it in loaded.get('items', [])[:50])
+
+                    # If cached catalog has icons and same item count, no update needed
+                    if loaded and local_has_icons and server_count == local_count:
+                        print(f"[engine] Housing: catalog up to date ({server_count} items)", file=sys.stderr)
+                        return
+
+                    # If no loaded catalog at all, emit the basic index immediately
+                    if not loaded:
+                        emit({"status": "housing_api_catalog", "catalog": index})
+
+                    # Build set of already-enriched IDs
+                    enriched_ids = set()
+                    if loaded and local_has_icons:
+                        enriched_ids = {it["id"] for it in loaded.get("items", []) if it.get("icon_url")}
+
+                    # IDs that need enrichment
+                    needs = [it["id"] for it in index["items"] if it["id"] not in enriched_ids]
+                    print(f"[engine] Housing: enriching {len(needs)} items in background...", file=sys.stderr)
+
+                    # Enrich in batches of 100
+                    enriched_map = {}
+                    for i in range(0, len(needs), 100):
+                        batch = needs[i:i+100]
+                        try:
+                            result = _server_post(f"/decor/enrich/{region}", {"decor_ids": batch}, timeout=25)
+                            if result and result.get("items"):
+                                for it in result["items"]:
+                                    enriched_map[it["decor_id"]] = it
+                            print(f"[engine] Housing: enriched batch {i//100+1}/{(len(needs)-1)//100+1}", file=sys.stderr)
+                        except Exception as e:
+                            print(f"[engine] Housing enrich batch error: {e}", file=sys.stderr)
+
+                    # Merge enrichment into index items
+                    for item in index["items"]:
+                        info = enriched_map.get(item["id"], {})
+                        if info.get("icon_url"):
+                            item["icon_url"] = info["icon_url"]
+                        if info.get("description"):
+                            item["source"] = info["description"]
+                        if info.get("category") and item.get("category") == "Uncategorized":
+                            item["category"] = info["category"]
+
+                    # Also carry over enrichment from old cache for items not re-fetched
+                    if loaded:
+                        old_map = {it["id"]: it for it in loaded.get("items", [])}
+                        for item in index["items"]:
+                            if not item.get("icon_url") and item["id"] in old_map:
+                                old = old_map[item["id"]]
+                                item["icon_url"] = old.get("icon_url")
+                                item["source"] = old.get("source", "")
+                                if old.get("category") and item.get("category") == "Uncategorized":
+                                    item["category"] = old["category"]
+
+                    # Rebuild categories
+                    cats = ["All"]
+                    seen = set()
+                    for it in index["items"]:
+                        cat = it.get("category", "")
+                        if cat and cat not in seen:
+                            seen.add(cat)
+                            cats.append(cat)
+                    index["categories"] = cats
+                    index["fetched_at"] = datetime.now(UTC).isoformat()
+
+                    # Cache to disk
+                    os.makedirs(cache_dir, exist_ok=True)
+                    with open(cache_file, 'w', encoding='utf-8') as f:
+                        json.dump(index, f, ensure_ascii=False)
+
+                    enriched_count = sum(1 for it in index["items"] if it.get("icon_url"))
+                    print(f"[engine] Housing: enriched & cached ({enriched_count}/{server_count} with icons)", file=sys.stderr)
+                    emit({"status": "housing_api_catalog", "catalog": index})
+
+                except Exception as e:
+                    print(f"[engine] Housing enrich bg error: {e}", file=sys.stderr)
+
+            threading.Thread(target=_housing_enrich_bg, daemon=True).start()
 
         elif command == "CLEAR_HOUSING_CACHE":
             cache_dir = os.path.join(basedir, 'housing_decor_cache')
