@@ -150,28 +150,38 @@ function createWindow() {
       console.error('[Main] Error reading housing_decorations.json:', e.message);
     }
 
-    // Step 4: Pre-load cached API housing decor catalog (if available)
+    // Step 4: Pre-load housing decor catalog (cache → bundled fallback)
     try {
+      let apiLoaded = false;
       const apiCacheFile = path.join(getDataDir(), 'housing_decor_cache', 'decor_catalog.json');
       if (fs.existsSync(apiCacheFile)) {
         const raw = JSON.parse(fs.readFileSync(apiCacheFile, 'utf-8'));
-        const fetchedAt = raw.fetched_at;
         const hasIcons = (raw.items || []).slice(0, 50).some(i => i.icon_url);
-        if (fetchedAt && hasIcons) {
-          const ageMs = Date.now() - new Date(fetchedAt).getTime();
+        if (raw.fetched_at && hasIcons) {
+          const ageMs = Date.now() - new Date(raw.fetched_at).getTime();
           if (ageMs < 7 * 24 * 3600 * 1000) {
             win?.webContents.send('from-python', JSON.stringify({
               status: 'housing_api_catalog', catalog: raw
             }));
             housingCacheStale = false;
-            console.log(`[Main] Pre-loaded cached API housing catalog: ${(raw.items || []).length} items (age=${(ageMs / 3600000).toFixed(1)}h)`);
+            apiLoaded = true;
+            console.log(`[Main] Pre-loaded cached housing catalog: ${(raw.items || []).length} items (age=${(ageMs / 3600000).toFixed(1)}h)`);
           }
-        } else if (fetchedAt && !hasIcons) {
-          console.log('[Main] Housing cache has no icons, will re-fetch');
+        }
+      }
+      // Fallback: bundled enriched catalog
+      if (!apiLoaded) {
+        const bundledFile = path.join(__dirname, 'assets', 'housing_decor_enriched.json');
+        if (fs.existsSync(bundledFile)) {
+          const raw = JSON.parse(fs.readFileSync(bundledFile, 'utf-8'));
+          win?.webContents.send('from-python', JSON.stringify({
+            status: 'housing_api_catalog', catalog: raw
+          }));
+          console.log(`[Main] Pre-loaded bundled housing catalog: ${(raw.items || []).length} items`);
         }
       }
     } catch (e) {
-      console.error('[Main] Error reading housing API cache:', e.message);
+      console.error('[Main] Error reading housing catalog:', e.message);
     }
 
     // Step 5: Check for app updates (silent)
