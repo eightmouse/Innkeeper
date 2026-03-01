@@ -1,0 +1,198 @@
+{
+  "categories": ["All", "Seating", "Tables", "Lighting", "Rugs", "Wall Art", "Trophies", "Outdoor"],
+  "materials": {
+    "Dornic Fir Lumber": { "source": "Tier 3+ Prey activities or World Chests in Quel'Thalas" },
+    "Silverleaf Thread": { "source": "Tailoring Vendor in Dalaran" },
+    "Stormforged Iron": { "source": "Mining nodes in Midnight zones (skill 50+)" },
+    "Midnight Lacquer": { "source": "Alchemy craft — 2x Luredrop, 1x Mycobloom" },
+    "Weavercloth Bolt": { "source": "Tailoring craft — 5x Weavercloth" },
+    "Hallowfall Crystal": { "source": "Hallowfall rare drops or Delve reward chests" },
+    "Bismuth Ingot": { "source": "Mining nodes in Ringing Deeps or Hallowfall" },
+    "Gilded Runestone": { "source": "Enchanting craft — 2x Runed Harbinger Crest" },
+    "Stonebound Hide": { "source": "Skinning from elite beasts in Isle of Dorn" },
+    "Verdant Pigment": { "source": "Inscription milling — Luredrop herbs" },
+    "Gloom Chitin": { "source": "Skinning from Nerubian creatures in Azj-Kahet" },
+    "Ironclaw Timber": { "source": "World Quests in Isle of Dorn (Lumberjack WQs)" },
+    "Charged Amber": { "source": "Engineering disassembly or Jewelcrafting prospecting" },
+    "Deepstone Slab": { "source": "Mining rich deposits in Ringing Deeps" },
+    "Moonpetal Silk": { "source": "Tailoring craft — 3x Duskweave, 1x Silverleaf Thread" }
+  },
+  "items": [
+    {
+      "id": "ornate_oak_throne",
+      "name": "Ornate Oak Throne",
+      "category": "Seating",
+      "profession": "Leatherworking",
+      "icon": "inv_chair_2",
+      "materials": { "Dornic Fir Lumber": 10, "Stonebound Hide": 6, "Midnight Lacquer": 2 }
+    },
+    {
+      "id": "weavercloth_armchair",
+      "name": "Weavercloth Armchair",
+      "category": "Seating",
+      "profession": "Tailoring",
+      "icon": "inv_misc_archaeology_trolldrum",
+      "materials": { "Weavercloth Bolt": 8, "Dornic Fir Lumber": 4, "Silverleaf Thread": 3 }
+    },
+    {
+      "id": "stonebound_bench",
+      "name": "Stonebound Bench",
+      "category": "Seating",
+      "profession": "Blacksmithing",
+      "icon": "inv_misc_desecrated_platehelm",
+      "materials": { "Stormforged Iron": 6, "Deepstone Slab": 4, "Midnight Lacquer": 1 }
+    },
+    {
+      "id": "ironwood_dining_table",
+      "name": "Ironwood Dining Table",
+      "category": "Tables",
+      "profession": "Leatherworking",
+      "icon": "inv_misc_food_vendor_kokundochili",
+      "materials": { "Ironclaw Timber": 12, "Stormforged Iron": 4, "Midnight Lacquer": 3 }
+    },
+    {
+      "id": "runescribed_desk",
+      "name": "Runescribed Desk",
+      "category": "Tables",
+      "profession": "Inscription",
+      "icon": "inv_inscription_inkwell01",
+      "materials": { "Dornic Fir Lumber": 8, "Verdant Pigment": 6, "Gilded Runestone": 2 }
+    },
+    {
+      "id": "alchemists_workbench",
+      "name": "Alchemist's Workbench",
+      "category": "Tables",
+      "profession": "Alchemy",
+      "icon": "trade_alchemy",
+      "materials": { "Ironclaw Timber": 6, "Midnight Lacquer": 5, "Hallowfall Crystal": 2 }
+    },
+    {
+      "id": "hallowfall_chandelier",
+      "name": "Hallowfall Chandelier",
+      "category": "Lighting",
+      "profession": "Jewelcrafting",
+      "icon": "inv_misc_gem_pearl_06",
+      "materials": { "Hallowfall Crystal": 8, "Stormforged Iron": 4, "Charged Amber": 3 }
+    },
+    {
+      "id": "enchanted_sconce",
+      "name": "Enchanted Wall Sconce",
+      "category": "Lighting",
+      "profession": "Enchanting",
+      "icon": "spell_fire_flare",
+      "materials": { "Gilded Runestone": 4, "Stormforged Iron": 2, "Hallowfall Crystal": 2 }
+    },
+    {
+      "id": "amber_desk_lamp",
+      "name": "Charged Amber Lamp",
+      "category": "Lighting",
+      "profession": "Engineering",
+      "icon": "inv_gizmo_khaboreancrystal",
+      "materials": { "Charged Amber": 6, "Bismuth Ingot": 3, "Stormforged Iron": 2 }
+    },
+    {
+      "id": "duskweave_area_rug",
+      "name": "Duskweave Area Rug",
+      "category": "Rugs",
+      "profession": "Tailoring",
+      "icon": "inv_misc_carpet_01",
+      "materials": { "Weavercloth Bolt": 12, "Silverleaf Thread": 6, "Verdant Pigment": 3 }
+    },
+    {
+      "id": "nerubian_silk_runner",
+      "name": "Nerubian Silk Runner",
+      "category": "Rugs",
+      "profession": "Tailoring",
+      "icon": "inv_fabric_silk_02",
+      "materials": { "Gloom Chitin": 8, "Moonpetal Silk": 5, "Silverleaf Thread": 4 }
+    },
+    {
+      "id": "stonebound_hearth_rug",
+      "name": "Stonebound Hearth Rug",
+      "category": "Rugs",
+      "profession": "Leatherworking",
+      "icon": "inv_misc_pelt_14",
+      "materials": { "Stonebound Hide": 10, "Midnight Lacquer": 3, "Silverleaf Thread": 2 }
+    },
+    {
+      "id": "gilded_landscape",
+      "name": "Gilded Landscape Painting",
+      "category": "Wall Art",
+      "profession": "Inscription",
+      "icon": "inv_inscription_parchmentvar04",
+      "materials": { "Verdant Pigment": 10, "Dornic Fir Lumber": 4, "Midnight Lacquer": 2 }
+    },
+    {
+      "id": "runic_wall_tapestry",
+      "name": "Runic Wall Tapestry",
+      "category": "Wall Art",
+      "profession": "Enchanting",
+      "icon": "inv_enchant_formulasuperior_01",
+      "materials": { "Weavercloth Bolt": 6, "Gilded Runestone": 4, "Silverleaf Thread": 3 }
+    },
+    {
+      "id": "bismuth_mirror",
+      "name": "Bismuth-Framed Mirror",
+      "category": "Wall Art",
+      "profession": "Jewelcrafting",
+      "icon": "inv_misc_gem_diamond_02",
+      "materials": { "Bismuth Ingot": 8, "Hallowfall Crystal": 3, "Midnight Lacquer": 2 }
+    },
+    {
+      "id": "mounted_prey_skull",
+      "name": "Mounted Prey Skull",
+      "category": "Trophies",
+      "profession": "Leatherworking",
+      "icon": "inv_misc_bone_skull_01",
+      "materials": { "Stonebound Hide": 4, "Dornic Fir Lumber": 6, "Midnight Lacquer": 2 }
+    },
+    {
+      "id": "nerubian_trophy_case",
+      "name": "Nerubian Trophy Case",
+      "category": "Trophies",
+      "profession": "Blacksmithing",
+      "icon": "inv_misc_ahnqirajtoken_01",
+      "materials": { "Stormforged Iron": 8, "Gloom Chitin": 4, "Hallowfall Crystal": 2 }
+    },
+    {
+      "id": "crystalline_display",
+      "name": "Crystalline Display Stand",
+      "category": "Trophies",
+      "profession": "Jewelcrafting",
+      "icon": "inv_misc_gem_variety_02",
+      "materials": { "Hallowfall Crystal": 6, "Bismuth Ingot": 4, "Charged Amber": 3 }
+    },
+    {
+      "id": "ironwood_garden_bench",
+      "name": "Ironwood Garden Bench",
+      "category": "Outdoor",
+      "profession": "Blacksmithing",
+      "icon": "achievement_guildperk_honorablemention_rank2",
+      "materials": { "Ironclaw Timber": 8, "Stormforged Iron": 6, "Midnight Lacquer": 2 }
+    },
+    {
+      "id": "enchanted_lantern_post",
+      "name": "Enchanted Lantern Post",
+      "category": "Outdoor",
+      "profession": "Engineering",
+      "icon": "inv_misc_lantern_01",
+      "materials": { "Charged Amber": 4, "Stormforged Iron": 6, "Gilded Runestone": 2 }
+    },
+    {
+      "id": "deepstone_fountain",
+      "name": "Deepstone Fountain",
+      "category": "Outdoor",
+      "profession": "Blacksmithing",
+      "icon": "inv_stone_15",
+      "materials": { "Deepstone Slab": 10, "Stormforged Iron": 6, "Hallowfall Crystal": 3 }
+    },
+    {
+      "id": "moonpetal_planter",
+      "name": "Moonpetal Planter Box",
+      "category": "Outdoor",
+      "profession": "Alchemy",
+      "icon": "inv_misc_herb_goldclover",
+      "materials": { "Ironclaw Timber": 6, "Midnight Lacquer": 4, "Verdant Pigment": 3 }
+    }
+  ]
+}
