@@ -2524,3 +2524,467 @@ body::before {
 [data-theme="light"] .prof-spark-btn.collected:hover {
   background: rgba(42, 122, 64, 0.08);
 }
+
+/* ══════════════════════════════════════════════════
+   Housing Tab
+   ══════════════════════════════════════════════════ */
+
+/* Three-panel layout */
+.housing-container {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
+
+.housing-sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.25);
+  border-right: 1px solid rgba(58, 138, 80, 0.15);
+  padding: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(58, 138, 80, 0.3) transparent;
+}
+.housing-sidebar::-webkit-scrollbar       { width: 4px; }
+.housing-sidebar::-webkit-scrollbar-thumb { background: rgba(58, 138, 80, 0.3); border-radius: 2px; }
+
+.housing-grid-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(58, 138, 80, 0.3) transparent;
+}
+.housing-grid-area::-webkit-scrollbar       { width: 4px; }
+.housing-grid-area::-webkit-scrollbar-thumb { background: rgba(58, 138, 80, 0.3); border-radius: 2px; }
+
+.housing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.housing-shoplist {
+  width: 240px;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 1px solid rgba(58, 138, 80, 0.15);
+  padding: 14px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(58, 138, 80, 0.3) transparent;
+}
+.housing-shoplist::-webkit-scrollbar       { width: 4px; }
+.housing-shoplist::-webkit-scrollbar-thumb { background: rgba(58, 138, 80, 0.3); border-radius: 2px; }
+
+/* Sidebar search */
+.housing-search {
+  width: 100%;
+  background: rgba(8, 18, 10, 0.8);
+  border: 1px solid rgba(58, 138, 80, 0.25);
+  border-radius: 5px;
+  padding: 7px 10px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.housing-search:focus {
+  border-color: rgba(58, 138, 80, 0.55);
+  box-shadow: 0 0 0 2px rgba(58, 138, 80, 0.12);
+}
+
+.housing-search::placeholder {
+  color: var(--text-muted);
+}
+
+/* Sidebar category buttons */
+.housing-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.housing-cat-btn {
+  background: rgba(10, 20, 12, 0.5);
+  border: 1px solid rgba(58, 138, 80, 0.2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.housing-cat-btn:hover {
+  background: rgba(10, 20, 12, 0.7);
+  border-color: rgba(58, 138, 80, 0.35);
+}
+
+.housing-cat-btn.active {
+  background: rgba(58, 138, 80, 0.2);
+  border-color: var(--accent);
+}
+
+/* Item cards */
+.housing-item-card {
+  background: rgba(8, 16, 10, 0.6);
+  border: 1px solid rgba(58, 138, 80, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.2s, box-shadow 0.3s;
+}
+
+.housing-item-card.tracked {
+  border-color: var(--accent);
+}
+
+.housing-item-card.ready {
+  border-color: var(--green);
+  box-shadow: 0 0 12px rgba(78, 203, 113, 0.3);
+}
+
+.housing-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.housing-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.housing-icon-placeholder {
+  background: rgba(58, 138, 80, 0.15);
+  border: 1px dashed rgba(58, 138, 80, 0.25);
+}
+
+.housing-item-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.housing-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.housing-item-prof {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+/* Material rows */
+.housing-mat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.housing-mat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.housing-mat-name {
+  flex: 1;
+  color: var(--text-realm);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.housing-mat-name[data-source]:not([data-source=""]) {
+  cursor: help;
+  text-decoration: underline dotted rgba(90, 122, 96, 0.4);
+}
+
+.housing-mat-need {
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.housing-mat-input {
+  width: 44px;
+  background: rgba(8, 18, 10, 0.8);
+  border: 1px solid rgba(58, 138, 80, 0.25);
+  border-radius: 4px;
+  padding: 2px 5px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 11px;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.housing-mat-input::-webkit-inner-spin-button,
+.housing-mat-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.housing-mat-input:focus {
+  border-color: rgba(58, 138, 80, 0.55);
+}
+
+/* Material progress bar */
+.housing-mat-bar {
+  height: 3px;
+  background: rgba(10, 20, 12, 0.7);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.housing-mat-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* Track button */
+.housing-track-btn {
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border: 1px solid rgba(58, 138, 80, 0.3);
+  background: var(--accent);
+  color: #fff;
+  transition: background 0.15s, border-color 0.15s;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.housing-track-btn:hover {
+  background: #4aaa60;
+}
+
+.housing-track-btn.tracked {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(58, 138, 80, 0.2);
+  color: var(--text-muted);
+}
+
+.housing-track-btn.tracked:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+/* Shopping list */
+.housing-shoplist-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.housing-shoplist-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.housing-shop-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.housing-shop-row.done {
+  opacity: 0.5;
+}
+
+.housing-shop-name {
+  flex: 1;
+  color: var(--text-realm);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.housing-shop-name[data-source]:not([data-source=""]) {
+  cursor: help;
+  text-decoration: underline dotted rgba(90, 122, 96, 0.4);
+}
+
+.housing-shop-count {
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.housing-shop-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(10, 20, 12, 0.7);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.housing-shop-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.housing-shop-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 20px 10px;
+  line-height: 1.6;
+}
+
+/* Empty state */
+.housing-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 40px 20px;
+}
+
+/* Sourcing tooltip */
+.housing-tooltip {
+  display: none;
+  position: fixed;
+  background: rgba(6, 12, 8, 0.95);
+  border: 1px solid rgba(58, 138, 80, 0.3);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-primary);
+  max-width: 220px;
+  z-index: 10000;
+  pointer-events: none;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Housing Light Theme ────────────────────────── */
+
+[data-theme="light"] .housing-sidebar {
+  background: rgba(255, 255, 255, 0.3);
+  border-right-color: rgba(58, 138, 80, 0.2);
+}
+
+[data-theme="light"] .housing-shoplist {
+  background: rgba(255, 255, 255, 0.3);
+  border-left-color: rgba(58, 138, 80, 0.2);
+}
+
+[data-theme="light"] .housing-search {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(58, 138, 80, 0.35);
+  color: #1a3a1a;
+}
+
+[data-theme="light"] .housing-cat-btn {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(58, 138, 80, 0.25);
+  color: #1a3a1a;
+}
+
+[data-theme="light"] .housing-cat-btn:hover {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(58, 138, 80, 0.4);
+}
+
+[data-theme="light"] .housing-cat-btn.active {
+  background: rgba(58, 138, 80, 0.15);
+  border-color: var(--accent);
+}
+
+[data-theme="light"] .housing-item-card {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(58, 138, 80, 0.25);
+}
+
+[data-theme="light"] .housing-item-card.tracked {
+  border-color: var(--accent);
+}
+
+[data-theme="light"] .housing-item-card.ready {
+  border-color: var(--green);
+  box-shadow: 0 0 12px rgba(42, 154, 69, 0.25);
+}
+
+[data-theme="light"] .housing-item-name {
+  color: #1a3a1a;
+}
+
+[data-theme="light"] .housing-mat-input {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(58, 138, 80, 0.35);
+  color: #1a3a1a;
+}
+
+[data-theme="light"] .housing-mat-bar,
+[data-theme="light"] .housing-shop-bar {
+  background: rgba(235, 245, 235, 0.9);
+}
+
+[data-theme="light"] .housing-track-btn.tracked {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(42, 122, 64, 0.2);
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .housing-track-btn.tracked:hover {
+  background: rgba(42, 122, 64, 0.08);
+}
+
+.housing-item-source {
+  font-size: 10px;
+  color: var(--text-realm);
+  padding: 2px 0 4px;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+[data-theme="light"] .housing-tooltip {
+  background: rgba(248, 252, 248, 0.97);
+  border-color: rgba(58, 138, 80, 0.35);
+  color: #1a3a1a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
