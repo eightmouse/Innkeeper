@@ -13,7 +13,7 @@ else:
     basedir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 SERVER_URL = "https://innkeper.onrender.com"
-AUTH_KEY   = "r7XkP9mQ2zW6vT4nY8sH3dFa1cJuE5LbG0tC" # <-- Hiello :3 , no this is not what you think it is ~
+AUTH_KEY   = "r7XkP9mQ2zW6vT4nY8sH3dFa1cJuE5LbG0tC" # App-level routing key, NOT a secret. Server uses env vars for Blizzard OAuth. Rate-limited per IP.
 DATA_FILE  = os.path.join(basedir, 'characters.json')
 
 # ── Shared constants (used by both server and client) ──
@@ -46,6 +46,61 @@ if __name__ != "__main__":
         if request.headers.get("X-Auth-Key") != AUTH_KEY:
             from fastapi.responses import JSONResponse
             return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+        return await call_next(request)
+
+    # ────────────────────  Rate limiter  ────────────────────────
+
+    import collections
+
+    _rate_buckets: dict[str, collections.deque] = {}   # ip → deque of timestamps
+    _RATE_GENERAL    = (30, 60)   # 30 requests per 60 seconds
+    _RATE_HEAVY      = (5, 60)    # 5 requests per 60 seconds  (auto-add, decor)
+    _HEAVY_PREFIXES  = ("/auto-add", "/decor/")
+    _rate_state = {"last_clean": 0.0}
+
+    def _rate_key(ip: str, path: str) -> str:
+        for prefix in _HEAVY_PREFIXES:
+            if path.startswith(prefix):
+                return f"{ip}::heavy"
+        return f"{ip}::gen"
+
+    def _rate_check(key: str, path: str) -> bool:
+        """Return True if the request is allowed."""
+        now = time.time()
+        is_heavy = any(path.startswith(p) for p in _HEAVY_PREFIXES)
+        max_req, window = _RATE_HEAVY if is_heavy else _RATE_GENERAL
+
+        bucket = _rate_buckets.setdefault(key, collections.deque())
+        # Evict old entries
+        cutoff = now - window
+        while bucket and bucket[0] < cutoff:
+            bucket.popleft()
+
+        if len(bucket) >= max_req:
+            return False
+        bucket.append(now)
+        return True
+
+    def _rate_cleanup():
+        """Periodically remove stale IPs (every 5 min)."""
+        now = time.time()
+        if now - _rate_state["last_clean"] < 300:
+            return
+        _rate_state["last_clean"] = now
+        stale = [k for k, v in _rate_buckets.items() if not v or v[-1] < now - 120]
+        for k in stale:
+            del _rate_buckets[k]
+
+    @app.middleware("http")
+    async def _rate_limit(request: Request, call_next):
+        if request.url.path == "/health":
+            return await call_next(request)
+        ip = request.client.host if request.client else "unknown"
+        key = _rate_key(ip, request.url.path)
+        _rate_cleanup()
+        if not _rate_check(key, request.url.path):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded. Try again shortly."})
         return await call_next(request)
 
     # ────────────────────  Token Management  ────────────────────
