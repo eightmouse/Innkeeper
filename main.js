@@ -6,6 +6,7 @@ const { spawn } = require('child_process');
 
 let win;
 let pyProcess;
+let housingCacheStale = true;
 
 // ── Packaging helpers ────────────────────────────────────────────────
 const isPackaged = app.isPackaged;
@@ -134,7 +135,42 @@ function createWindow() {
       console.error('[Main] Error scanning talent_tree_cache:', e.message);
     }
 
-    // Step 3: Check for app updates (silent)
+    // Step 3: Pre-load housing decorations catalog
+    try {
+      const housingFile = path.join(__dirname, 'assets', 'housing_decorations.json');
+      if (fs.existsSync(housingFile)) {
+        const catalog = JSON.parse(fs.readFileSync(housingFile, 'utf-8'));
+        win?.webContents.send('from-python', JSON.stringify({
+          status: 'housing_catalog_loaded', catalog
+        }));
+        console.log(`[Main] Loaded housing_decorations.json: ${(catalog.items || []).length} items`);
+      }
+    } catch (e) {
+      console.error('[Main] Error reading housing_decorations.json:', e.message);
+    }
+
+    // Step 4: Pre-load cached API housing decor catalog (if available)
+    try {
+      const apiCacheFile = path.join(getDataDir(), 'housing_decor_cache', 'decor_catalog.json');
+      if (fs.existsSync(apiCacheFile)) {
+        const raw = JSON.parse(fs.readFileSync(apiCacheFile, 'utf-8'));
+        const fetchedAt = raw.fetched_at;
+        if (fetchedAt) {
+          const ageMs = Date.now() - new Date(fetchedAt).getTime();
+          if (ageMs < 7 * 24 * 3600 * 1000) {
+            win?.webContents.send('from-python', JSON.stringify({
+              status: 'housing_api_catalog', catalog: raw
+            }));
+            housingCacheStale = false;
+            console.log(`[Main] Pre-loaded cached API housing catalog: ${(raw.items || []).length} items (age=${(ageMs / 3600000).toFixed(1)}h)`);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Main] Error reading housing API cache:', e.message);
+    }
+
+    // Step 5: Check for app updates (silent)
     checkForUpdates();
   });
 }
@@ -195,6 +231,9 @@ function startPython() {
           if (data.status === 'ready') {
             ready = true;
             pyProcess.stdin.write('GET_CHARACTERS\n');
+            if (housingCacheStale) {
+              pyProcess.stdin.write('FETCH_HOUSING_CATALOG:eu\n');
+            }
           }
         } catch {}
       }
