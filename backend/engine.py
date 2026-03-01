@@ -544,29 +544,9 @@ if __name__ != "__main__":
                 print(f"[engine] Could not find items list in decor index. Keys: {list(raw.keys())}", file=sys.stderr, flush=True)
                 return None
 
-        # Normalize all items
+        # Normalize all items (index only provides id + name; categories/icons
+        # are not available from the Blizzard decor API at this time)
         normalized = [_normalize_decor_item(it) for it in items_list if isinstance(it, dict)]
-
-        # If >50% lack categories, batch-fetch individual details
-        uncategorized = sum(1 for it in normalized if it["category"] == "Uncategorized")
-        if len(normalized) > 0 and uncategorized / len(normalized) > 0.5:
-            print(f"[engine] {uncategorized}/{len(normalized)} items lack categories, batch-fetching details...", file=sys.stderr, flush=True)
-            id_to_idx = {it["id"]: i for i, it in enumerate(normalized) if it["id"]}
-
-            def _fetch_one_detail(decor_id):
-                try:
-                    return (decor_id, _fetch_decor_detail(region, decor_id, token))
-                except Exception:
-                    return (decor_id, None)
-
-            with ThreadPoolExecutor(max_workers=12) as executor:
-                futures = [executor.submit(_fetch_one_detail, did) for did in id_to_idx]
-                for future in as_completed(futures):
-                    did, detail = future.result()
-                    if detail and did in id_to_idx:
-                        idx = id_to_idx[did]
-                        raw_item = items_list[idx] if idx < len(items_list) else {}
-                        normalized[idx] = _normalize_decor_item(raw_item, detail)
 
         # Extract unique categories
         categories = ["All"]
