@@ -46,14 +46,14 @@ Innkeeper brings your character data to your desktop.<br />
 * **Moxie Tracking:** Monitor your profession-locked currency at a glance.
 
 ## Interface
+<img width="400" height="640" alt="0" src="https://github.com/user-attachments/assets/7d15d4ff-f735-4382-bad2-284d3a635983" />
 <img width="400" height="640" alt="1" src="https://github.com/user-attachments/assets/d277fdbc-8ff2-42ea-a255-2bc8c32e20f0" />
 <img width="400" height="640" alt="2" src="https://github.com/user-attachments/assets/72510ab0-5f76-4468-8215-77eddcea8520" />
 <img width="400" height="640" alt="3" src="https://github.com/user-attachments/assets/79e0ac4c-6be8-4a31-a0d2-2065ef988dc4" />
-<img width="400" height="640" alt="4" src="https://github.com/user-attachments/assets/b1a2aff9-fb1a-4eaa-807b-b1f40f8eab36" />
-<img width="400" height="640" alt="5" src="https://github.com/user-attachments/assets/02d9cb21-2312-4f8f-baac-c22f060835d9" />
-<img width="400" height="640" alt="6" src="https://github.com/user-attachments/assets/ab310f50-c1b4-4ac4-964a-99610fc90b8d" />
-<img width="400" height="640" alt="7" src="https://github.com/user-attachments/assets/0c3d432e-6c2e-426e-bc50-044bc26cd779" />
-<img width="400" height="640" alt="8" src="https://github.com/user-attachments/assets/cef9f2ed-c1f1-4a60-8e54-b12a6d9be1ab" />
+<img width="400" height="640" alt="4" src="https://github.com/user-attachments/assets/3ef907c1-13bf-4dab-a709-051d757b6c2b" />
+<img width="400" height="640" alt="5" src="https://github.com/user-attachments/assets/9581610b-3adc-4147-aecb-316b29f0c316" />
+<img width="400" height="640" alt="6" src="https://github.com/user-attachments/assets/15d02334-9db1-4a8f-ae37-a487ff08193a" />
+
 
 ## Getting Started
 1. Go to the [Releases](https://github.com/eightmouse/Innkeper/releases) page.
