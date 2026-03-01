@@ -2,7 +2,7 @@
 # @Author: eightmouse
 
 # ------------[      MODULES      ]------------ #
-import json, requests, os, sys, shutil, unicodedata
+import json, requests, os, sys, shutil, unicodedata, threading
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote as _urlquote
 
@@ -891,7 +891,7 @@ if __name__ != "__main__":
 
     # ────────────────────  Auto-add semaphore  ──────────────────
 
-    _auto_add_semaphore = asyncio.Semaphore(1)
+    _auto_add_lock = threading.Lock()
 
     # ────────────────────  Endpoints  ───────────────────────────
 
@@ -999,9 +999,9 @@ if __name__ != "__main__":
         name   = body.get("name", "")
         if not name:
             raise HTTPException(400, "Missing 'name'")
-        if _auto_add_semaphore.locked():
+        if _auto_add_lock.locked():
             raise HTTPException(429, "Another auto-add scan is already running. Try again later.")
-        async with _auto_add_semaphore:
+        with _auto_add_lock:
             token = get_access_token(region)
             if not token:
                 raise HTTPException(502, "Failed to get Blizzard API token")
