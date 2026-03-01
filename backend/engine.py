@@ -388,6 +388,137 @@ if __name__ != "__main__":
 
         return {"primaries": primaries}
 
+    # ────────────────────  Housing decor helpers  ──────────────────
+
+    def _fetch_decor_index(region, token):
+        """Fetch the housing decor index from Blizzard's static API."""
+        data = _blizzard_get(
+            f"https://{region}.api.blizzard.com/data/wow/decor/index",
+            _params(region, namespace_prefix="static"), token, timeout=30)
+        if data:
+            print(f"[engine] Decor index keys: {list(data.keys())}", file=sys.stderr, flush=True)
+        return data
+
+    def _fetch_decor_detail(region, decor_id, token):
+        """Fetch detail for a single decor item (used if index lacks category/source)."""
+        return _blizzard_get(
+            f"https://{region}.api.blizzard.com/data/wow/decor/{decor_id}",
+            _params(region, namespace_prefix="static"), token, timeout=10)
+
+    def _normalize_decor_item(raw_item, detail=None):
+        """Extract id, name, category, source, icon_url from a raw API item."""
+        merged = {**(detail or {}), **(raw_item or {})}
+
+        item_id = merged.get("id", 0)
+
+        # Name
+        name_raw = merged.get("name", "")
+        name = name_raw if isinstance(name_raw, str) else str(name_raw)
+
+        # Category — probe multiple keys
+        category = None
+        for key in ("category", "decor_category", "type"):
+            val = merged.get(key)
+            if val:
+                category = val.get("name", str(val)) if isinstance(val, dict) else str(val)
+                break
+        if not category:
+            category = "Uncategorized"
+
+        # Source — probe multiple keys
+        source = None
+        for key in ("source", "acquisition", "description"):
+            val = merged.get(key)
+            if val:
+                source = val.get("name", str(val)) if isinstance(val, dict) else str(val)
+                break
+
+        # Icon — extract from media.assets where key == "icon"
+        icon_url = None
+        media = merged.get("media")
+        if isinstance(media, dict):
+            for asset in media.get("assets", []):
+                if isinstance(asset, dict) and asset.get("key") == "icon":
+                    icon_url = asset.get("value")
+                    break
+            # Also try key.href for media reference
+            if not icon_url:
+                key_ref = media.get("key", {})
+                if isinstance(key_ref, dict):
+                    href = key_ref.get("href", "")
+                    if href:
+                        icon_url = href  # Will be resolved later if needed
+
+        return {
+            "id": item_id,
+            "name": name,
+            "category": category,
+            "source": source or "",
+            "icon_url": icon_url,
+        }
+
+    def _build_decor_catalog(region, token):
+        """Fetch the full decor catalog, normalize items, batch-fetch details if needed."""
+        raw = _fetch_decor_index(region, token)
+        if not raw:
+            return None
+
+        # Probe for the items list under various possible keys
+        items_list = None
+        for key in ("decors", "decorations", "items", "results"):
+            if key in raw and isinstance(raw[key], list):
+                items_list = raw[key]
+                print(f"[engine] Decor items found under key '{key}': {len(items_list)} items", file=sys.stderr, flush=True)
+                break
+
+        if items_list is None:
+            # Maybe the root is the list itself
+            if isinstance(raw, list):
+                items_list = raw
+            else:
+                print(f"[engine] Could not find items list in decor index. Keys: {list(raw.keys())}", file=sys.stderr, flush=True)
+                return None
+
+        # Normalize all items
+        normalized = [_normalize_decor_item(it) for it in items_list if isinstance(it, dict)]
+
+        # If >50% lack categories, batch-fetch individual details
+        uncategorized = sum(1 for it in normalized if it["category"] == "Uncategorized")
+        if len(normalized) > 0 and uncategorized / len(normalized) > 0.5:
+            print(f"[engine] {uncategorized}/{len(normalized)} items lack categories, batch-fetching details...", file=sys.stderr, flush=True)
+            id_to_idx = {it["id"]: i for i, it in enumerate(normalized) if it["id"]}
+
+            def _fetch_one_detail(decor_id):
+                try:
+                    return (decor_id, _fetch_decor_detail(region, decor_id, token))
+                except Exception:
+                    return (decor_id, None)
+
+            with ThreadPoolExecutor(max_workers=12) as executor:
+                futures = [executor.submit(_fetch_one_detail, did) for did in id_to_idx]
+                for future in as_completed(futures):
+                    did, detail = future.result()
+                    if detail and did in id_to_idx:
+                        idx = id_to_idx[did]
+                        raw_item = items_list[idx] if idx < len(items_list) else {}
+                        normalized[idx] = _normalize_decor_item(raw_item, detail)
+
+        # Extract unique categories
+        categories = ["All"]
+        seen_cats = set()
+        for it in normalized:
+            cat = it["category"]
+            if cat and cat not in seen_cats:
+                seen_cats.add(cat)
+                categories.append(cat)
+
+        return {
+            "items": normalized,
+            "categories": categories,
+            "fetched_at": datetime.now(UTC).isoformat(),
+            "region": region,
+        }
+
     def _concentration_time_to_full(current, updated_at_iso):
         """Returns seconds until concentration is full, accounting for regen since update."""
         if not updated_at_iso:
@@ -720,6 +851,16 @@ if __name__ != "__main__":
             raise HTTPException(502, "Failed to get Blizzard API token")
         return _fetch_professions(region, realm, name, token)
 
+    @app.get("/decor/index/{region}")
+    async def decor_index(region: str):
+        token = get_access_token(region)
+        if not token:
+            raise HTTPException(502, "Failed to get Blizzard API token")
+        catalog = _build_decor_catalog(region, token)
+        if not catalog:
+            raise HTTPException(502, "Could not fetch decor catalog from Blizzard API")
+        return catalog
+
     @app.post("/auto-add")
     async def auto_add(body: dict):
         region = body.get("region", "eu")
@@ -839,6 +980,7 @@ class Character:
         self.prof_spark_collected_at = None
         self.prof_kp              = {}
         self.prof_kp_last_reset   = None
+        self.housing_tracked      = {}
         self.activities   = {
             "Raid":         {"status": "available", "reset": "weekly"},
             "Mythic+":      {"status": "available", "reset": "weekly"},
@@ -923,6 +1065,7 @@ class Character:
             "prof_spark_collected_at": self.prof_spark_collected_at,
             "prof_kp":               self.prof_kp,
             "prof_kp_last_reset":    self.prof_kp_last_reset.isoformat() if self.prof_kp_last_reset else None,
+            "housing_tracked":       self.housing_tracked,
             "activities":            self.activities,
             "last_reset_check":      self.last_reset_check.isoformat(),
         }
@@ -957,6 +1100,7 @@ class Character:
         char.prof_spark_collected_at = d.get("prof_spark_collected_at", None)
         char.prof_kp                = d.get("prof_kp", {})
         char.prof_kp_last_reset     = datetime.fromisoformat(d["prof_kp_last_reset"]) if d.get("prof_kp_last_reset") else None
+        char.housing_tracked        = d.get("housing_tracked", {})
         char.activities           = d["activities"]
         char.last_reset_check     = datetime.fromisoformat(
             d.get("last_reset_check", datetime.now(UTC).isoformat()))
@@ -1401,6 +1545,74 @@ def main():
                           "spark": char.prof_spark,
                           "spark_collected_at": char.prof_spark_collected_at,
                           "kp": char.prof_kp})
+
+        elif command.startswith("TRACK_HOUSING_ITEM:"):
+            parts = command.split(":", 4)
+            if len(parts) == 5:
+                _, name, realm, item_id, material_keys_csv = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char:
+                    if item_id in char.housing_tracked:
+                        del char.housing_tracked[item_id]
+                    else:
+                        char.housing_tracked[item_id] = {mat: 0 for mat in material_keys_csv.split(",")}
+                    save_data(characters)
+                    emit({"status": "housing_updated", "name": name, "realm": realm,
+                          "housing_tracked": char.housing_tracked})
+
+        elif command.startswith("SET_HOUSING_MATERIAL:"):
+            parts = command.split(":", 5)
+            if len(parts) == 6:
+                _, name, realm, item_id, material, amount = [p.strip() for p in parts]
+                char = find_character(characters, name, realm)
+                if char and item_id in char.housing_tracked:
+                    char.housing_tracked[item_id][material] = int(amount)
+                    save_data(characters)
+                    emit({"status": "housing_updated", "name": name, "realm": realm,
+                          "housing_tracked": char.housing_tracked})
+
+        elif command.startswith("FETCH_HOUSING_CATALOG:"):
+            region = command.split(":", 1)[1].strip()
+            cache_dir  = os.path.join(basedir, 'housing_decor_cache')
+            cache_file = os.path.join(cache_dir, 'decor_catalog.json')
+
+            # Check disk cache (7-day TTL)
+            use_cache = False
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, 'r', encoding='utf-8') as f:
+                        cached = json.load(f)
+                    fetched_at = cached.get('fetched_at', '')
+                    if fetched_at:
+                        age = (datetime.now(UTC) - datetime.fromisoformat(fetched_at)).total_seconds()
+                        if age < 7 * 86400:
+                            print(f"[engine] Housing catalog cache hit (age={age/3600:.1f}h)", file=sys.stderr)
+                            emit({"status": "housing_api_catalog", "catalog": cached})
+                            use_cache = True
+                except Exception as e:
+                    print(f"[engine] Housing cache read error: {e}", file=sys.stderr)
+
+            if not use_cache:
+                try:
+                    catalog = _server_get(f"/decor/index/{region}", timeout=180)
+                    if catalog and catalog.get("items"):
+                        os.makedirs(cache_dir, exist_ok=True)
+                        with open(cache_file, 'w', encoding='utf-8') as f:
+                            json.dump(catalog, f, ensure_ascii=False)
+                        print(f"[engine] Housing catalog fetched & cached: {len(catalog['items'])} items", file=sys.stderr)
+                        emit({"status": "housing_api_catalog", "catalog": catalog})
+                    else:
+                        emit({"status": "housing_api_catalog_error",
+                              "message": "Server returned no decor data"})
+                except Exception as e:
+                    print(f"[engine] Housing catalog fetch error: {e}", file=sys.stderr)
+                    emit({"status": "housing_api_catalog_error", "message": str(e)})
+
+        elif command == "CLEAR_HOUSING_CACHE":
+            cache_dir = os.path.join(basedir, 'housing_decor_cache')
+            if os.path.exists(cache_dir):
+                shutil.rmtree(cache_dir)
+            emit({"status": "success", "message": "Housing decor cache cleared"})
 
         elif command == "CLEAR_TALENT_CACHE":
             cache_dir = os.path.join(basedir, 'talent_tree_cache')
