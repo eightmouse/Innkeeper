@@ -1698,23 +1698,17 @@ def main():
             bundled_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                         '..', 'assets', 'housing_decor_enriched.json')
 
-            # 1. Try enriched disk cache (7-day TTL, must have icons)
+            # 1. Try enriched disk cache (fresher than bundled)
             loaded = None
             if os.path.exists(cache_file):
                 try:
                     with open(cache_file, 'r', encoding='utf-8') as f:
-                        cached = json.load(f)
-                    has_icons = any(it.get('icon_url') for it in (cached.get('items') or [])[:50])
-                    fetched_at = cached.get('fetched_at', '')
-                    if fetched_at and has_icons:
-                        age = (datetime.now(UTC) - datetime.fromisoformat(fetched_at)).total_seconds()
-                        if age < 7 * 86400:
-                            loaded = cached
-                            print(f"[engine] Housing: cache hit ({len(cached.get('items',[]))} items, age={age/3600:.1f}h)", file=sys.stderr)
+                        loaded = json.load(f)
+                    print(f"[engine] Housing: loaded from cache ({len(loaded.get('items',[]))} items)", file=sys.stderr)
                 except Exception as e:
                     print(f"[engine] Housing cache read error: {e}", file=sys.stderr)
 
-            # 2. Try bundled enriched catalog
+            # 2. Fall back to bundled enriched catalog
             if not loaded and os.path.exists(bundled_file):
                 try:
                     with open(bundled_file, 'r', encoding='utf-8') as f:
@@ -1723,99 +1717,74 @@ def main():
                 except Exception as e:
                     print(f"[engine] Housing bundled read error: {e}", file=sys.stderr)
 
-            # 3. Emit whatever we have immediately
+            # 3. Emit immediately
             if loaded:
                 emit({"status": "housing_api_catalog", "catalog": loaded})
+            else:
+                print("[engine] Housing: no bundled or cached catalog found", file=sys.stderr)
 
-            # 4. Background thread: check for updates and enrich new items
-            def _housing_enrich_bg():
+            # 4. Silent background check for new items only
+            def _housing_update_check():
                 try:
-                    index = _server_get(f"/decor/index/{region}", timeout=30)
+                    index = _server_get(f"/decor/index/{region}", timeout=20)
                     if not index or not index.get("items"):
-                        if not loaded:
-                            emit({"status": "housing_api_catalog_error", "message": "Server returned no decor data"})
                         return
-
                     server_count = len(index["items"])
                     local_count = len((loaded or {}).get("items", []))
-                    local_has_icons = loaded and any(it.get('icon_url') for it in loaded.get('items', [])[:50])
-
-                    # If cached catalog has icons and same item count, no update needed
-                    if loaded and local_has_icons and server_count == local_count:
-                        print(f"[engine] Housing: catalog up to date ({server_count} items)", file=sys.stderr)
+                    if server_count == local_count:
+                        print(f"[engine] Housing: up to date ({server_count} items)", file=sys.stderr)
                         return
 
-                    # If no loaded catalog at all, emit the basic index immediately
-                    if not loaded:
-                        emit({"status": "housing_api_catalog", "catalog": index})
+                    # New items found, enrich only the new ones
+                    local_ids = {it["id"] for it in (loaded or {}).get("items", [])}
+                    new_ids = [it["id"] for it in index["items"] if it["id"] not in local_ids]
+                    if not new_ids:
+                        return
+                    print(f"[engine] Housing: {len(new_ids)} new items found, enriching...", file=sys.stderr)
 
-                    # Build set of already-enriched IDs
-                    enriched_ids = set()
-                    if loaded and local_has_icons:
-                        enriched_ids = {it["id"] for it in loaded.get("items", []) if it.get("icon_url")}
-
-                    # IDs that need enrichment
-                    needs = [it["id"] for it in index["items"] if it["id"] not in enriched_ids]
-                    print(f"[engine] Housing: enriching {len(needs)} items in background...", file=sys.stderr)
-
-                    # Enrich in batches of 100
                     enriched_map = {}
-                    for i in range(0, len(needs), 100):
-                        batch = needs[i:i+100]
+                    for i in range(0, len(new_ids), 100):
+                        batch = new_ids[i:i+100]
                         try:
                             result = _server_post(f"/decor/enrich/{region}", {"decor_ids": batch}, timeout=25)
                             if result and result.get("items"):
                                 for it in result["items"]:
                                     enriched_map[it["decor_id"]] = it
-                            print(f"[engine] Housing: enriched batch {i//100+1}/{(len(needs)-1)//100+1}", file=sys.stderr)
-                        except Exception as e:
-                            print(f"[engine] Housing enrich batch error: {e}", file=sys.stderr)
+                        except Exception:
+                            pass
 
-                    # Merge enrichment into index items
+                    # Build updated catalog: old items + new enriched items
+                    old_items = list((loaded or {}).get("items", []))
                     for item in index["items"]:
-                        info = enriched_map.get(item["id"], {})
-                        if info.get("icon_url"):
-                            item["icon_url"] = info["icon_url"]
-                        if info.get("description"):
-                            item["source"] = info["description"]
-                        if info.get("category") and item.get("category") == "Uncategorized":
-                            item["category"] = info["category"]
+                        if item["id"] not in local_ids:
+                            info = enriched_map.get(item["id"], {})
+                            if info.get("icon_url"):
+                                item["icon_url"] = info["icon_url"]
+                            if info.get("description"):
+                                item["source"] = info["description"]
+                            if info.get("category") and item.get("category") == "Uncategorized":
+                                item["category"] = info["category"]
+                            old_items.append(item)
 
-                    # Also carry over enrichment from old cache for items not re-fetched
-                    if loaded:
-                        old_map = {it["id"]: it for it in loaded.get("items", [])}
-                        for item in index["items"]:
-                            if not item.get("icon_url") and item["id"] in old_map:
-                                old = old_map[item["id"]]
-                                item["icon_url"] = old.get("icon_url")
-                                item["source"] = old.get("source", "")
-                                if old.get("category") and item.get("category") == "Uncategorized":
-                                    item["category"] = old["category"]
-
-                    # Rebuild categories
                     cats = ["All"]
                     seen = set()
-                    for it in index["items"]:
+                    for it in old_items:
                         cat = it.get("category", "")
                         if cat and cat not in seen:
                             seen.add(cat)
                             cats.append(cat)
-                    index["categories"] = cats
-                    index["fetched_at"] = datetime.now(UTC).isoformat()
 
-                    # Cache to disk
+                    updated = {"items": old_items, "categories": cats,
+                               "fetched_at": datetime.now(UTC).isoformat(), "region": region}
                     os.makedirs(cache_dir, exist_ok=True)
                     with open(cache_file, 'w', encoding='utf-8') as f:
-                        json.dump(index, f, ensure_ascii=False)
-
-                    enriched_count = sum(1 for it in index["items"] if it.get("icon_url"))
-                    print(f"[engine] Housing: enriched & cached ({enriched_count}/{server_count} with icons)", file=sys.stderr)
-                    emit({"status": "housing_api_catalog", "catalog": index})
-
+                        json.dump(updated, f, ensure_ascii=False)
+                    print(f"[engine] Housing: updated cache with {len(new_ids)} new items", file=sys.stderr)
+                    emit({"status": "housing_api_catalog", "catalog": updated})
                 except Exception as e:
-                    print(f"[engine] Housing enrich bg error: {e}", file=sys.stderr)
+                    print(f"[engine] Housing update check error: {e}", file=sys.stderr)
 
-            threading.Thread(target=_housing_enrich_bg, daemon=True).start()
+            threading.Thread(target=_housing_update_check, daemon=True).start()
 
         elif command == "CLEAR_HOUSING_CACHE":
             cache_dir = os.path.join(basedir, 'housing_decor_cache')
