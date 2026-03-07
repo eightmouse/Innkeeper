@@ -17,9 +17,6 @@ Utilizing the official Blizzard API and supplemental data from WoWHead, providin
 It's a personal project that I started a while ago to push my skills further while taking breaks between WoW sessions.<br />
 Started building it few weeks prior to pushing it to GitHub, mostly due to the fact that I was not planning on actually developing something 'complete' but here we are.<br />
 
-Innkeeper was born out of a simple need: I was tired of alt-tabbing to WoWHead just to check a build or a timer. I wanted a 'digestible' desktop companion that felt like part of the game UI.<br />
-Started WoW not long ago , I wanted something on my desktop that I could access quickly, because I'm lazy hehe~ <br />
-
 ## Supported Regions
 Innkeeper utilizes the Blizzard Battle.net API to fetch character data from the following regions:
 * **North America (NA)**
@@ -45,7 +42,13 @@ Innkeeper brings your character data to your desktop.<br />
 * **Weekly Checklist:** Auto-resetting trackers for Treatises, Quests, and Mob Drops.
 * **Moxie Tracking:** Monitor your profession-locked currency at a glance.
 
-## Interface
+### Housing
+* **Track & Collect:** Track both craftable and non-craftable decorations, mark them as completed when obtained
+* **Acquisition Sources:** Every decoration shows where to get it: Vendor, Quest, Achievement, Drop, or Treasure, color-coded for quick scanning
+* **Completed Category:** Dedicated filter to view all your collected decorations
+
+
+## Demo
 <img width="400" height="640" alt="0" src="https://github.com/user-attachments/assets/7d15d4ff-f735-4382-bad2-284d3a635983" />
 <img width="400" height="640" alt="1" src="https://github.com/user-attachments/assets/d277fdbc-8ff2-42ea-a255-2bc8c32e20f0" />
 <img width="400" height="640" alt="2" src="https://github.com/user-attachments/assets/72510ab0-5f76-4468-8215-77eddcea8520" />
@@ -53,11 +56,6 @@ Innkeeper brings your character data to your desktop.<br />
 <img width="400" height="640" alt="4" src="https://github.com/user-attachments/assets/3ef907c1-13bf-4dab-a709-051d757b6c2b" />
 <img width="400" height="640" alt="5" src="https://github.com/user-attachments/assets/9581610b-3adc-4147-aecb-316b29f0c316" />
 <img width="400" height="640" alt="6" src="https://github.com/user-attachments/assets/15d02334-9db1-4a8f-ae37-a487ff08193a" />
-
-
-## Getting Started
-1. Go to the [Releases](https://github.com/eightmouse/Innkeper/releases) page.
-2. Download the version for your OS (`.exe` for Windows, `.AppImage` for Linux, `.dmg` for MacOS).
 
 ## FaQ
 ***Q: Why does the app take a long time to load character data on the first launch?*** <br />
@@ -77,7 +75,10 @@ It leverages modern web standards (HTML5/CSS3) for the user interface while main
 ***A:*** *As I mentioned, the goal for this app is not to replace the resources already available but more of a 'quick but less' alternative. So, suggestions are welcomed but I can't guarantee I will add specific things unless they're more of a QoL than anything.*
 
 ***Q: Did you use AI to help you develop the app?*** <br />
-***A:*** *Yes. When used correctly it's an amazing tool that provides help. I see it no differently than using StackOverflow or Google, with the difference that at least I'm not get bullied for asking/expressing myself poorly. If this bothers you I apologize, this app might not be for you.*
+***A:*** *Yes. I view it as an evolution of searching StackOverflow or Google, it’s an incredible tool for troubleshooting, boilerplating, and logic-checking. Best of all, it doesn't judge me if I struggle to express a technical question perfectly! If this approach bothers you, I understand this app might not be for you.*
+
+***Q: Where are the assets from?*** <br />
+***A:*** *All game assets and icons are property of Blizzard. The Innkeeper logo was designed by me in Photoshop.*
 
 ***Q: I'm on Linux/MacOS can I still use this app?*** <br />
 ***A:*** *Like Ronnie Coleman once said, 'YEAH BUDDY!'.*
