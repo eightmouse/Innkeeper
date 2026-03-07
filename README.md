@@ -54,11 +54,6 @@ Innkeeper brings your character data to your desktop.<br />
 <img width="400" height="640" alt="5" src="https://github.com/user-attachments/assets/9581610b-3adc-4147-aecb-316b29f0c316" />
 <img width="400" height="640" alt="6" src="https://github.com/user-attachments/assets/15d02334-9db1-4a8f-ae37-a487ff08193a" />
 
-
-## Getting Started
-1. Go to the [Releases](https://github.com/eightmouse/Innkeper/releases) page.
-2. Download the version for your OS (`.exe` for Windows, `.AppImage` for Linux, `.dmg` for MacOS).
-
 ## FaQ
 ***Q: Why does the app take a long time to load character data on the first launch?*** <br />
 ***A:*** *Innkeeper utilizes a backend hosted on a Render free instance. Due to the service's resource management, the server may enter a sleep state after a period of inactivity. The initial request of a session may require up to 60 seconds for the instance to "spin up." Subsequent interactions will be processed with standard latency.<br />*
@@ -77,7 +72,10 @@ It leverages modern web standards (HTML5/CSS3) for the user interface while main
 ***A:*** *As I mentioned, the goal for this app is not to replace the resources already available but more of a 'quick but less' alternative. So, suggestions are welcomed but I can't guarantee I will add specific things unless they're more of a QoL than anything.*
 
 ***Q: Did you use AI to help you develop the app?*** <br />
-***A:*** *Yes. When used correctly it's an amazing tool that provides help. I see it no differently than using StackOverflow or Google, with the difference that at least I'm not get bullied for asking/expressing myself poorly. If this bothers you I apologize, this app might not be for you.*
+***A:*** *Yes. I view it as an evolution of searching StackOverflow or Google, it’s an incredible tool for troubleshooting, boilerplating, and logic-checking. Best of all, it doesn't judge me if I struggle to express a technical question perfectly! If this approach bothers you, I understand this app might not be for you.*
+
+***Q: Where are the assets from?*** <br />
+***A:*** *All game assets and icons are property of Blizzard. The Innkeeper logo was designed by me in Photoshop.*
 
 ***Q: I'm on Linux/MacOS can I still use this app?*** <br />
 ***A:*** *Like Ronnie Coleman once said, 'YEAH BUDDY!'.*
