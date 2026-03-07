@@ -963,7 +963,7 @@ if __name__ != "__main__":
                 pass
             return result
 
-        with ThreadPoolExecutor(max_workers=20) as pool:
+        with ThreadPoolExecutor(max_workers=3) as pool:
             results = list(pool.map(_enrich_one, decor_ids))
         return {"items": results}
 
@@ -1806,7 +1806,7 @@ def main():
             else:
                 print("[engine] Housing: no bundled or cached catalog found", file=sys.stderr)
 
-            # 4. Silent background check for new items only
+            # 4. Silent background check for new items only (no enrichment — uses pre-packaged data)
             def _housing_update_check():
                 try:
                     index = _server_get(f"/decor/index/{region}", timeout=20)
@@ -1818,35 +1818,17 @@ def main():
                         print(f"[engine] Housing: up to date ({server_count} items)", file=sys.stderr)
                         return
 
-                    # New items found, enrich only the new ones
+                    # New items found — add them without enrichment (icons come from pre-packaged data)
                     local_ids = {it["id"] for it in (loaded or {}).get("items", [])}
                     new_ids = [it["id"] for it in index["items"] if it["id"] not in local_ids]
                     if not new_ids:
                         return
-                    print(f"[engine] Housing: {len(new_ids)} new items found, enriching...", file=sys.stderr)
+                    print(f"[engine] Housing: {len(new_ids)} new items found (no enrichment)", file=sys.stderr)
 
-                    enriched_map = {}
-                    for i in range(0, len(new_ids), 100):
-                        batch = new_ids[i:i+100]
-                        try:
-                            result = _server_post(f"/decor/enrich/{region}", {"decor_ids": batch}, timeout=25)
-                            if result and result.get("items"):
-                                for it in result["items"]:
-                                    enriched_map[it["decor_id"]] = it
-                        except Exception:
-                            pass
-
-                    # Build updated catalog: old items + new enriched items
+                    # Build updated catalog: old items + new items (basic info only)
                     old_items = list((loaded or {}).get("items", []))
                     for item in index["items"]:
                         if item["id"] not in local_ids:
-                            info = enriched_map.get(item["id"], {})
-                            if info.get("icon_url"):
-                                item["icon_url"] = info["icon_url"]
-                            if info.get("description"):
-                                item["source"] = info["description"]
-                            if info.get("category") and item.get("category") == "Uncategorized":
-                                item["category"] = info["category"]
                             old_items.append(item)
 
                     cats = ["All"]
