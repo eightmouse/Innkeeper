@@ -12,7 +12,7 @@ if getattr(sys, 'frozen', False):
 else:
     basedir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
-SERVER_URL = "https://innkeeper.onrender.com"
+SERVER_URL = "https://innkeper.onrender.com"
 AUTH_KEY   = "r7XkP9mQ2zW6vT4nY8sH3dFa1cJuE5LbG0tC" # App-level routing key, NOT a secret. Server uses env vars for Blizzard OAuth. Rate-limited per IP.
 DATA_FILE  = os.path.join(basedir, 'characters.json')
 
