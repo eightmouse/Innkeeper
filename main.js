@@ -64,6 +64,7 @@ function createWindow() {
   console.log('[Main] Icon path:', iconPath || '(none found — using default)');
 
   win = new BrowserWindow({
+    title: 'Innkeeper',
     width: 1600,
     height: 1000,
     minWidth: 1200,
@@ -184,7 +185,22 @@ function createWindow() {
       console.error('[Main] Error reading housing catalog:', e.message);
     }
 
-    // Step 5: Check for app updates (silent)
+    // Step 5: Pre-load housing source data (Wowhead acquisition info)
+    try {
+      const sourcesFile = path.join(__dirname, 'assets', 'housing_sources.json');
+      if (fs.existsSync(sourcesFile)) {
+        const sources = JSON.parse(fs.readFileSync(sourcesFile, 'utf-8'));
+        const count = Object.keys(sources).filter(k => sources[k]).length;
+        win?.webContents.send('from-python', JSON.stringify({
+          status: 'housing_sources_loaded', sources
+        }));
+        console.log(`[Main] Loaded housing_sources.json: ${count} items with source info`);
+      }
+    } catch (e) {
+      console.error('[Main] Error reading housing_sources.json:', e.message);
+    }
+
+    // Step 6: Check for app updates (silent)
     checkForUpdates();
   });
 }
@@ -299,8 +315,11 @@ ipcMain.on('open-external',   (_, url) => {
   try { if (/^https?:\/\//i.test(url)) shell.openExternal(url); }
   catch (e) { console.error('[Main] open-external error:', e.message); }
 });
+ipcMain.on('show-data-folder', () => {
+  shell.openPath(getDataDir());
+});
 ipcMain.on('set-resolution', (_, w, h) => {
-  if (win && Number.isFinite(w) && Number.isFinite(h)) {
+  if (win && Number.isFinite(w) && Number.isFinite(h) && w >= 800 && h >= 600 && w <= 3840 && h <= 2160) {
     win.unmaximize();
     win.setSize(w, h);
     win.center();
@@ -311,7 +330,7 @@ ipcMain.on('set-resolution', (_, w, h) => {
 function checkForUpdates() {
   const options = {
     hostname: 'api.github.com',
-    path: '/repos/eightmouse/Innkeper/releases/latest',
+    path: '/repos/eightmouse/Innkeeper/releases/latest',
     headers: { 'User-Agent': 'Innkeeper-App' },
   };
   https.get(options, (res) => {
