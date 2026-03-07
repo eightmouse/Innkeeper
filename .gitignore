@@ -5,6 +5,7 @@
 settings.local.json
 talent_tree_cache
 housing_decor_cache
+scripts/.wowhead_cache/
 
 # Python
 __pycache__/

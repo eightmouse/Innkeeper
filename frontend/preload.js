@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowMaximize: ()    => ipcRenderer.send('window-maximize'),
   openExternal:   (url) => ipcRenderer.send('open-external', url),
   setResolution:  (w, h) => ipcRenderer.send('set-resolution', w, h),
+  showDataFolder: ()     => ipcRenderer.send('show-data-folder'),
   onFromPython:   (cb)  => ipcRenderer.on('from-python', (_event, data) => cb(data)),
 });

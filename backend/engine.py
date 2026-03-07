@@ -1431,8 +1431,7 @@ def main():
                     char.portrait_url = data.get("portrait_url", char.portrait_url)
                     char.avatar_url   = data.get("avatar_url", char.avatar_url)
                     spec_changed = (old_spec != char.spec_slug)
-                    if spec_changed:
-                        save_data(characters)
+                    save_data(characters)
                     emit({"status": "spec_refreshed", "name": name, "realm": realm,
                           "character": char.to_dict(), "spec_changed": spec_changed})
                 else:
