@@ -55,7 +55,7 @@ if __name__ != "__main__":
     _rate_buckets: dict[str, collections.deque] = {}   # ip → deque of timestamps
     _RATE_GENERAL    = (30, 60)   # 30 requests per 60 seconds
     _RATE_HEAVY      = (5, 60)    # 5 requests per 60 seconds  (auto-add, decor)
-    _HEAVY_PREFIXES  = ("/auto-add", "/decor/index", "/decor/debug")
+    _HEAVY_PREFIXES  = ("/auto-add", "/decor/index", "/decor/enrich", "/decor/debug")
     _rate_state = {"last_clean": 0.0}
 
     def _rate_key(ip: str, path: str) -> str:
@@ -108,6 +108,12 @@ if __name__ != "__main__":
     _token_cache: dict[str, dict] = {}
     TOKEN_TTL = 24 * 3600 - 300
 
+    # Server-side caches for heavy/static endpoints
+    _realm_cache: dict[str, dict] = {}      # region → {"realms": [...], "expires": timestamp}
+    _REALM_CACHE_TTL = 30 * 60              # 30 minutes
+    _decor_index_cache: dict[str, dict] = {}  # region → {"catalog": {...}, "expires": timestamp}
+    _DECOR_CACHE_TTL = 30 * 60              # 30 minutes
+
     # TW OAuth redirects to a dead apac host; use KR's endpoint instead (same APAC token)
     _OAUTH_HOST = {"tw": "kr"}
 
@@ -132,10 +138,15 @@ if __name__ != "__main__":
     # ────────────────────  Blizzard HTTP helper  ────────────────
 
     def _blizzard_get(url, params, token, timeout=15):
-        r = requests.get(url, params=params,
-                         headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
-        if r.status_code == 200:
-            return r.json()
+        try:
+            r = requests.get(url, params=params,
+                             headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
+            if r.status_code == 200:
+                return r.json()
+            if r.status_code != 404:
+                print(f"[engine] Blizzard API {r.status_code}: {url.split('.com')[1].split('?')[0]}", file=sys.stderr)
+        except requests.RequestException as e:
+            print(f"[engine] Blizzard API error: {url.split('.com')[1].split('?')[0]} → {e}", file=sys.stderr)
         return None
 
     def _params(region, locale="en_US", namespace_prefix="profile"):
@@ -842,10 +853,16 @@ if __name__ != "__main__":
 
     @app.get("/realms/{region}")
     def realms(region: str):
+        cached = _realm_cache.get(region)
+        if cached and cached["expires"] > time.time():
+            return {"region": region, "realms": cached["realms"]}
         token = get_access_token(region)
         if not token:
             raise HTTPException(502, "Failed to get Blizzard API token")
-        return {"region": region, "realms": _fetch_realms(region, token)}
+        realm_list = _fetch_realms(region, token)
+        if realm_list:
+            _realm_cache[region] = {"realms": realm_list, "expires": time.time() + _REALM_CACHE_TTL}
+        return {"region": region, "realms": realm_list}
 
     @app.get("/character/{region}/{realm}/{name}")
     def character(region: str, realm: str, name: str):
@@ -894,12 +911,16 @@ if __name__ != "__main__":
 
     @app.get("/decor/index/{region}")
     def decor_index(region: str):
+        cached = _decor_index_cache.get(region)
+        if cached and cached["expires"] > time.time():
+            return cached["catalog"]
         token = get_access_token(region)
         if not token:
             raise HTTPException(502, "Failed to get Blizzard API token")
         catalog = _build_decor_catalog(region, token)
         if not catalog:
             raise HTTPException(502, "Could not fetch decor catalog from Blizzard API")
+        _decor_index_cache[region] = {"catalog": catalog, "expires": time.time() + _DECOR_CACHE_TTL}
         return catalog
 
     @app.post("/decor/enrich/{region}")
