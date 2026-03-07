@@ -47,15 +47,8 @@ Innkeeper brings your character data to your desktop.<br />
 * **Acquisition Sources:** Every decoration shows where to get it: Vendor, Quest, Achievement, Drop, or Treasure, color-coded for quick scanning
 * **Completed Category:** Dedicated filter to view all your collected decorations
 
-
 ## Demo
-<img width="400" height="640" alt="0" src="https://github.com/user-attachments/assets/7d15d4ff-f735-4382-bad2-284d3a635983" />
-<img width="400" height="640" alt="1" src="https://github.com/user-attachments/assets/d277fdbc-8ff2-42ea-a255-2bc8c32e20f0" />
-<img width="400" height="640" alt="2" src="https://github.com/user-attachments/assets/72510ab0-5f76-4468-8215-77eddcea8520" />
-<img width="400" height="640" alt="3" src="https://github.com/user-attachments/assets/79e0ac4c-6be8-4a31-a0d2-2065ef988dc4" />
-<img width="400" height="640" alt="4" src="https://github.com/user-attachments/assets/3ef907c1-13bf-4dab-a709-051d757b6c2b" />
-<img width="400" height="640" alt="5" src="https://github.com/user-attachments/assets/9581610b-3adc-4147-aecb-316b29f0c316" />
-<img width="400" height="640" alt="6" src="https://github.com/user-attachments/assets/15d02334-9db1-4a8f-ae37-a487ff08193a" />
+https://github.com/user-attachments/assets/c2d7ff04-c8dc-4564-a1dc-2d313d61c591
 
 ## FaQ
 ***Q: Why does the app take a long time to load character data on the first launch?*** <br />
@@ -82,5 +75,3 @@ It leverages modern web standards (HTML5/CSS3) for the user interface while main
 
 ***Q: I'm on Linux/MacOS can I still use this app?*** <br />
 ***A:*** *Like Ronnie Coleman once said, 'YEAH BUDDY!'.*
-
-
