@@ -55,7 +55,7 @@ https://github.com/user-attachments/assets/c2d7ff04-c8dc-4564-a1dc-2d313d61c591
 ***A:*** *Innkeeper utilizes a backend hosted on a Render free instance. Due to the service's resource management, the server may enter a sleep state after a period of inactivity. The initial request of a session may require up to 60 seconds for the instance to "spin up." Subsequent interactions will be processed with standard latency.<br />*
 
 ***Q: Why Electron?*** <br />
-***A:*** *I know that it's quite hated for it's memory usage, super valid and agreable critique, HOWEVER: <br />
+***A:*** *I know that it's quite hated for it's memory usage, super valid and agreeable critique, HOWEVER: <br />
 It leverages modern web standards (HTML5/CSS3) for the user interface while maintaining a unified codebase for cross-platform distribution. I thought about other options but I'm not confident and skilled enough to use other frameworks. Tauri could've achieved same results with less memory usage but as I said, that would've been out of my skill reach for now!* <br />
 
 ***Q: Why Portable and no installer?*** <br />
