@@ -1,4 +1,4 @@
-# Innkeeper - Version 2.1.0
+# Innkeeper - Version 2.1.1
 # @Author: eightmouse
 
 # ------------[      MODULES      ]------------ #
@@ -741,7 +741,7 @@ if __name__ != "__main__":
     BLIZZARD_CLIENT_SECRET = os.getenv("BLIZZARD_CLIENT_SECRET")
     AUTH_KEY             = os.getenv("AUTH_KEY", "")
 
-    app = FastAPI(title="Innkeeper API", version="2.1.0")
+    app = FastAPI(title="Innkeeper API", version="2.1.1")
 
     # ────────────────────  Auth middleware  ──────────────────────
 
@@ -1604,12 +1604,17 @@ def main():
                 try:
                     with open(cache_file, 'r', encoding='utf-8') as f:
                         cached = json.load(f)
-                    has_icons = any(it.get('icon_url') for it in (cached.get('items') or [])[:50])
-                    if has_icons:
+                    sample = (cached.get('items') or [])[:50]
+                    icon_count = sum(1 for it in sample if it.get('icon_url'))
+                    if icon_count >= len(sample) * 0.5:
                         loaded = cached
                         print(f"[engine] Housing: loaded from cache ({len(cached.get('items',[]))} items)", file=sys.stderr)
                     else:
-                        print(f"[engine] Housing: cache has no icons, skipping", file=sys.stderr)
+                        print(f"[engine] Housing: cache has insufficient icons, removing stale cache", file=sys.stderr)
+                        try:
+                            os.remove(cache_file)
+                        except OSError:
+                            pass
                 except Exception as e:
                     print(f"[engine] Housing cache read error: {e}", file=sys.stderr)
 
@@ -1629,8 +1634,13 @@ def main():
                 print("[engine] Housing: no bundled or cached catalog found", file=sys.stderr)
 
             # 4. Silent background check for new items (direct Blizzard call)
+            #    Skip if no baseline — main.js pre-loads the enriched catalog,
+            #    and we must not overwrite it with raw API data that lacks icons.
             def _housing_update_check(region=region, loaded=loaded,
                                       cache_dir=cache_dir, cache_file=cache_file):
+                if not loaded:
+                    print("[engine] Housing: skipping background check (no baseline loaded)", file=sys.stderr)
+                    return
                 try:
                     index = _call_with_token(region, _build_decor_catalog, region)
                     if not index or not index.get("items"):
