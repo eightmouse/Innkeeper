@@ -1,8 +1,8 @@
-# Innkeeper - Version 2.1.3
+# Innkeeper - Version 2.2.0
 # @Author: eightmouse
 
 # ------------[      MODULES      ]------------ #
-import json, requests, os, sys, shutil, unicodedata, threading, time
+import json, requests, os, sys, shutil, unicodedata, threading, time, atexit, tempfile, re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote as _urlquote
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -47,6 +47,13 @@ SPEC_IDS = {
     'druid':        {'balance': 102, 'feral': 103, 'guardian': 104, 'restoration': 105},
     'demon-hunter': {'havoc': 577, 'vengeance': 581, 'devourer': 1480},
     'evoker':       {'devastation': 1467, 'preservation': 1468, 'augmentation': 1473},
+}
+
+_SPEC_ROLE = {
+    'blood': 'tank', 'protection': 'tank', 'vengeance': 'tank',
+    'brewmaster': 'tank', 'guardian': 'tank',
+    'discipline': 'healer', 'holy': 'healer', 'restoration': 'healer',
+    'mistweaver': 'healer', 'preservation': 'healer',
 }
 
 # ── Vault constants ──
@@ -734,6 +741,59 @@ def _fetch_talent_tree_from_blizzard(region, class_slug, spec_slug, token):
     _attach_spell_icons(parsed, region, token)
     return parsed
 
+# ── Wowhead build scraping ──
+
+_WOWHEAD_COPY_RE = re.compile(r'\[copy="([^"]+)"\]([^\[]+)\[/copy\]')
+
+def _fetch_wowhead_builds(class_slug, spec_slug):
+    """Scrape Wowhead's class guide page for recommended talent build strings."""
+    role = _SPEC_ROLE.get(spec_slug, 'dps')
+    url = f"https://www.wowhead.com/guide/classes/{class_slug}/{spec_slug}/talent-builds-pve-{role}"
+    try:
+        r = _http.get(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml",
+        }, timeout=20)
+        if r.status_code != 200:
+            print(f"[engine] Wowhead returned {r.status_code} for {class_slug}/{spec_slug}", file=sys.stderr)
+            return None
+        # Unescape JS string escapes so the simple regex can match
+        html = r.text.replace('\\"', '"').replace('\\/', '/')
+    except Exception as e:
+        print(f"[engine] Wowhead fetch error: {e}", file=sys.stderr)
+        return None
+
+    matches = _WOWHEAD_COPY_RE.findall(html)
+    if not matches:
+        print(f"[engine] No [copy] tags found for {class_slug}/{spec_slug}", file=sys.stderr)
+        return None
+
+    result = {}
+    for label, build_string in matches:
+        build_string = build_string.strip()
+        if not build_string or len(build_string) < 20:
+            continue
+        label_lower = label.lower()
+        has_raid  = 'raid' in label_lower or 'st' in label_lower.split()
+        has_myth  = 'mythic' in label_lower or 'm+' in label_lower
+        has_delve = 'delv' in label_lower
+        if has_raid and 'raid' not in result:
+            result['raid'] = build_string
+        if has_myth and 'mythic' not in result:
+            result['mythic'] = build_string
+        if has_delve and 'delves' not in result:
+            result['delves'] = build_string
+        # Combined labels like "M+/Delves" set both keys
+        if not has_raid and not has_myth and not has_delve:
+            continue
+
+    # If delves wasn't found separately, fall back to mythic build
+    if 'mythic' in result and 'delves' not in result:
+        result['delves'] = result['mythic']
+
+    print(f"[engine] Wowhead builds for {class_slug}/{spec_slug}: {list(result.keys())}", file=sys.stderr)
+    return result if result else None
+
 # ============================================================
 #  FASTAPI SERVER  (only when imported by uvicorn on Render)
 # ============================================================
@@ -749,7 +809,7 @@ if __name__ != "__main__":
     BLIZZARD_CLIENT_SECRET = os.getenv("BLIZZARD_CLIENT_SECRET")
     AUTH_KEY             = os.getenv("AUTH_KEY", "")
 
-    app = FastAPI(title="Innkeeper API", version="2.1.3")
+    app = FastAPI(title="Innkeeper API", version="2.2.0")
 
     # ────────────────────  Auth middleware  ──────────────────────
 
@@ -900,14 +960,22 @@ def emit(data):
 
 def save_data(characters):
     try:
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+        dir_name = os.path.dirname(DATA_FILE) or '.'
+        fd, tmp = tempfile.mkstemp(dir=dir_name, suffix='.tmp')
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
             json.dump([c.to_dict() for c in characters], f, indent=4, ensure_ascii=False)
+        os.replace(tmp, DATA_FILE)
         print(f"[engine] Saved {len(characters)} chars → {DATA_FILE}", file=sys.stderr)
     except Exception as e:
         print(f"[engine] SAVE ERROR: {e}", file=sys.stderr)
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 _save_timer = None
 _save_timer_lock = threading.Lock()
+_save_ref = None  # set by main() to the characters list
 _SAVE_DEBOUNCE = 2  # seconds
 
 def _schedule_save():
@@ -927,7 +995,10 @@ def _flush_save():
         if _save_timer is not None:
             _save_timer.cancel()
             _save_timer = None
-    save_data(characters)
+    if _save_ref is not None:
+        save_data(_save_ref)
+
+atexit.register(_flush_save)
 
 def load_data():
     try:
@@ -1144,7 +1215,9 @@ def main():
 
     emit({"status": "ready"})
 
+    global _save_ref
     characters = load_data()
+    _save_ref = characters
     for char in characters:
         char.check_resets()
         # Clear stale vault cache so fresh data uses current ilvl tables
@@ -1731,6 +1804,20 @@ def main():
             if os.path.exists(cache_dir):
                 shutil.rmtree(cache_dir)
             emit({"status": "success", "message": "Talent tree cache cleared"})
+
+        elif command.startswith("FETCH_WOWHEAD_BUILDS:"):
+            parts = command.split(":", 2)
+            if len(parts) == 3:
+                _, class_slug, spec_slug = [p.strip() for p in parts]
+                def _wowhead_worker(cs=class_slug, ss=spec_slug):
+                    builds = _fetch_wowhead_builds(cs, ss)
+                    if builds:
+                        emit({"status": "wowhead_builds", "class_slug": cs,
+                              "spec_slug": ss, "builds": builds})
+                    else:
+                        emit({"status": "wowhead_builds_error", "class_slug": cs,
+                              "spec_slug": ss, "message": f"Could not fetch builds for {cs}/{ss}"})
+                threading.Thread(target=_wowhead_worker, daemon=True).start()
 
         elif command == "EXIT":
             _flush_save()
