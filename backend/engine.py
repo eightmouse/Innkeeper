@@ -1,4 +1,4 @@
-# Innkeeper - Version 2.1.1
+# Innkeeper - Version 2.1.2
 # @Author: eightmouse
 
 # ------------[      MODULES      ]------------ #
@@ -6,6 +6,14 @@ import json, requests, os, sys, shutil, unicodedata, threading, time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote as _urlquote
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from requests.adapters import HTTPAdapter
+
+# ── Connection-pooled HTTP session ──
+# Reuses TCP connections across calls instead of opening a new one each time.
+# Thread-safe for concurrent GET/POST when headers are passed per-request.
+_http = requests.Session()
+_http.mount("https://", HTTPAdapter(pool_connections=10, pool_maxsize=20))
+_http.mount("http://",  HTTPAdapter(pool_connections=10, pool_maxsize=20))
 
 UTC     = timezone.utc
 if getattr(sys, 'frozen', False):
@@ -101,7 +109,7 @@ class _TokenExpired(Exception):
 
 def _blizzard_get(url, params, token, timeout=15):
     try:
-        r = requests.get(url, params=params,
+        r = _http.get(url, params=params,
                          headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
         if r.status_code == 200:
             return r.json()
@@ -367,7 +375,7 @@ def _fetch_decor_index(region, token):
     params = _params(region, namespace_prefix="static")
     print(f"[engine] Fetching decor index: {url} params={params}", file=sys.stderr, flush=True)
     try:
-        r = requests.get(url, params=params,
+        r = _http.get(url, params=params,
                          headers={"Authorization": f"Bearer {token}"}, timeout=30)
         print(f"[engine] Decor index response: {r.status_code} (len={len(r.content)})", file=sys.stderr, flush=True)
         if r.status_code == 200:
@@ -614,7 +622,7 @@ def _attach_spell_icons(parsed, region, token):
 
     def _fetch_one_icon(spell_id):
         try:
-            r = requests.get(
+            r = _http.get(
                 f"https://{region}.api.blizzard.com/data/wow/media/spell/{spell_id}",
                 params={"namespace": f"static-{region}", "locale": "en_US"},
                 headers={"Authorization": f"Bearer {token}"},
@@ -741,7 +749,7 @@ if __name__ != "__main__":
     BLIZZARD_CLIENT_SECRET = os.getenv("BLIZZARD_CLIENT_SECRET")
     AUTH_KEY             = os.getenv("AUTH_KEY", "")
 
-    app = FastAPI(title="Innkeeper API", version="2.1.1")
+    app = FastAPI(title="Innkeeper API", version="2.1.2")
 
     # ────────────────────  Auth middleware  ──────────────────────
 
@@ -804,7 +812,7 @@ if __name__ != "__main__":
         if cached and cached["expires"] > time.time():
             return cached["token"]
         oauth_host = _OAUTH_HOST.get(region, region)
-        r = requests.post(
+        r = _http.post(
             f"https://{oauth_host}.battle.net/oauth/token",
             data={"grant_type": "client_credentials"},
             auth=(BLIZZARD_CLIENT_ID, BLIZZARD_CLIENT_SECRET),
@@ -847,7 +855,7 @@ def _get_token(region="eu"):
     if cached and cached["expires"] > time.time():
         return cached["token"]
     try:
-        r = requests.get(f"{SERVER_URL}/token/{region}", headers=_AUTH_HEADERS, timeout=15)
+        r = _http.get(f"{SERVER_URL}/token/{region}", headers=_AUTH_HEADERS, timeout=15)
         if r.status_code == 200:
             data = r.json()
             token = data["access_token"]
@@ -1134,7 +1142,7 @@ def main():
             connected = False
             for attempt in range(3):
                 try:
-                    h = requests.get(f"{SERVER_URL}/health", timeout=30)
+                    h = _http.get(f"{SERVER_URL}/health", timeout=30)
                     if h.status_code == 200:
                         emit({"status": "connected"})
                         connected = True
