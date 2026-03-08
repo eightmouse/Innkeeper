@@ -1,6 +1,6 @@
 {
   "name": "innkeeper",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "A World of Warcraft companion app",
   "main": "main.js",
   "scripts": {
