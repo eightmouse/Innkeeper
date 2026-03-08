@@ -1,4 +1,4 @@
-# Innkeeper - Version 2.1.2
+# Innkeeper - Version 2.1.3
 # @Author: eightmouse
 
 # ------------[      MODULES      ]------------ #
@@ -749,7 +749,7 @@ if __name__ != "__main__":
     BLIZZARD_CLIENT_SECRET = os.getenv("BLIZZARD_CLIENT_SECRET")
     AUTH_KEY             = os.getenv("AUTH_KEY", "")
 
-    app = FastAPI(title="Innkeeper API", version="2.1.2")
+    app = FastAPI(title="Innkeeper API", version="2.1.3")
 
     # ────────────────────  Auth middleware  ──────────────────────
 
@@ -891,6 +891,7 @@ def _call_with_token(region, fn, *args, **kwargs):
 # ────────────────────  Data persistence  ────────────────────
 
 _emit_lock = threading.Lock()
+_data_lock = threading.Lock()   # protects characters list mutations + save_data
 
 def emit(data):
     with _emit_lock:
@@ -904,6 +905,29 @@ def save_data(characters):
         print(f"[engine] Saved {len(characters)} chars → {DATA_FILE}", file=sys.stderr)
     except Exception as e:
         print(f"[engine] SAVE ERROR: {e}", file=sys.stderr)
+
+_save_timer = None
+_save_timer_lock = threading.Lock()
+_SAVE_DEBOUNCE = 2  # seconds
+
+def _schedule_save():
+    """Debounced save — batches rapid changes into one write after 2s idle."""
+    global _save_timer
+    with _save_timer_lock:
+        if _save_timer is not None:
+            _save_timer.cancel()
+        _save_timer = threading.Timer(_SAVE_DEBOUNCE, _flush_save)
+        _save_timer.daemon = True
+        _save_timer.start()
+
+def _flush_save():
+    """Execute any pending debounced save immediately."""
+    global _save_timer
+    with _save_timer_lock:
+        if _save_timer is not None:
+            _save_timer.cancel()
+            _save_timer = None
+    save_data(characters)
 
 def load_data():
     try:
@@ -1170,9 +1194,10 @@ def main():
                 data = _call_with_token(region, _fetch_and_build_character, region, realm, name)
                 if data:
                     char = _char_from_server(data)
-                    if not find_character(characters, char.name, char.realm):
-                        characters.append(char)
-                        save_data(characters)
+                    with _data_lock:
+                        if not find_character(characters, char.name, char.realm):
+                            characters.append(char)
+                            _schedule_save()
                     emit({"status": "added", "character": char.to_dict()})
                 else:
                     emit({"status": "not_found"})
@@ -1191,9 +1216,10 @@ def main():
                             data = _call_with_token(region, _fetch_and_build_character, region, rn, name)
                             if data:
                                 char = _char_from_server(data)
-                                if not find_character(characters, char.name, char.realm):
-                                    characters.append(char)
-                                    save_data(characters)
+                                with _data_lock:
+                                    if not find_character(characters, char.name, char.realm):
+                                        characters.append(char)
+                                        _schedule_save()
                                 emit({"status": "added", "character": char.to_dict()})
                                 return
                         emit({"status": "not_found"})
@@ -1206,10 +1232,12 @@ def main():
             parts = command.split(":", 2)
             if len(parts) == 3:
                 _, name, realm = [p.strip() for p in parts]
-                char = find_character(characters, name, realm)
+                with _data_lock:
+                    char = find_character(characters, name, realm)
+                    if char:
+                        characters.remove(char)
+                        _schedule_save()
                 if char:
-                    characters.remove(char)
-                    save_data(characters)
                     emit({"status": "deleted", "name": name, "realm": realm})
 
         elif command.startswith("TOGGLE_ACTIVITY:"):
@@ -1219,7 +1247,7 @@ def main():
                 char = find_character(characters, name, realm)
                 if char:
                     char.toggle_activity(activity)
-                    save_data(characters)
+                    _schedule_save()
                     new_status = char.activities.get(activity, {}).get("status")
                     emit({"status": "toggled", "name": name,
                           "activity": activity, "new_status": new_status})
@@ -1242,7 +1270,7 @@ def main():
                     if char and items:
                         char.equipment = items
                         char.equipment_last_check = datetime.now(UTC)
-                        save_data(characters)
+                        _schedule_save()
                     emit({"status": "equipment", "name": name, "realm": realm,
                           "items": items if items else [], "cached": False})
                 else:
@@ -1260,7 +1288,7 @@ def main():
                     if char:
                         char.equipment = items if items else []
                         char.equipment_last_check = datetime.now(UTC)
-                        save_data(characters)
+                        _schedule_save()
                     emit({"status": "equipment", "name": name, "realm": realm,
                           "items": items if items else [], "cached": False})
                 else:
@@ -1285,7 +1313,7 @@ def main():
                     char.portrait_url = data.get("portrait_url", char.portrait_url)
                     char.avatar_url   = data.get("avatar_url", char.avatar_url)
                     spec_changed = (old_spec != char.spec_slug)
-                    save_data(characters)
+                    _schedule_save()
                     emit({"status": "spec_refreshed", "name": name, "realm": realm,
                           "character": char.to_dict(), "spec_changed": spec_changed})
                 else:
@@ -1358,7 +1386,7 @@ def main():
                     char.vault_mythic_plus = mp_data
                     char.vault_raids = raid_data
                     char.vault_last_check = datetime.now(UTC)
-                    save_data(characters)
+                    _schedule_save()
 
                 emit({"status": "vault_data", "name": name, "realm": realm,
                       "mythic_plus": mp_data, "raids": raid_data,
@@ -1375,7 +1403,7 @@ def main():
                     tier = int(tier_str)
                     if 0 <= slot < len(char.vault_world) and 1 <= tier <= 11:
                         char.vault_world[slot] = {"type": wtype, "tier": tier}
-                        save_data(characters)
+                        _schedule_save()
                         emit({"status": "vault_world_toggled", "name": name,
                               "realm": realm, "world": char.vault_world})
 
@@ -1388,7 +1416,7 @@ def main():
                     slot = int(slot_str)
                     if 0 <= slot < len(char.vault_world):
                         char.vault_world[slot] = None
-                        save_data(characters)
+                        _schedule_save()
                         emit({"status": "vault_world_toggled", "name": name,
                               "realm": realm, "world": char.vault_world})
 
@@ -1410,7 +1438,7 @@ def main():
                     char.vault_mythic_plus = mp_data
                     char.vault_raids = raid_data
                     char.vault_last_check = datetime.now(UTC)
-                    save_data(characters)
+                    _schedule_save()
 
                 emit({"status": "vault_data", "name": name, "realm": realm,
                       "mythic_plus": mp_data, "raids": raid_data,
@@ -1442,7 +1470,7 @@ def main():
                 if char:
                     char.professions = prof_data
                     char.professions_last_check = datetime.now(UTC)
-                    save_data(characters)
+                    _schedule_save()
 
                 emit({"status": "professions_data", "name": name, "realm": realm,
                       "professions": prof_data,
@@ -1460,7 +1488,7 @@ def main():
                 char = find_character(characters, name, realm)
                 if char:
                     char.prof_moxie[profession] = int(amount)
-                    save_data(characters)
+                    _schedule_save()
                     emit({"status": "prof_updated", "name": name, "realm": realm,
                           "moxie": char.prof_moxie,
                           "concentration": char.prof_concentration,
@@ -1478,7 +1506,7 @@ def main():
                         "current": int(current),
                         "updated_at": datetime.now(UTC).isoformat()
                     }
-                    save_data(characters)
+                    _schedule_save()
                     emit({"status": "prof_updated", "name": name, "realm": realm,
                           "moxie": char.prof_moxie,
                           "concentration": char.prof_concentration,
@@ -1497,7 +1525,7 @@ def main():
                         char.prof_spark_collected_at = datetime.now(UTC).isoformat()
                     else:
                         char.prof_spark_collected_at = None
-                    save_data(characters)
+                    _schedule_save()
                     emit({"status": "prof_updated", "name": name, "realm": realm,
                           "moxie": char.prof_moxie,
                           "concentration": char.prof_concentration,
@@ -1514,7 +1542,7 @@ def main():
                     if profession not in char.prof_kp:
                         char.prof_kp[profession] = {s: False for s in KP_SOURCES}
                     char.prof_kp[profession][source] = not char.prof_kp[profession].get(source, False)
-                    save_data(characters)
+                    _schedule_save()
                     emit({"status": "prof_updated", "name": name, "realm": realm,
                           "moxie": char.prof_moxie,
                           "concentration": char.prof_concentration,
@@ -1532,7 +1560,7 @@ def main():
                         del char.housing_tracked[item_id]
                     else:
                         char.housing_tracked[item_id] = {mat: 0 for mat in material_keys_csv.split(",")}
-                    save_data(characters)
+                    _schedule_save()
                     emit({"status": "housing_updated", "name": name, "realm": realm,
                           "housing_tracked": char.housing_tracked,
                           "housing_wishlist": char.housing_wishlist,
@@ -1545,7 +1573,7 @@ def main():
                 char = find_character(characters, name, realm)
                 if char and item_id in char.housing_tracked:
                     char.housing_tracked[item_id][material] = int(amount)
-                    save_data(characters)
+                    _schedule_save()
                     emit({"status": "housing_updated", "name": name, "realm": realm,
                           "housing_tracked": char.housing_tracked,
                           "housing_wishlist": char.housing_wishlist,
@@ -1561,7 +1589,7 @@ def main():
                         char.housing_wishlist.remove(item_id)
                     else:
                         char.housing_wishlist.append(item_id)
-                    save_data(characters)
+                    _schedule_save()
                     emit({"status": "housing_updated", "name": name, "realm": realm,
                           "housing_tracked": char.housing_tracked,
                           "housing_wishlist": char.housing_wishlist,
@@ -1579,7 +1607,7 @@ def main():
                         del char.housing_tracked[item_id]
                     if item_id in char.housing_wishlist:
                         char.housing_wishlist.remove(item_id)
-                    save_data(characters)
+                    _schedule_save()
                     emit({"status": "housing_updated", "name": name, "realm": realm,
                           "housing_tracked": char.housing_tracked,
                           "housing_wishlist": char.housing_wishlist,
@@ -1593,7 +1621,7 @@ def main():
                 if char:
                     if item_id in char.housing_completed:
                         char.housing_completed.remove(item_id)
-                    save_data(characters)
+                    _schedule_save()
                     emit({"status": "housing_updated", "name": name, "realm": realm,
                           "housing_tracked": char.housing_tracked,
                           "housing_wishlist": char.housing_wishlist,
@@ -1705,7 +1733,7 @@ def main():
             emit({"status": "success", "message": "Talent tree cache cleared"})
 
         elif command == "EXIT":
-            save_data(characters)
+            _flush_save()
             break
 
 
