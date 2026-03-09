@@ -90,14 +90,15 @@ function createWindow() {
   startPython();
 
   // Wait for renderer to be ready before sending data
-  win.webContents.once('did-finish-load', () => {
+  win.webContents.once('did-finish-load', async () => {
+    const fsp = fs.promises;
+
     // Step 1: Send build strings FIRST (must be in TALENT_BUILDS before trees render)
-    const buildsFile = getBuildsFile();
     try {
       let builds = {};
+      const buildsFile = getBuildsFile();
       if (fs.existsSync(buildsFile)) {
-        const raw = JSON.parse(fs.readFileSync(buildsFile, 'utf-8'));
-        // Strip keys starting with _ (like _README, _example_format)
+        const raw = JSON.parse(await fsp.readFile(buildsFile, 'utf-8'));
         for (const key of Object.keys(raw)) {
           if (!key.startsWith('_')) builds[key] = raw[key];
         }
@@ -114,10 +115,10 @@ function createWindow() {
     try {
       const cacheDir = path.join(getDataDir(), 'talent_tree_cache');
       if (fs.existsSync(cacheDir)) {
-        const files = fs.readdirSync(cacheDir).filter(f => f.endsWith('.json'));
+        const files = (await fsp.readdir(cacheDir)).filter(f => f.endsWith('.json'));
         for (const file of files) {
           try {
-            const data = JSON.parse(fs.readFileSync(path.join(cacheDir, file), 'utf-8'));
+            const data = JSON.parse(await fsp.readFile(path.join(cacheDir, file), 'utf-8'));
             const base = file.replace('.json', '');
             const sepIdx = base.lastIndexOf('_');
             if (sepIdx > 0 && data.class_nodes && data.spec_nodes) {
@@ -141,7 +142,7 @@ function createWindow() {
     try {
       const housingFile = path.join(__dirname, 'assets', 'housing_decorations.json');
       if (fs.existsSync(housingFile)) {
-        const catalog = JSON.parse(fs.readFileSync(housingFile, 'utf-8'));
+        const catalog = JSON.parse(await fsp.readFile(housingFile, 'utf-8'));
         win?.webContents.send('from-python', JSON.stringify({
           status: 'housing_catalog_loaded', catalog
         }));
@@ -156,7 +157,7 @@ function createWindow() {
       let apiLoaded = false;
       const apiCacheFile = path.join(getDataDir(), 'housing_decor_cache', 'decor_catalog.json');
       if (fs.existsSync(apiCacheFile)) {
-        const raw = JSON.parse(fs.readFileSync(apiCacheFile, 'utf-8'));
+        const raw = JSON.parse(await fsp.readFile(apiCacheFile, 'utf-8'));
         const hasIcons = (raw.items || []).slice(0, 50).some(i => i.icon_url);
         if (raw.fetched_at && hasIcons) {
           const ageMs = Date.now() - new Date(raw.fetched_at).getTime();
@@ -170,11 +171,10 @@ function createWindow() {
           }
         }
       }
-      // Fallback: bundled enriched catalog
       if (!apiLoaded) {
         const bundledFile = path.join(__dirname, 'assets', 'housing_decor_enriched.json');
         if (fs.existsSync(bundledFile)) {
-          const raw = JSON.parse(fs.readFileSync(bundledFile, 'utf-8'));
+          const raw = JSON.parse(await fsp.readFile(bundledFile, 'utf-8'));
           win?.webContents.send('from-python', JSON.stringify({
             status: 'housing_api_catalog', catalog: raw
           }));
@@ -189,7 +189,7 @@ function createWindow() {
     try {
       const sourcesFile = path.join(__dirname, 'assets', 'housing_sources.json');
       if (fs.existsSync(sourcesFile)) {
-        const sources = JSON.parse(fs.readFileSync(sourcesFile, 'utf-8'));
+        const sources = JSON.parse(await fsp.readFile(sourcesFile, 'utf-8'));
         const count = Object.keys(sources).filter(k => sources[k]).length;
         win?.webContents.send('from-python', JSON.stringify({
           status: 'housing_sources_loaded', sources
@@ -247,8 +247,14 @@ function startPython() {
 
   let buffer = '';
   let ready = false;
+  const BUFFER_MAX = 1024 * 1024; // 1 MB safety cap
   pyProcess.stdout.on('data', (chunk) => {
     buffer += chunk;
+    if (buffer.length > BUFFER_MAX) {
+      console.error('[Main] Python stdout buffer exceeded 1MB — discarding');
+      buffer = '';
+      return;
+    }
     const lines = buffer.split('\n');
     buffer = lines.pop();
     lines.forEach(line => {
@@ -271,7 +277,14 @@ function startPython() {
   });
 
   pyProcess.stderr.on('data', (d) => console.error('[Python]', d.trim()));
-  pyProcess.on('close', (code) => console.log('[Python] Exited with code', code));
+  pyProcess.on('close', (code) => {
+    console.log('[Python] Exited with code', code);
+    if (code !== 0 && code !== null) {
+      win?.webContents.send('from-python', JSON.stringify({
+        status: 'backend_crashed', code
+      }));
+    }
+  });
 }
 
 // ── IPC ─────────────────────────────────────────────────────────────
@@ -293,8 +306,9 @@ ipcMain.on('to-python', (_, cmd) => {
         if (!builds[classSlug]) builds[classSlug] = {};
         if (!builds[classSlug][specSlug]) builds[classSlug][specSlug] = {};
         builds[classSlug][specSlug][buildType] = buildString;
-        fs.writeFileSync(buildsFile, JSON.stringify(builds, null, 2));
-        console.log(`[Main] Saved build string: ${classSlug}/${specSlug}/${buildType}`);
+        fs.promises.writeFile(buildsFile, JSON.stringify(builds, null, 2))
+          .then(() => console.log(`[Main] Saved build string: ${classSlug}/${specSlug}/${buildType}`))
+          .catch(e => console.error('[Main] Error writing build string:', e.message));
         win?.webContents.send('from-python', JSON.stringify({
           status: 'build_string_saved',
           class_slug: classSlug, spec_slug: specSlug, build_type: buildType
