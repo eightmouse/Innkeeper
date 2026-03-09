@@ -298,24 +298,25 @@ ipcMain.on('to-python', (_, cmd) => {
       const [, classSlug, specSlug, buildType, ...rest] = parts;
       const buildString = rest.join(':'); // in case string contains ':'
       const buildsFile = getBuildsFile();
-      try {
-        let builds = {};
-        if (fs.existsSync(buildsFile)) {
-          builds = JSON.parse(fs.readFileSync(buildsFile, 'utf-8'));
+      (async () => {
+        try {
+          let builds = {};
+          if (fs.existsSync(buildsFile)) {
+            builds = JSON.parse(await fs.promises.readFile(buildsFile, 'utf-8'));
+          }
+          if (!builds[classSlug]) builds[classSlug] = {};
+          if (!builds[classSlug][specSlug]) builds[classSlug][specSlug] = {};
+          builds[classSlug][specSlug][buildType] = buildString;
+          await fs.promises.writeFile(buildsFile, JSON.stringify(builds, null, 2));
+          console.log(`[Main] Saved build string: ${classSlug}/${specSlug}/${buildType}`);
+        } catch (e) {
+          console.error('[Main] Error saving build string:', e.message);
         }
-        if (!builds[classSlug]) builds[classSlug] = {};
-        if (!builds[classSlug][specSlug]) builds[classSlug][specSlug] = {};
-        builds[classSlug][specSlug][buildType] = buildString;
-        fs.promises.writeFile(buildsFile, JSON.stringify(builds, null, 2))
-          .then(() => console.log(`[Main] Saved build string: ${classSlug}/${specSlug}/${buildType}`))
-          .catch(e => console.error('[Main] Error writing build string:', e.message));
-        win?.webContents.send('from-python', JSON.stringify({
-          status: 'build_string_saved',
-          class_slug: classSlug, spec_slug: specSlug, build_type: buildType
-        }));
-      } catch (e) {
-        console.error('[Main] Error saving build string:', e.message);
-      }
+      })();
+      win?.webContents.send('from-python', JSON.stringify({
+        status: 'build_string_saved',
+        class_slug: classSlug, spec_slug: specSlug, build_type: buildType
+      }));
     }
     return;
   }

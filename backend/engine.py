@@ -1,4 +1,4 @@
-# Innkeeper - Version 2.2.0
+# Innkeeper - Version 2.3.0
 # @Author: eightmouse
 
 # ------------[      MODULES      ]------------ #
@@ -809,7 +809,7 @@ if __name__ != "__main__":
     BLIZZARD_CLIENT_SECRET = os.getenv("BLIZZARD_CLIENT_SECRET")
     AUTH_KEY             = os.getenv("AUTH_KEY", "")
 
-    app = FastAPI(title="Innkeeper API", version="2.2.0")
+    app = FastAPI(title="Innkeeper API", version="2.3.0")
 
     # ────────────────────  Auth middleware  ──────────────────────
 
@@ -951,7 +951,7 @@ def _call_with_token(region, fn, *args, **kwargs):
 # ────────────────────  Data persistence  ────────────────────
 
 _emit_lock = threading.Lock()
-_data_lock = threading.Lock()   # protects characters list mutations + save_data
+_data_lock = threading.RLock()  # protects characters list mutations + save_data (reentrant)
 
 def emit(data):
     with _emit_lock:
