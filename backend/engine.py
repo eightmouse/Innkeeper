@@ -1177,7 +1177,9 @@ class Character:
 def find_character(characters, name, realm):
     n = unicodedata.normalize("NFC", name).lower()
     r = unicodedata.normalize("NFC", realm).lower()
-    return next((c for c in characters if
+    with _data_lock:
+        snapshot = list(characters)
+    return next((c for c in snapshot if
                  unicodedata.normalize("NFC", c.name).lower() == n and
                  unicodedata.normalize("NFC", c.realm).lower() == r), None)
 
