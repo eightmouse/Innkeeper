@@ -650,6 +650,17 @@ function switchTab(tabName, char) {
 // Build strings are user-provided (Blizzard export format), stored in talent_builds.json.
 
 const TALENT_TREE_CACHE = {};   // Cached tree data per class/spec
+const TALENT_CACHE_ORDER = [];  // Insertion order for LRU eviction (max 5)
+const TALENT_CACHE_MAX = 5;
+function talentCacheSet(key, tree) {
+  if (!TALENT_TREE_CACHE[key]) {
+    TALENT_CACHE_ORDER.push(key);
+    while (TALENT_CACHE_ORDER.length > TALENT_CACHE_MAX) {
+      delete TALENT_TREE_CACHE[TALENT_CACHE_ORDER.shift()];
+    }
+  }
+  TALENT_TREE_CACHE[key] = tree;
+}
 let TALENT_BUILDS = {};          // Build strings per class/spec/type
 let _currentTalentChar = null;   // Currently displayed character
 let _currentBuildType = 'raid';  // Current active preset
@@ -2016,6 +2027,13 @@ function closeDetail() {
     _concIntervalId = null;
   }
   _currentProfChar = null;
+  _currentTalentChar = null;
+  _currentHousingChar = null;
+  _currentVaultChar = null;
+  _talentFetchInProgress = false;
+  _equipFetchInProgress = false;
+  _vaultFetchInProgress = false;
+  _profFetchInProgress = false;
 }
 
 function updateResetTimers() {
@@ -2324,7 +2342,8 @@ function loadHousing(char) {
   searchEl.value = _housingSearch;
   searchEl.oninput = () => {
     _housingSearch = searchEl.value;
-    renderHousingGrid(char);
+    clearTimeout(searchEl._debounceTimer);
+    searchEl._debounceTimer = setTimeout(() => renderHousingGrid(char), 250);
   };
 }
 
@@ -2469,42 +2488,50 @@ function renderHousingGrid(char) {
     </div>`;
   }).join('');
 
-  // Attach event listeners
-  grid.querySelectorAll('.housing-track-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      sendToPython(`TRACK_HOUSING_ITEM:${char.name}:${char.realm}:${btn.dataset.itemId}:${btn.dataset.mats}`);
-    });
-  });
+  // Event delegation — attach once, not per item
+  if (!grid._delegated) {
+    grid._delegated = true;
 
-  grid.querySelectorAll('.housing-wish-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      sendToPython(`TRACK_HOUSING_WISHLIST:${char.name}:${char.realm}:${btn.dataset.itemId}`);
-    });
-  });
+    grid.addEventListener('click', e => {
+      const char = _currentHousingChar;
+      if (!char) return;
 
-  grid.querySelectorAll('.housing-collect-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      sendToPython(`COMPLETE_HOUSING_ITEM:${char.name}:${char.realm}:${btn.dataset.itemId}`);
+      const track = e.target.closest('.housing-track-btn');
+      if (track) {
+        sendToPython(`TRACK_HOUSING_ITEM:${char.name}:${char.realm}:${track.dataset.itemId}:${track.dataset.mats}`);
+        return;
+      }
+      const wish = e.target.closest('.housing-wish-btn');
+      if (wish) {
+        sendToPython(`TRACK_HOUSING_WISHLIST:${char.name}:${char.realm}:${wish.dataset.itemId}`);
+        return;
+      }
+      const collect = e.target.closest('.housing-collect-btn');
+      if (collect) {
+        sendToPython(`COMPLETE_HOUSING_ITEM:${char.name}:${char.realm}:${collect.dataset.itemId}`);
+        return;
+      }
+      const undo = e.target.closest('.housing-undo-btn');
+      if (undo) {
+        sendToPython(`UNCOMPLETE_HOUSING_ITEM:${char.name}:${char.realm}:${undo.dataset.itemId}`);
+        return;
+      }
     });
-  });
 
-  grid.querySelectorAll('.housing-undo-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      sendToPython(`UNCOMPLETE_HOUSING_ITEM:${char.name}:${char.realm}:${btn.dataset.itemId}`);
+    grid.addEventListener('change', e => {
+      const char = _currentHousingChar;
+      if (!char) return;
+      const inp = e.target.closest('.housing-mat-input');
+      if (inp) {
+        const val = Math.max(0, parseInt(inp.value) || 0);
+        inp.value = val;
+        sendToPython(`SET_HOUSING_MATERIAL:${char.name}:${char.realm}:${inp.dataset.item}:${inp.dataset.mat}:${val}`);
+      }
     });
-  });
 
-  grid.querySelectorAll('.housing-mat-input').forEach(inp => {
-    inp.addEventListener('change', () => {
-      const val = Math.max(0, parseInt(inp.value) || 0);
-      inp.value = val;
-      sendToPython(`SET_HOUSING_MATERIAL:${char.name}:${char.realm}:${inp.dataset.item}:${inp.dataset.mat}:${val}`);
-    });
-  });
-
-  // Sourcing tooltips
-  grid.querySelectorAll('.housing-mat-name[data-source]').forEach(el => {
-    el.addEventListener('mouseenter', e => {
+    grid.addEventListener('mouseenter', e => {
+      const el = e.target.closest('.housing-mat-name[data-source]');
+      if (!el) return;
       const source = el.dataset.source;
       if (!source) return;
       const tip = document.getElementById('housing-tooltip');
@@ -2513,11 +2540,14 @@ function renderHousingGrid(char) {
       const rect = el.getBoundingClientRect();
       tip.style.left = rect.left + 'px';
       tip.style.top = (rect.bottom + 6) + 'px';
-    });
-    el.addEventListener('mouseleave', () => {
-      document.getElementById('housing-tooltip').style.display = 'none';
-    });
-  });
+    }, true);
+
+    grid.addEventListener('mouseleave', e => {
+      if (e.target.closest('.housing-mat-name[data-source]')) {
+        document.getElementById('housing-tooltip').style.display = 'none';
+      }
+    }, true);
+  }
 }
 
 function renderHousingShoplist(char) {
@@ -2754,6 +2784,8 @@ if (api) {
       } else if (data.status === 'connect_failed') {
         hideFetchNotify('server');
         showToast('Could not reach server — online features may not work', true);
+      } else if (data.status === 'backend_crashed') {
+        showToast('Backend disconnected — restart the app to restore functionality', true);
       } else if (data.status === 'realms') {
         realmCache[data.region] = data.realms;
         if (data.region === inputRegion.value) showRealmSuggestions(realmInput.value);
@@ -2791,7 +2823,7 @@ if (api) {
         if (window._talentLoadTimeout) { clearTimeout(window._talentLoadTimeout); window._talentLoadTimeout = null; }
         window._talentRetried = false;
         const cacheKey = `${data.class_slug}_${data.spec_slug}`;
-        TALENT_TREE_CACHE[cacheKey] = data.tree;
+        talentCacheSet(cacheKey, data.tree);
         const cn = (data.tree.class_nodes||[]).length;
         const sn = (data.tree.spec_nodes||[]).length;
         const hn = (data.tree.hero_trees||[]).map(h => `${h.name||'?'}(${(h.nodes||[]).length})`).join(', ');
