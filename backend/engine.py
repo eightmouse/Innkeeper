@@ -114,7 +114,10 @@ class _TokenExpired(Exception):
 
 # ── Blizzard HTTP helpers ──
 
+_api_semaphore = threading.Semaphore(12)  # cap concurrent Blizzard requests process-wide
+
 def _blizzard_get(url, params, token, timeout=15):
+    _api_semaphore.acquire()
     try:
         r = _http.get(url, params=params,
                          headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
@@ -126,6 +129,8 @@ def _blizzard_get(url, params, token, timeout=15):
             print(f"[engine] Blizzard API {r.status_code}: {url.split('.com')[1].split('?')[0]}", file=sys.stderr)
     except requests.RequestException as e:
         print(f"[engine] Blizzard API error: {url.split('.com')[1].split('?')[0]} → {e}", file=sys.stderr)
+    finally:
+        _api_semaphore.release()
     return None
 
 def _params(region, locale="en_US", namespace_prefix="profile"):
@@ -1237,22 +1242,28 @@ def main():
 
         if not server_checked:
             server_checked = True
-            emit({"status": "connecting"})
-            connected = False
-            for attempt in range(3):
+            def _health_worker():
                 try:
-                    h = _http.get(f"{SERVER_URL}/health", timeout=30)
-                    if h.status_code == 200:
-                        emit({"status": "connected"})
-                        connected = True
-                        break
-                    print(f"[engine] Health check attempt {attempt+1}/3 failed: {h.status_code}", file=sys.stderr)
+                    emit({"status": "connecting"})
+                    connected = False
+                    for attempt in range(3):
+                        try:
+                            h = _http.get(f"{SERVER_URL}/health", timeout=30)
+                            if h.status_code == 200:
+                                emit({"status": "connected"})
+                                connected = True
+                                break
+                            print(f"[engine] Health check attempt {attempt+1}/3 failed: {h.status_code}", file=sys.stderr)
+                        except Exception as e:
+                            print(f"[engine] Health check attempt {attempt+1}/3 error: {e}", file=sys.stderr)
+                        if attempt < 2:
+                            time.sleep(5)
+                    if not connected:
+                        emit({"status": "connect_failed"})
                 except Exception as e:
-                    print(f"[engine] Health check attempt {attempt+1}/3 error: {e}", file=sys.stderr)
-                if attempt < 2:
-                    time.sleep(5)
-            if not connected:
-                emit({"status": "connect_failed"})
+                    print(f"[engine] Health check error: {e}", file=sys.stderr)
+                    emit({"status": "connect_failed"})
+            threading.Thread(target=_health_worker, daemon=True).start()
 
         if command == "GET_CHARACTERS":
             emit([c.to_dict() for c in characters])
@@ -1331,142 +1342,171 @@ def main():
             parts = command.split(":", 3)
             if len(parts) == 4:
                 _, region, realm, name = [p.strip() for p in parts]
-                char = find_character(characters, name, realm)
+                def _get_equipment_worker(region=region, realm=realm, name=name):
+                    try:
+                        char = find_character(characters, name, realm)
 
-                if char and char.equipment and char.equipment_last_check:
-                    cache_age = (datetime.now(UTC) - char.equipment_last_check).total_seconds()
-                    if cache_age < 300:
-                        emit({"status": "equipment", "name": name, "realm": realm,
-                              "items": char.equipment, "cached": True})
-                        continue
+                        if char and char.equipment and char.equipment_last_check:
+                            cache_age = (datetime.now(UTC) - char.equipment_last_check).total_seconds()
+                            if cache_age < 300:
+                                emit({"status": "equipment", "name": name, "realm": realm,
+                                      "items": char.equipment, "cached": True})
+                                return
 
-                items = _call_with_token(region, _fetch_equipment, region, realm, name)
-                if items is not None:
-                    if char and items:
-                        char.equipment = items
-                        char.equipment_last_check = datetime.now(UTC)
-                        _schedule_save()
-                    emit({"status": "equipment", "name": name, "realm": realm,
-                          "items": items if items else [], "cached": False})
-                else:
-                    emit({"status": "equipment_error", "name": name, "realm": realm,
-                          "message": "Could not fetch equipment"})
+                        items = _call_with_token(region, _fetch_equipment, region, realm, name)
+                        if items is not None:
+                            if char and items:
+                                char.equipment = items
+                                char.equipment_last_check = datetime.now(UTC)
+                                _schedule_save()
+                            emit({"status": "equipment", "name": name, "realm": realm,
+                                  "items": items if items else [], "cached": False})
+                        else:
+                            emit({"status": "equipment_error", "name": name, "realm": realm,
+                                  "message": "Could not fetch equipment"})
+                    except Exception as e:
+                        print(f"[engine] GET_EQUIPMENT error: {e}", file=sys.stderr)
+                        emit({"status": "equipment_error", "name": name, "realm": realm,
+                              "message": "Could not fetch equipment"})
+                threading.Thread(target=_get_equipment_worker, daemon=True).start()
 
         elif command.startswith("REFRESH_EQUIPMENT:"):
             parts = command.split(":", 3)
             if len(parts) == 4:
                 _, region, realm, name = [p.strip() for p in parts]
-                char = find_character(characters, name, realm)
-                emit({"status": "equipment_refreshing", "name": name, "realm": realm})
-                items = _call_with_token(region, _fetch_equipment, region, realm, name)
-                if items is not None:
-                    if char:
-                        char.equipment = items if items else []
-                        char.equipment_last_check = datetime.now(UTC)
-                        _schedule_save()
-                    emit({"status": "equipment", "name": name, "realm": realm,
-                          "items": items if items else [], "cached": False})
-                else:
-                    emit({"status": "equipment_error", "name": name, "realm": realm,
-                          "message": "Could not fetch equipment"})
+                def _refresh_equipment_worker(region=region, realm=realm, name=name):
+                    try:
+                        char = find_character(characters, name, realm)
+                        emit({"status": "equipment_refreshing", "name": name, "realm": realm})
+                        items = _call_with_token(region, _fetch_equipment, region, realm, name)
+                        if items is not None:
+                            if char:
+                                char.equipment = items if items else []
+                                char.equipment_last_check = datetime.now(UTC)
+                                _schedule_save()
+                            emit({"status": "equipment", "name": name, "realm": realm,
+                                  "items": items if items else [], "cached": False})
+                        else:
+                            emit({"status": "equipment_error", "name": name, "realm": realm,
+                                  "message": "Could not fetch equipment"})
+                    except Exception as e:
+                        print(f"[engine] REFRESH_EQUIPMENT error: {e}", file=sys.stderr)
+                        emit({"status": "equipment_error", "name": name, "realm": realm,
+                              "message": "Could not fetch equipment"})
+                threading.Thread(target=_refresh_equipment_worker, daemon=True).start()
 
         elif command.startswith("REFRESH_SPEC:"):
             parts = command.split(":", 3)
             if len(parts) == 4:
                 _, region, realm, name = [p.strip() for p in parts]
-                char = find_character(characters, name, realm)
-                if not char:
-                    emit({"status": "spec_refresh_error",
-                          "message": f"Character {name} on {realm} not found locally"})
-                    continue
-                data = _call_with_token(region, _fetch_and_build_character, region, realm, name)
-                if data:
-                    old_spec = char.spec_slug
-                    char.spec_name    = data.get("spec_name", char.spec_name)
-                    char.spec_slug    = data.get("spec_slug", char.spec_slug)
-                    char.item_level   = data.get("item_level", char.item_level)
-                    char.portrait_url = data.get("portrait_url", char.portrait_url)
-                    char.avatar_url   = data.get("avatar_url", char.avatar_url)
-                    spec_changed = (old_spec != char.spec_slug)
-                    _schedule_save()
-                    emit({"status": "spec_refreshed", "name": name, "realm": realm,
-                          "character": char.to_dict(), "spec_changed": spec_changed})
-                else:
-                    emit({"status": "spec_refresh_error",
-                          "message": "Could not fetch character data"})
+                def _refresh_spec_worker(region=region, realm=realm, name=name):
+                    try:
+                        char = find_character(characters, name, realm)
+                        if not char:
+                            emit({"status": "spec_refresh_error",
+                                  "message": f"Character {name} on {realm} not found locally"})
+                            return
+                        data = _call_with_token(region, _fetch_and_build_character, region, realm, name)
+                        if data:
+                            old_spec = char.spec_slug
+                            char.spec_name    = data.get("spec_name", char.spec_name)
+                            char.spec_slug    = data.get("spec_slug", char.spec_slug)
+                            char.item_level   = data.get("item_level", char.item_level)
+                            char.portrait_url = data.get("portrait_url", char.portrait_url)
+                            char.avatar_url   = data.get("avatar_url", char.avatar_url)
+                            spec_changed = (old_spec != char.spec_slug)
+                            _schedule_save()
+                            emit({"status": "spec_refreshed", "name": name, "realm": realm,
+                                  "character": char.to_dict(), "spec_changed": spec_changed})
+                        else:
+                            emit({"status": "spec_refresh_error",
+                                  "message": "Could not fetch character data"})
+                    except Exception as e:
+                        print(f"[engine] REFRESH_SPEC error: {e}", file=sys.stderr)
+                        emit({"status": "spec_refresh_error",
+                              "message": "Could not fetch character data"})
+                threading.Thread(target=_refresh_spec_worker, daemon=True).start()
 
         elif command.startswith("FETCH_TALENT_TREE:"):
             parts = command.split(":", 3)
             if len(parts) == 4:
                 _, region, class_slug, spec_slug = [p.strip() for p in parts]
-
-                # Check local disk cache first
-                cache_dir  = os.path.join(basedir, 'talent_tree_cache')
-                cache_file = os.path.join(cache_dir, f'{class_slug}_{spec_slug}.json')
-                if os.path.exists(cache_file):
+                def _fetch_talent_worker(region=region, class_slug=class_slug, spec_slug=spec_slug):
                     try:
-                        with open(cache_file, 'r', encoding='utf-8') as f:
-                            cached = json.load(f)
-                        if cached.get('class_nodes') and cached.get('spec_nodes'):
-                            print(f"[engine] Loaded cached talent tree: {cache_file}", file=sys.stderr)
-                            emit({"status": "talent_tree", "class_slug": class_slug,
-                                  "spec_slug": spec_slug, "tree": cached})
-                            continue
-                    except Exception as e:
-                        print(f"[engine] Cache read error: {e}", file=sys.stderr)
+                        # Check local disk cache first
+                        cache_dir  = os.path.join(basedir, 'talent_tree_cache')
+                        cache_file = os.path.join(cache_dir, f'{class_slug}_{spec_slug}.json')
+                        if os.path.exists(cache_file):
+                            try:
+                                with open(cache_file, 'r', encoding='utf-8') as f:
+                                    cached = json.load(f)
+                                if cached.get('class_nodes') and cached.get('spec_nodes'):
+                                    print(f"[engine] Loaded cached talent tree: {cache_file}", file=sys.stderr)
+                                    emit({"status": "talent_tree", "class_slug": class_slug,
+                                          "spec_slug": spec_slug, "tree": cached})
+                                    return
+                            except Exception as e:
+                                print(f"[engine] Cache read error: {e}", file=sys.stderr)
 
-                # Fetch directly from Blizzard
-                try:
-                    tree = _call_with_token(region, _fetch_talent_tree_from_blizzard, region, class_slug, spec_slug)
-                    if tree and tree.get('class_nodes'):
-                        os.makedirs(cache_dir, exist_ok=True)
-                        with open(cache_file, 'w', encoding='utf-8') as f:
-                            json.dump(tree, f, indent=2, ensure_ascii=False)
-                        print(f"[engine] Cached talent tree → {cache_file}", file=sys.stderr)
-                        emit({"status": "talent_tree", "class_slug": class_slug,
-                              "spec_slug": spec_slug, "tree": tree})
-                    else:
+                        # Fetch directly from Blizzard
+                        tree = _call_with_token(region, _fetch_talent_tree_from_blizzard, region, class_slug, spec_slug)
+                        if tree and tree.get('class_nodes'):
+                            os.makedirs(cache_dir, exist_ok=True)
+                            with open(cache_file, 'w', encoding='utf-8') as f:
+                                json.dump(tree, f, indent=2, ensure_ascii=False)
+                            print(f"[engine] Cached talent tree → {cache_file}", file=sys.stderr)
+                            emit({"status": "talent_tree", "class_slug": class_slug,
+                                  "spec_slug": spec_slug, "tree": tree})
+                        else:
+                            emit({"status": "talent_tree_error",
+                                  "class_slug": class_slug, "spec_slug": spec_slug,
+                                  "message": f"No data returned for {class_slug}/{spec_slug}"})
+                    except Exception as e:
+                        print(f"[engine] FETCH_TALENT_TREE error: {e}", file=sys.stderr)
                         emit({"status": "talent_tree_error",
                               "class_slug": class_slug, "spec_slug": spec_slug,
-                              "message": f"No data returned for {class_slug}/{spec_slug}"})
-                except (ValueError, ConnectionError) as e:
-                    print(f"[engine] Talent tree fetch error: {e}", file=sys.stderr)
-                    emit({"status": "talent_tree_error",
-                          "class_slug": class_slug, "spec_slug": spec_slug,
-                          "message": str(e)})
+                              "message": str(e)})
+                threading.Thread(target=_fetch_talent_worker, daemon=True).start()
 
         elif command.startswith("GET_VAULT:"):
             parts = command.split(":", 3)
             if len(parts) == 4:
                 _, region, realm, name = [p.strip() for p in parts]
-                char = find_character(characters, name, realm)
+                def _get_vault_worker(region=region, realm=realm, name=name):
+                    try:
+                        char = find_character(characters, name, realm)
 
-                if char and char.vault_last_check:
-                    cache_age = (datetime.now(UTC) - char.vault_last_check).total_seconds()
-                    if cache_age < 300:
+                        if char and char.vault_last_check:
+                            cache_age = (datetime.now(UTC) - char.vault_last_check).total_seconds()
+                            if cache_age < 300:
+                                emit({"status": "vault_data", "name": name, "realm": realm,
+                                      "mythic_plus": char.vault_mythic_plus,
+                                      "raids": char.vault_raids,
+                                      "world": char.vault_world, "cached": True})
+                                return
+
+                        mp_data = _call_with_token(region, _fetch_mythic_keystone_profile, region, realm, name)
+                        raid_data = _call_with_token(region, _fetch_raid_encounters, region, realm, name)
+                        if mp_data is None:
+                            mp_data = {"best_runs": [], "vault_rewards": {}, "keystone_ilvl_map": {}}
+                        if raid_data is None:
+                            raid_data = {"kills_this_week": [], "total_kills": 0, "difficulty_breakdown": {}}
+
+                        if char:
+                            char.vault_mythic_plus = mp_data
+                            char.vault_raids = raid_data
+                            char.vault_last_check = datetime.now(UTC)
+                            _schedule_save()
+
                         emit({"status": "vault_data", "name": name, "realm": realm,
-                              "mythic_plus": char.vault_mythic_plus,
-                              "raids": char.vault_raids,
-                              "world": char.vault_world, "cached": True})
-                        continue
-
-                mp_data = _call_with_token(region, _fetch_mythic_keystone_profile, region, realm, name)
-                raid_data = _call_with_token(region, _fetch_raid_encounters, region, realm, name)
-                if mp_data is None:
-                    mp_data = {"best_runs": [], "vault_rewards": {}, "keystone_ilvl_map": {}}
-                if raid_data is None:
-                    raid_data = {"kills_this_week": [], "total_kills": 0, "difficulty_breakdown": {}}
-
-                if char:
-                    char.vault_mythic_plus = mp_data
-                    char.vault_raids = raid_data
-                    char.vault_last_check = datetime.now(UTC)
-                    _schedule_save()
-
-                emit({"status": "vault_data", "name": name, "realm": realm,
-                      "mythic_plus": mp_data, "raids": raid_data,
-                      "world": char.vault_world if char else [None] * 8,
-                      "cached": False})
+                              "mythic_plus": mp_data, "raids": raid_data,
+                              "world": char.vault_world if char else [None] * 8,
+                              "cached": False})
+                    except Exception as e:
+                        print(f"[engine] GET_VAULT error: {e}", file=sys.stderr)
+                        emit({"status": "vault_error", "name": name, "realm": realm,
+                              "message": "Could not fetch vault data"})
+                threading.Thread(target=_get_vault_worker, daemon=True).start()
 
         elif command.startswith("SET_VAULT_WORLD:"):
             parts = command.split(":", 5)
@@ -1499,62 +1539,76 @@ def main():
             parts = command.split(":", 3)
             if len(parts) == 4:
                 _, region, realm, name = [p.strip() for p in parts]
-                char = find_character(characters, name, realm)
-                emit({"status": "vault_refreshing", "name": name, "realm": realm})
+                def _refresh_vault_worker(region=region, realm=realm, name=name):
+                    try:
+                        char = find_character(characters, name, realm)
+                        emit({"status": "vault_refreshing", "name": name, "realm": realm})
 
-                mp_data = _call_with_token(region, _fetch_mythic_keystone_profile, region, realm, name)
-                raid_data = _call_with_token(region, _fetch_raid_encounters, region, realm, name)
-                if mp_data is None:
-                    mp_data = {"best_runs": [], "vault_rewards": {}, "keystone_ilvl_map": {}}
-                if raid_data is None:
-                    raid_data = {"kills_this_week": [], "total_kills": 0, "difficulty_breakdown": {}}
+                        mp_data = _call_with_token(region, _fetch_mythic_keystone_profile, region, realm, name)
+                        raid_data = _call_with_token(region, _fetch_raid_encounters, region, realm, name)
+                        if mp_data is None:
+                            mp_data = {"best_runs": [], "vault_rewards": {}, "keystone_ilvl_map": {}}
+                        if raid_data is None:
+                            raid_data = {"kills_this_week": [], "total_kills": 0, "difficulty_breakdown": {}}
 
-                if char:
-                    char.vault_mythic_plus = mp_data
-                    char.vault_raids = raid_data
-                    char.vault_last_check = datetime.now(UTC)
-                    _schedule_save()
+                        if char:
+                            char.vault_mythic_plus = mp_data
+                            char.vault_raids = raid_data
+                            char.vault_last_check = datetime.now(UTC)
+                            _schedule_save()
 
-                emit({"status": "vault_data", "name": name, "realm": realm,
-                      "mythic_plus": mp_data, "raids": raid_data,
-                      "world": char.vault_world if char else [None] * 8,
-                      "cached": False})
+                        emit({"status": "vault_data", "name": name, "realm": realm,
+                              "mythic_plus": mp_data, "raids": raid_data,
+                              "world": char.vault_world if char else [None] * 8,
+                              "cached": False})
+                    except Exception as e:
+                        print(f"[engine] REFRESH_VAULT error: {e}", file=sys.stderr)
+                        emit({"status": "vault_error", "name": name, "realm": realm,
+                              "message": "Could not fetch vault data"})
+                threading.Thread(target=_refresh_vault_worker, daemon=True).start()
 
         elif command.startswith("GET_PROFESSIONS:"):
             parts = command.split(":", 3)
             if len(parts) == 4:
                 _, region, realm, name = [p.strip() for p in parts]
-                char = find_character(characters, name, realm)
+                def _get_professions_worker(region=region, realm=realm, name=name):
+                    try:
+                        char = find_character(characters, name, realm)
 
-                if char and char.professions_last_check:
-                    cache_age = (datetime.now(UTC) - char.professions_last_check).total_seconds()
-                    if cache_age < 300:
+                        if char and char.professions_last_check:
+                            cache_age = (datetime.now(UTC) - char.professions_last_check).total_seconds()
+                            if cache_age < 300:
+                                emit({"status": "professions_data", "name": name, "realm": realm,
+                                      "professions": char.professions,
+                                      "moxie": char.prof_moxie,
+                                      "concentration": char.prof_concentration,
+                                      "spark": char.prof_spark,
+                                      "spark_collected_at": char.prof_spark_collected_at,
+                                      "kp": char.prof_kp, "cached": True})
+                                return
+
+                        prof_data = _call_with_token(region, _fetch_professions, region, realm, name)
+                        if prof_data is None:
+                            prof_data = {"primaries": []}
+
+                        if char:
+                            char.professions = prof_data
+                            char.professions_last_check = datetime.now(UTC)
+                            _schedule_save()
+
                         emit({"status": "professions_data", "name": name, "realm": realm,
-                              "professions": char.professions,
-                              "moxie": char.prof_moxie,
-                              "concentration": char.prof_concentration,
-                              "spark": char.prof_spark,
-                              "spark_collected_at": char.prof_spark_collected_at,
-                              "kp": char.prof_kp, "cached": True})
-                        continue
-
-                prof_data = _call_with_token(region, _fetch_professions, region, realm, name)
-                if prof_data is None:
-                    prof_data = {"primaries": []}
-
-                if char:
-                    char.professions = prof_data
-                    char.professions_last_check = datetime.now(UTC)
-                    _schedule_save()
-
-                emit({"status": "professions_data", "name": name, "realm": realm,
-                      "professions": prof_data,
-                      "moxie": char.prof_moxie if char else {},
-                      "concentration": char.prof_concentration if char else {},
-                      "spark": char.prof_spark if char else False,
-                      "spark_collected_at": char.prof_spark_collected_at if char else None,
-                      "kp": char.prof_kp if char else {},
-                      "cached": False})
+                              "professions": prof_data,
+                              "moxie": char.prof_moxie if char else {},
+                              "concentration": char.prof_concentration if char else {},
+                              "spark": char.prof_spark if char else False,
+                              "spark_collected_at": char.prof_spark_collected_at if char else None,
+                              "kp": char.prof_kp if char else {},
+                              "cached": False})
+                    except Exception as e:
+                        print(f"[engine] GET_PROFESSIONS error: {e}", file=sys.stderr)
+                        emit({"status": "professions_error", "name": name, "realm": realm,
+                              "message": "Could not fetch professions"})
+                threading.Thread(target=_get_professions_worker, daemon=True).start()
 
         elif command.startswith("SET_PROF_MOXIE:"):
             parts = command.split(":", 4)
