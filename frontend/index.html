@@ -1082,11 +1082,11 @@ function setupTalentSidebar(char) {
 
   // Refresh Spec button
   const refreshBtn = document.getElementById('refresh-spec-btn');
-  refreshBtn.addEventListener('click', () => refreshSpec());
+  refreshBtn.onclick = () => refreshSpec();
 
   // Copy Talents button — copies current build string to clipboard
   const copyBtn = document.getElementById('copy-talents-btn');
-  copyBtn.addEventListener('click', () => {
+  copyBtn.onclick = () => {
     const buildStr = TALENT_BUILDS[char.class_slug]?.[char.spec_slug]?.[_currentBuildType] || '';
     if (!buildStr) {
       const toast = document.getElementById('copy-talents-toast');
@@ -1113,7 +1113,7 @@ function setupTalentSidebar(char) {
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2000);
     });
-  });
+  };
 }
 
 let _refreshPending = 0; // tracks in-flight refresh requests
@@ -2376,7 +2376,7 @@ function loadHousing(char) {
   searchEl.oninput = () => {
     _housingSearch = searchEl.value;
     clearTimeout(searchEl._debounceTimer);
-    searchEl._debounceTimer = setTimeout(() => renderHousingGrid(char), 250);
+    searchEl._debounceTimer = setTimeout(() => { if (_currentHousingChar) renderHousingGrid(_currentHousingChar); }, 250);
   };
 }
 
@@ -2861,7 +2861,6 @@ if (api) {
             const char = characters[detailIndex];
             const ilvlText = avg ? ` · ilvl ${avg}` : '';
             document.getElementById('detail-name').textContent = `${char.name}${ilvlText}`;
-            renderGrid();
           }
         }
       } else if (data.status === 'equipment_error') {
