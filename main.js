@@ -7,6 +7,7 @@ const { spawn } = require('child_process');
 let win;
 let pyProcess;
 let housingCacheStale = true;
+let _buildsCache = null; // in-memory builds, loaded once at startup
 
 // ── Packaging helpers ────────────────────────────────────────────────
 const isPackaged = app.isPackaged;
@@ -22,7 +23,8 @@ function getBuildsFile() {
 }
 
 // ── Icon: try multiple formats ──────────────────────────────────────
-function getIconPath() {
+async function getIconPath() {
+  const fsp = fs.promises;
   const names = ['icon.png', 'icon.ico', 'icon.icns', 'logo.png', 'logo.ico',
                  'innkeeper.png', 'innkeeper.ico', 'innkeeper.icns',
                  'icon_256.png', 'icon_48.png', 'app-icon.png'];
@@ -30,10 +32,11 @@ function getIconPath() {
   for (const dir of dirs) {
     for (const name of names) {
       const p = path.join(dir, name);
-      if (fs.existsSync(p)) {
+      try {
+        await fsp.access(p);
         console.log('[Main] Found icon:', p);
         return p;
-      }
+      } catch {}
     }
   }
   console.log('[Main] No icon found. Place icon.png in app root directory.');
@@ -41,26 +44,30 @@ function getIconPath() {
 }
 
 // ── Data seeding (first-run: copy bundled files to userData) ─────────
-function seedDataFiles() {
+async function seedDataFiles() {
   if (!isPackaged) return;
 
+  const fsp = fs.promises;
   const dataDir = getDataDir();
-  fs.mkdirSync(dataDir, { recursive: true });
+  await fsp.mkdir(dataDir, { recursive: true });
 
   // Copy talent_builds.json from resources to userData on first run
   const destBuilds = path.join(dataDir, 'talent_builds.json');
-  if (!fs.existsSync(destBuilds)) {
+  try {
+    await fsp.access(destBuilds);
+  } catch {
     const srcBuilds = path.join(process.resourcesPath, 'talent_builds.json');
-    if (fs.existsSync(srcBuilds)) {
-      fs.copyFileSync(srcBuilds, destBuilds);
+    try {
+      await fsp.access(srcBuilds);
+      await fsp.copyFile(srcBuilds, destBuilds);
       console.log('[Main] Seeded talent_builds.json →', destBuilds);
-    }
+    } catch {}
   }
 }
 
 // ── Window ──────────────────────────────────────────────────────────
-function createWindow() {
-  const iconPath = getIconPath();
+async function createWindow() {
+  const iconPath = await getIconPath();
   console.log('[Main] Icon path:', iconPath || '(none found — using default)');
 
   win = new BrowserWindow({
@@ -86,52 +93,48 @@ function createWindow() {
   }
 
   win.loadFile(path.join(__dirname, 'frontend', 'index.html'));
-  seedDataFiles();
-  startPython();
 
-  // Wait for renderer to be ready before sending data
+  // Register listener SYNCHRONOUSLY before any awaits to avoid race with loadFile
   win.webContents.once('did-finish-load', async () => {
     const fsp = fs.promises;
 
     // Step 1: Send build strings FIRST (must be in TALENT_BUILDS before trees render)
-    try {
-      let builds = {};
-      const buildsFile = getBuildsFile();
-      if (fs.existsSync(buildsFile)) {
+    {
+      _buildsCache = {};
+      try {
+        const buildsFile = getBuildsFile();
         const raw = JSON.parse(await fsp.readFile(buildsFile, 'utf-8'));
         for (const key of Object.keys(raw)) {
-          if (!key.startsWith('_')) builds[key] = raw[key];
+          if (!key.startsWith('_')) _buildsCache[key] = raw[key];
         }
-        console.log(`[Main] Loaded talent_builds.json: classes = [${Object.keys(builds).join(', ')}]`);
+        console.log(`[Main] Loaded talent_builds.json: classes = [${Object.keys(_buildsCache).join(', ')}]`);
+      } catch (e) {
+        console.error('[Main] Error reading talent_builds.json:', e.message);
       }
       win?.webContents.send('from-python', JSON.stringify({
-        status: 'talent_builds_loaded', builds
+        status: 'talent_builds_loaded', builds: _buildsCache
       }));
-    } catch (e) {
-      console.error('[Main] Error reading talent_builds.json:', e.message);
     }
 
     // Step 2: Pre-load disk-cached talent trees (TALENT_BUILDS is already set above)
     try {
       const cacheDir = path.join(getDataDir(), 'talent_tree_cache');
-      if (fs.existsSync(cacheDir)) {
-        const files = (await fsp.readdir(cacheDir)).filter(f => f.endsWith('.json'));
-        for (const file of files) {
-          try {
-            const data = JSON.parse(await fsp.readFile(path.join(cacheDir, file), 'utf-8'));
-            const base = file.replace('.json', '');
-            const sepIdx = base.lastIndexOf('_');
-            if (sepIdx > 0 && data.class_nodes && data.spec_nodes) {
-              const class_slug = base.substring(0, sepIdx);
-              const spec_slug = base.substring(sepIdx + 1);
-              win?.webContents.send('from-python', JSON.stringify({
-                status: 'talent_tree', class_slug, spec_slug, tree: data
-              }));
-              console.log(`[Main] Pre-loaded cached tree: ${class_slug}/${spec_slug} (${data.class_nodes.length} class + ${data.spec_nodes.length} spec nodes)`);
-            }
-          } catch (fe) {
-            console.error(`[Main] Error reading cache file ${file}:`, fe.message);
+      const files = (await fsp.readdir(cacheDir)).filter(f => f.endsWith('.json'));
+      for (const file of files) {
+        try {
+          const data = JSON.parse(await fsp.readFile(path.join(cacheDir, file), 'utf-8'));
+          const base = file.replace('.json', '');
+          const sepIdx = base.lastIndexOf('_');
+          if (sepIdx > 0 && data.class_nodes && data.spec_nodes) {
+            const class_slug = base.substring(0, sepIdx);
+            const spec_slug = base.substring(sepIdx + 1);
+            win?.webContents.send('from-python', JSON.stringify({
+              status: 'talent_tree', class_slug, spec_slug, tree: data
+            }));
+            console.log(`[Main] Pre-loaded cached tree: ${class_slug}/${spec_slug} (${data.class_nodes.length} class + ${data.spec_nodes.length} spec nodes)`);
           }
+        } catch (fe) {
+          console.error(`[Main] Error reading cache file ${file}:`, fe.message);
         }
       }
     } catch (e) {
@@ -141,13 +144,11 @@ function createWindow() {
     // Step 3: Pre-load housing decorations catalog
     try {
       const housingFile = path.join(__dirname, 'assets', 'housing_decorations.json');
-      if (fs.existsSync(housingFile)) {
-        const catalog = JSON.parse(await fsp.readFile(housingFile, 'utf-8'));
-        win?.webContents.send('from-python', JSON.stringify({
-          status: 'housing_catalog_loaded', catalog
-        }));
-        console.log(`[Main] Loaded housing_decorations.json: ${(catalog.items || []).length} items`);
-      }
+      const catalog = JSON.parse(await fsp.readFile(housingFile, 'utf-8'));
+      win?.webContents.send('from-python', JSON.stringify({
+        status: 'housing_catalog_loaded', catalog
+      }));
+      console.log(`[Main] Loaded housing_decorations.json: ${(catalog.items || []).length} items`);
     } catch (e) {
       console.error('[Main] Error reading housing_decorations.json:', e.message);
     }
@@ -156,7 +157,7 @@ function createWindow() {
     try {
       let apiLoaded = false;
       const apiCacheFile = path.join(getDataDir(), 'housing_decor_cache', 'decor_catalog.json');
-      if (fs.existsSync(apiCacheFile)) {
+      try {
         const raw = JSON.parse(await fsp.readFile(apiCacheFile, 'utf-8'));
         const hasIcons = (raw.items || []).slice(0, 50).some(i => i.icon_url);
         if (raw.fetched_at && hasIcons) {
@@ -170,16 +171,14 @@ function createWindow() {
             console.log(`[Main] Pre-loaded cached housing catalog: ${(raw.items || []).length} items (age=${(ageMs / 3600000).toFixed(1)}h)`);
           }
         }
-      }
+      } catch {}
       if (!apiLoaded) {
         const bundledFile = path.join(__dirname, 'assets', 'housing_decor_enriched.json');
-        if (fs.existsSync(bundledFile)) {
-          const raw = JSON.parse(await fsp.readFile(bundledFile, 'utf-8'));
-          win?.webContents.send('from-python', JSON.stringify({
-            status: 'housing_api_catalog', catalog: raw
-          }));
-          console.log(`[Main] Pre-loaded bundled housing catalog: ${(raw.items || []).length} items`);
-        }
+        const raw = JSON.parse(await fsp.readFile(bundledFile, 'utf-8'));
+        win?.webContents.send('from-python', JSON.stringify({
+          status: 'housing_api_catalog', catalog: raw
+        }));
+        console.log(`[Main] Pre-loaded bundled housing catalog: ${(raw.items || []).length} items`);
       }
     } catch (e) {
       console.error('[Main] Error reading housing catalog:', e.message);
@@ -188,14 +187,12 @@ function createWindow() {
     // Step 5: Pre-load housing source data (Wowhead acquisition info)
     try {
       const sourcesFile = path.join(__dirname, 'assets', 'housing_sources.json');
-      if (fs.existsSync(sourcesFile)) {
-        const sources = JSON.parse(await fsp.readFile(sourcesFile, 'utf-8'));
-        const count = Object.keys(sources).filter(k => sources[k]).length;
-        win?.webContents.send('from-python', JSON.stringify({
-          status: 'housing_sources_loaded', sources
-        }));
-        console.log(`[Main] Loaded housing_sources.json: ${count} items with source info`);
-      }
+      const sources = JSON.parse(await fsp.readFile(sourcesFile, 'utf-8'));
+      const count = Object.keys(sources).filter(k => sources[k]).length;
+      win?.webContents.send('from-python', JSON.stringify({
+        status: 'housing_sources_loaded', sources
+      }));
+      console.log(`[Main] Loaded housing_sources.json: ${count} items with source info`);
     } catch (e) {
       console.error('[Main] Error reading housing_sources.json:', e.message);
     }
@@ -203,10 +200,14 @@ function createWindow() {
     // Step 6: Check for app updates (silent)
     checkForUpdates();
   });
+
+  await seedDataFiles();
+  await startPython();
 }
 
 // ── Python backend ──────────────────────────────────────────────────
-function startPython() {
+async function startPython() {
+  const fsp = fs.promises;
   const dataDir = getDataDir();
 
   if (isPackaged) {
@@ -216,11 +217,11 @@ function startPython() {
 
     // Ensure engine is executable on Linux
     if (process.platform !== 'win32') {
-      try { fs.chmodSync(enginePath, 0o755); } catch (e) {}
+      try { await fsp.chmod(enginePath, 0o755); } catch (e) {}
     }
 
     // Ensure data dir exists
-    fs.mkdirSync(dataDir, { recursive: true });
+    await fsp.mkdir(dataDir, { recursive: true });
 
     const utf8Env = { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' };
     pyProcess = spawn(enginePath, ['--datadir', dataDir], {
@@ -289,6 +290,8 @@ function startPython() {
 
 // ── IPC ─────────────────────────────────────────────────────────────
 
+let _buildsSaveQueue = Promise.resolve(); // serialize build saves to prevent corruption
+
 ipcMain.on('to-python', (_, cmd) => {
   // Intercept build-string saves (handled by main, not Python)
   if (cmd.startsWith('SAVE_BUILD_STRING:')) {
@@ -298,21 +301,18 @@ ipcMain.on('to-python', (_, cmd) => {
       const [, classSlug, specSlug, buildType, ...rest] = parts;
       const buildString = rest.join(':'); // in case string contains ':'
       const buildsFile = getBuildsFile();
-      (async () => {
+      _buildsSaveQueue = _buildsSaveQueue.then(async () => {
         try {
-          let builds = {};
-          if (fs.existsSync(buildsFile)) {
-            builds = JSON.parse(await fs.promises.readFile(buildsFile, 'utf-8'));
-          }
-          if (!builds[classSlug]) builds[classSlug] = {};
-          if (!builds[classSlug][specSlug]) builds[classSlug][specSlug] = {};
-          builds[classSlug][specSlug][buildType] = buildString;
-          await fs.promises.writeFile(buildsFile, JSON.stringify(builds, null, 2));
+          if (!_buildsCache) _buildsCache = {};
+          if (!_buildsCache[classSlug]) _buildsCache[classSlug] = {};
+          if (!_buildsCache[classSlug][specSlug]) _buildsCache[classSlug][specSlug] = {};
+          _buildsCache[classSlug][specSlug][buildType] = buildString;
+          await fs.promises.writeFile(buildsFile, JSON.stringify(_buildsCache, null, 2));
           console.log(`[Main] Saved build string: ${classSlug}/${specSlug}/${buildType}`);
         } catch (e) {
           console.error('[Main] Error saving build string:', e.message);
         }
-      })();
+      });
       win?.webContents.send('from-python', JSON.stringify({
         status: 'build_string_saved',
         class_slug: classSlug, spec_slug: specSlug, build_type: buildType
