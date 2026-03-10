@@ -1,4 +1,4 @@
-# Innkeeper - Version 2.3.0
+# Innkeeper - Version 2.4.0
 # @Author: eightmouse
 
 # ------------[      MODULES      ]------------ #
@@ -814,7 +814,7 @@ if __name__ != "__main__":
     BLIZZARD_CLIENT_SECRET = os.getenv("BLIZZARD_CLIENT_SECRET")
     AUTH_KEY             = os.getenv("AUTH_KEY", "")
 
-    app = FastAPI(title="Innkeeper API", version="2.3.0")
+    app = FastAPI(title="Innkeeper API", version="2.4.0")
 
     # ────────────────────  Auth middleware  ──────────────────────
 
